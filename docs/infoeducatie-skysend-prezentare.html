@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Skysend - Prezentare INFOEDUCATIE</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #10202a;
+        --muted: #60707a;
+        --line: #d8e3e7;
+        --panel: #f5f9fa;
+        --accent: #007d8f;
+        --accent-2: #ffb23f;
+        --dark: #0d1b22;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #edf4f6;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      .deck {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 28px 0 56px;
+      }
+
+      .slide {
+        min-height: 720px;
+        margin: 0 0 28px;
+        padding: 44px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 18px 50px rgba(13, 27, 34, 0.08);
+        page-break-after: always;
+      }
+
+      .slide.cover {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 36px;
+        align-items: center;
+        background: var(--dark);
+        color: white;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--accent-2);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: 0;
+        line-height: 1.08;
+      }
+
+      h1 {
+        font-size: clamp(3rem, 7vw, 6.2rem);
+      }
+
+      h2 {
+        font-size: clamp(2rem, 4vw, 3.1rem);
+        color: var(--ink);
+      }
+
+      h3 {
+        margin-top: 22px;
+        font-size: 1.15rem;
+      }
+
+      p {
+        margin: 12px 0 0;
+      }
+
+      .lead {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 1.2rem;
+      }
+
+      .cover .lead {
+        color: #dbe8ec;
+      }
+
+      .meta {
+        display: grid;
+        gap: 6px;
+        margin-top: 34px;
+        color: #c6d4d9;
+        font-size: 0.98rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+        align-items: start;
+        margin-top: 28px;
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .panel {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .panel strong {
+        color: var(--ink);
+      }
+
+      ul,
+      ol {
+        margin: 18px 0 0;
+        padding-left: 1.15rem;
+      }
+
+      li {
+        margin: 8px 0;
+      }
+
+      .image {
+        display: block;
+        width: 100%;
+        max-height: 520px;
+        object-fit: contain;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fbfc;
+      }
+
+      .cover .image {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: #132932;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 24px;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        margin: 4px 6px 0 0;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: #e6f5f7;
+        color: #006d7d;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .callout {
+        margin-top: 24px;
+        padding: 18px 20px;
+        border-left: 4px solid var(--accent);
+        background: #eef8fa;
+        border-radius: 0 8px 8px 0;
+      }
+
+      .placeholder {
+        margin-top: 16px;
+        padding: 18px;
+        border: 1px dashed #9ab0b8;
+        border-radius: 8px;
+        background: #fbfdfd;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 820px) {
+        .deck {
+          width: min(100% - 20px, 1180px);
+        }
+
+        .slide,
+        .slide.cover {
+          min-height: auto;
+          padding: 24px;
+          grid-template-columns: 1fr;
+        }
+
+        .grid,
+        .grid.three {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        body {
+          background: white;
+        }
+
+        .deck {
+          width: 100%;
+          padding: 0;
+        }
+
+        .slide {
+          min-height: 100vh;
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck">
+      <section class="slide cover">
+        <div>
+          <p class="eyebrow">INFOEDUCATIE</p>
+          <h1>Skysend</h1>
+          <p class="lead">
+            Platforma web pentru livrari urbane cu drone, Parcel AI si
+            Mission Control operational.
+          </p>
+          <div class="meta">
+            <span>Elev/elevi: [completeaza numele]</span>
+            <span>Profesor coordonator: [completeaza numele]</span>
+            <span>Scoala: [completeaza scoala]</span>
+          </div>
+        </div>
+        <img class="image" src="assets/infoeducatie/10-homepage.png" alt="Homepage Skysend" />
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Problema</p>
+        <h2>Last-mile urban este lent si greu de controlat</h2>
+        <div class="grid">
+          <div class="panel">
+            <strong>In oras</strong>
+            <ul>
+              <li>trafic si intarzieri pentru colete mici;</li>
+              <li>costuri ridicate pentru livrari scurte;</li>
+              <li>emisii produse de vehicule supradimensionate;</li>
+              <li>predare dificila in zone aglomerate.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <strong>Nevoia produsului</strong>
+            <ul>
+              <li>verificare coverage;</li>
+              <li>puncte sigure de handoff;</li>
+              <li>estimare tehnica a coletului;</li>
+              <li>monitorizare clara a misiunii.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Solutia</p>
+        <h2>Skysend combina harta, AI si configurare automata</h2>
+        <p class="lead">
+          Utilizatorul alege pickup/dropoff si descrie coletul. Sistemul
+          verifica ruta, estimeaza coletul si alege automat platforma de drona.
+        </p>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/01-route-handoff.png" alt="Flow ruta si puncte handoff" />
+          <div>
+            <span class="tag">MapLibre</span>
+            <span class="tag">Geoapify</span>
+            <span class="tag">Parcel AI</span>
+            <span class="tag">Drone config engine</span>
+            <span class="tag">Live simulation</span>
+            <span class="tag">Mission Control</span>
+            <div class="callout">
+              Ideea centrala: utilizatorul nu alege manual drona. Datele
+              coletului si ale rutei declanseaza automat recomandarea.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Flow utilizator</p>
+        <h2>De la adresa la misiune live</h2>
+        <ol>
+          <li>Pickup si dropoff sunt introduse si verificate in coverage.</li>
+          <li>Harta propune puncte de handoff recomandate sau alternative.</li>
+          <li>Utilizatorul descrie coletul in limbaj natural.</li>
+          <li>Parcel AI genereaza profilul tehnic si intrebarile utile.</li>
+          <li>Profilul este confirmat, apoi configuratia este aleasa automat.</li>
+          <li>Order summary afiseaza ETA, pret si configuratie.</li>
+          <li>Misiunea poate fi urmarita in simularea live.</li>
+        </ol>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Parcel AI Intelligence</p>
+        <h2>Descriere naturala transformata in profil tehnic</h2>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/02-parcel-ai-electronics.png" alt="Parcel AI electronics" />
+          <div>
+            <h3>Exemplu electronics</h3>
+            <p class="small">
+              „iPhone 14 Pro Max in cutia originala, cu incarcator, ambalat
+              intr-o cutie mica de carton cu folie cu bule.”
+            </p>
+            <ul>
+              <li>categorie detectata: electronics;</li>
+              <li>dimensiuni si greutate estimate;</li>
+              <li>fragilitate moderata;</li>
+              <li>ambalaj in cutie;</li>
+              <li>profil confirmabil inainte de comanda.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Parcel AI Food</p>
+        <h2>Food si colete sensibile la temperatura</h2>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/04-parcel-ai-food.png" alt="Parcel AI food" />
+          <div>
+            <h3>Exemplu food</h3>
+            <p class="small">
+              „Doua pizza mari si patru bauturi, ambalate in pungi de livrare
+              izolate.”
+            </p>
+            <ul>
+              <li>categorie detectata: food;</li>
+              <li>ambalaj izolat;</li>
+              <li>sensibilitate termica marcata;</li>
+              <li>recomandare catre NOVA Thermal Large in captura.</li>
+            </ul>
+            <div class="callout">
+              In sustinere, modulul trebuie prezentat ca protectie/izolare
+              termica. Integrarea hardware reala de incalzire sau racire nu
+              este demonstrata in proiect.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Configurare automata</p>
+        <h2>Engine-ul alege platforma si cargo module-ul</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Platforma</th>
+              <th>Module</th>
+              <th>Scop</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>AER</td>
+              <td>AER Express, AER Secure</td>
+              <td>colete mici, rapide, urbane, sensibile</td>
+            </tr>
+            <tr>
+              <td>NOVA</td>
+              <td>NOVA Thermal Medium, NOVA Thermal Large, NOVA Cargo</td>
+              <td>food, retail, colete standard si business</td>
+            </tr>
+            <tr>
+              <td>ORIGIN</td>
+              <td>ORIGIN Bulk, ORIGIN Secure+</td>
+              <td>payload mai mare si operatiuni speciale</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/03-automatic-config-electronics.png" alt="Configuratie electronics" />
+          <img class="image" src="assets/infoeducatie/05-automatic-config-food.png" alt="Configuratie food" />
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Limite reale</p>
+        <h2>Configuratia este filtrata dupa date masurabile</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Modul</th>
+              <th>Limite</th>
+              <th>Exemplu</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>AER Secure</td>
+              <td>1.6 kg, 24 x 20 x 12 cm, 5 L</td>
+              <td>electronice mici si sensibile</td>
+            </tr>
+            <tr>
+              <td>NOVA Cargo</td>
+              <td>2.5 kg, 34 x 25 x 16 cm, 11 L</td>
+              <td>retail standard incadrat in limite</td>
+            </tr>
+            <tr>
+              <td>ORIGIN Bulk</td>
+              <td>8 kg, 55 x 42 x 30 cm, 55 L</td>
+              <td>colet mare de retail, aproximativ 4 kg</td>
+            </tr>
+            <tr>
+              <td>ORIGIN Secure+</td>
+              <td>12 kg, 70 x 50 x 36 cm, 85 L</td>
+              <td>colete mari, fragile sau high-value</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="placeholder">
+          [INSEREAZA SCREENSHOT: Parcel AI standard retail / NOVA Cargo]
+        </div>
+        <div class="placeholder">
+          [INSEREAZA SCREENSHOT: colet voluminos / ORIGIN Bulk sau ecran ineligible]
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Landing / Handoff Points</p>
+        <h2>Drona preda prin puncte sigure, nu oriunde</h2>
+        <div class="grid">
+          <div>
+            <ul>
+              <li>punct recomandat;</li>
+              <li>alternativa;</li>
+              <li>indisponibil;</li>
+              <li>review daca riscul trebuie verificat.</li>
+            </ul>
+            <div class="callout">
+              Conceptul tehnic este coborarea locker-ului / cargo module-ului
+              pentru handoff. Drona poate ramane in aer sau poate ateriza doar
+              unde este sigur.
+            </div>
+          </div>
+          <img class="image" src="assets/infoeducatie/01-route-handoff.png" alt="Puncte handoff" />
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Live Delivery Simulation</p>
+        <h2>Misiunea are statusuri, ETA si telemetry</h2>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/09-live-delivery.png" alt="Live delivery" />
+          <div>
+            <ul>
+              <li>preflight checks;</li>
+              <li>en route to pickup;</li>
+              <li>locker descending pickup;</li>
+              <li>parcel secured;</li>
+              <li>en route to dropoff;</li>
+              <li>PIN si confirmare destinatar;</li>
+              <li>delivery completed sau fallback.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Admin Mission Control</p>
+        <h2>Control operational pentru comenzi si flota</h2>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/07-admin-mission-control.png" alt="Admin dashboard" />
+          <div>
+            <ul>
+              <li>comenzi active si review;</li>
+              <li>failed deliveries;</li>
+              <li>fleet readiness;</li>
+              <li>alerting operational;</li>
+              <li>manual review pentru situatii speciale;</li>
+              <li>date si indicatori pentru operator.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Fleet</p>
+        <h2>Flota are disponibilitate si roluri recomandate</h2>
+        <div class="grid">
+          <img class="image" src="assets/infoeducatie/08-admin-fleet.png" alt="Fleet readiness" />
+          <div>
+            <p>
+              Pagina de flota prezinta disponibilitate, baterie, task activ,
+              mentenanta si utilizarea recomandata. Este o baza pentru un
+              sistem real de fleet management.
+            </p>
+            <div class="callout">
+              Integrarea cu hardware real este o directie viitoare, nu o
+              functionalitate demonstrata acum.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Weather & Safety</p>
+        <h2>Exista reguli de siguranta, iar vremea reala ramane viitor</h2>
+        <div class="grid">
+          <div class="panel">
+            <strong>Implementat</strong>
+            <ul>
+              <li>sensibilitate la ploaie, vant, caldura, frig, umiditate;</li>
+              <li>tag-uri de configuratie weather resilient;</li>
+              <li>safety checks inainte de coborarea locker-ului;</li>
+              <li>alerting operational in dashboard demo.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <strong>In dezvoltare</strong>
+            <ul>
+              <li>weather API real;</li>
+              <li>decizii pe vant si vizibilitate live;</li>
+              <li>restrictii aeriene operationale live;</li>
+              <li>telemetry hardware real.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Tehnologii</p>
+        <h2>Stack modern, orientat pe produs</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td>Frontend</td>
+              <td>Next.js, React, TypeScript, Tailwind CSS</td>
+            </tr>
+            <tr>
+              <td>Harti</td>
+              <td>MapLibre GL, Geoapify, candidate handoff points</td>
+            </tr>
+            <tr>
+              <td>Auth si plati</td>
+              <td>Clerk, Stripe / plati simulate in demo</td>
+            </tr>
+            <tr>
+              <td>AI</td>
+              <td>OpenRouter optional, fallback determinist local</td>
+            </tr>
+            <tr>
+              <td>Simulare</td>
+              <td>state machine custom, telemetry si statusuri</td>
+            </tr>
+            <tr>
+              <td>Date si servicii</td>
+              <td>localStorage/mock data in demo, Supabase si Resend pregatite</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="slide">
+        <p class="eyebrow">Dificultati si viitor</p>
+        <h2>Ce face proiectul diferit</h2>
+        <div class="grid">
+          <div class="panel">
+            <strong>Dificultati rezolvate</strong>
+            <ul>
+              <li>harta si coverage urban;</li>
+              <li>puncte candidate de handoff;</li>
+              <li>estimare AI a coletului;</li>
+              <li>configurare automata pe limite fizice;</li>
+              <li>simulare live cu state machine;</li>
+              <li>admin separat de flow-ul clientului.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <strong>Directii viitoare</strong>
+            <ul>
+              <li>weather API real;</li>
+              <li>fleet management cu drone reale;</li>
+              <li>optimizare automata de rute;</li>
+              <li>extindere in alte orase;</li>
+              <li>integrare completa de persistenta si analytics.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          Fraza finala: Skysend arata cum AI, harti, reguli de siguranta si
+          simulare operationala pot transforma livrarea urbana cu drone intr-un
+          produs coerent si controlabil.
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

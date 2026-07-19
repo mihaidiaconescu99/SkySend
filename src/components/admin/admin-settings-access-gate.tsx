@@ -1,0 +1,12 @@
+"use client";
+
+import { useState } from "react";
+import { KeyRound, LoaderCircle } from "lucide-react";
+import { AppButton } from "@/components/shared/app-button";
+import { Card, CardContent } from "@/components/ui/card";
+
+export function AdminSettingsAccessGate({ configured }: { configured: boolean }) {
+  const [code, setCode] = useState(""); const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(false);
+  async function unlock() { setLoading(true); setError(null); try { const response = await fetch("/api/admin/settings-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) }); if (!response.ok) { const body = await response.json().catch(() => null); setError(body?.error === "settings_code_not_configured" ? "Codul de acces nu este configurat în mediu." : "Cod invalid. Verifică cele 6 cifre."); return; } window.location.reload(); } finally { setLoading(false); } }
+  return <section className="app-container grid min-h-[60vh] place-items-center py-8"><Card className="w-full max-w-md rounded-[var(--ui-radius-panel)]"><CardContent className="grid gap-5 p-6 text-center"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary"><KeyRound className="size-6" /></span><div><p className="font-heading text-2xl">Acces protejat</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Introdu codul cu 6 cifre pentru a deschide setările platformei. Accesul expiră automat după 3 minute.</p></div>{configured ? <><input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/gu, "").slice(0, 6))} onKeyDown={(event) => { if (event.key === "Enter") void unlock(); }} inputMode="numeric" autoComplete="one-time-code" aria-label="Cod de acces cu 6 cifre" placeholder="••••••" className="h-14 rounded-xl border bg-background text-center font-mono text-2xl tracking-[.45em] outline-none focus:ring-4 focus:ring-ring" /><AppButton onClick={() => void unlock()} disabled={code.length !== 6 || loading}>{loading ? <LoaderCircle className="size-4 animate-spin" /> : <KeyRound className="size-4" />}Deblochează pentru 3 minute</AppButton>{error ? <p className="text-sm text-destructive">{error}</p> : null}</> : <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">Lipsește `ADMIN_SETTINGS_ACCESS_CODE` din configurația serverului.</p>}</CardContent></Card></section>;
+}

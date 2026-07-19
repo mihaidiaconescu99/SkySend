@@ -1,0 +1,215 @@
+:root {
+  --brand-ink: #0b1220;
+  --brand-steel: #586672;
+  --brand-sky: #20e7d5;
+  --brand-mist: #e4edf3;
+  --background: #f6f8fb;
+  --foreground: #0b1220;
+  --card: #ffffff;
+  --card-foreground: #0b1220;
+  --popover: #ffffff;
+  --popover-foreground: #0b1220;
+  --primary: #20e7d5;
+  --primary-foreground: #04100f;
+  --secondary: #eaf2f6;
+  --secondary-foreground: #1f2d3a;
+  --muted: #eef3f6;
+  --muted-foreground: #5d6f7d;
+  --accent: #cff5ee;
+  --accent-foreground: #0c2e2a;
+  --success: #16a36b;
+  --success-foreground: #ffffff;
+  --warning: #b6872c;
+  --warning-foreground: #ffffff;
+  --destructive: #c43c3c;
+  --destructive-foreground: #ffffff;
+  --border: #c8d3dd;
+  --input: #c8d3dd;
+  --ring: rgba(32, 231, 213, 0.32);
+  --card-border: #b8c5d2;
+  --card-border-strong: #a5b4c4;
+  --scrollbar-thumb: rgba(15, 23, 42, 0.22);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.34);
+  --scrollbar-track: rgba(255, 255, 255, 0.6);
+  --chart-1: #20e7d5;
+  --chart-2: #16a36b;
+  --chart-3: #586672;
+  --chart-4: #9fb4c2;
+  --chart-5: #b6872c;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b1220;
+  --sidebar-primary: #20e7d5;
+  --sidebar-primary-foreground: #04100f;
+  --sidebar-accent: #eaf2f6;
+  --sidebar-accent-foreground: #0c2e2a;
+  --sidebar-border: #d9e3ea;
+  --sidebar-ring: rgba(32, 231, 213, 0.32);
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4rem;
+  --space-3xl: 5rem;
+  --radius: 1rem;
+  --radius-pill: 999px;
+  --ui-radius-card: 1.5rem;
+  --ui-radius-panel: 1.9rem;
+  --ui-space-section: clamp(3.5rem, 5vw, 5rem);
+  --ui-space-stack: clamp(1.25rem, 2vw, 1.75rem);
+  --ui-space-compact: 1rem;
+  --type-display: clamp(2.75rem, 8vw, 5.5rem);
+  --type-h1: clamp(2.15rem, 5vw, 4rem);
+  --type-h2: clamp(1.65rem, 4vw, 3rem);
+  --type-h3: clamp(1.25rem, 3vw, 2rem);
+  --type-subtitle: clamp(0.96rem, 1.2vw, 1.05rem);
+  --type-body: 1rem;
+  --type-caption: 0.78rem;
+  --leading-tight: 1.02;
+  --leading-snug: 1.16;
+  --leading-body: 1.7;
+  --elevation-card: 0 18px 42px -34px rgba(15, 23, 42, 0.28);
+  --elevation-panel: 0 28px 80px -46px rgba(15, 23, 42, 0.30);
+  --elevation-soft: 0 12px 28px -24px rgba(15, 23, 42, 0.24);
+  --max-width: 76rem;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --bottom-nav-height: 4.25rem;
+  --bottom-nav-safe: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+  --touch-target-min: 44px;
+  --mobile-panel-radius: 20px;
+  --mobile-panel-handle: 4px;
+  color-scheme: light;
+}
+
+html.dark {
+  --brand-ink: #f4f8fb;
+  --brand-steel: #8ea3b3;
+  --brand-sky: #20e7d5;
+  --brand-mist: #1c2a36;
+  --background: #05070a;
+  --foreground: #f4f8fb;
+  --card: #0b1117;
+  --card-foreground: #f4f8fb;
+  --popover: #101821;
+  --popover-foreground: #f4f8fb;
+  --primary: #20e7d5;
+  --primary-foreground: #04100f;
+  --secondary: #101821;
+  --secondary-foreground: #c4d2dd;
+  --muted: #0e151d;
+  --muted-foreground: #8ea3b3;
+  --accent: #123235;
+  --accent-foreground: #d7fffb;
+  --success: #48d6a0;
+  --success-foreground: #04100c;
+  --warning: #e3b65f;
+  --warning-foreground: #140e03;
+  --destructive: #ff7d7d;
+  --destructive-foreground: #180505;
+  --border: #1c2a36;
+  --input: #263746;
+  --ring: rgba(32, 231, 213, 0.22);
+  --scrollbar-thumb: rgba(142, 163, 179, 0.28);
+  --scrollbar-thumb-hover: rgba(32, 231, 213, 0.42);
+  --scrollbar-track: rgba(11, 17, 23, 0.8);
+  --chart-1: #20e7d5;
+  --chart-2: #48d6a0;
+  --chart-3: #8ea3b3;
+  --chart-4: #426576;
+  --chart-5: #e3b65f;
+  --sidebar: #070b10;
+  --sidebar-foreground: #f4f8fb;
+  --sidebar-primary: #20e7d5;
+  --sidebar-primary-foreground: #04100f;
+  --sidebar-accent: #101821;
+  --sidebar-accent-foreground: #d7fffb;
+  --sidebar-border: #1c2a36;
+  --sidebar-ring: rgba(32, 231, 213, 0.22);
+  --card-border: #1c2a36;
+  --card-border-strong: #263746;
+  --elevation-card: 0 18px 42px -34px rgba(0, 0, 0, 0.72);
+  --elevation-panel: 0 28px 80px -46px rgba(0, 0, 0, 0.78);
+  --elevation-soft: 0 12px 28px -24px rgba(0, 0, 0, 0.62);
+  color-scheme: dark;
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(32, 231, 213, 0.055), transparent 28rem),
+    linear-gradient(180deg, #071017 0%, var(--background) 42rem);
+}
+
+html.light body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(32, 231, 213, 0.10), transparent 28rem),
+    linear-gradient(180deg, #eef4f8 0%, var(--background) 42rem);
+}
+
+html:not(.dark) body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(32, 231, 213, 0.10), transparent 28rem),
+    linear-gradient(180deg, #eef4f8 0%, var(--background) 42rem);
+}
+
+body[data-theme-transition] {
+  transition: background-color 350ms ease, color 350ms ease, border-color 350ms ease;
+}
+body[data-theme-transition] *,
+body[data-theme-transition] *::before,
+body[data-theme-transition] *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 250ms;
+  transition-timing-function: ease;
+}
+
+html.light [data-slot="card"],
+html.light [data-slot="card"] {
+  border-color: var(--card-border);
+  box-shadow:
+    var(--elevation-card),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+}
+
+html.light .rounded-\[calc\(var\(--ui-radius-card\)\)\][class*="border"]:not([data-slot="card"]) {
+  border-color: var(--card-border);
+}
+
+html.light [data-slot="card"]:hover,
+html.light [data-slot="card"][class*="hover:border"] {
+  border-color: var(--card-border-strong);
+}
+
+html.light .map-surface {
+  border-color: var(--card-border);
+}
+
+html.light .map-surface--premium .maplibregl-canvas,
+html.light .map-surface:not(.map-surface--premium) .maplibregl-canvas {
+  filter: contrast(1.02);
+}
+
+html.light .map-surface .maplibregl-ctrl-group {
+  border-color: rgba(168, 180, 196, 0.6);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 34px rgba(11, 18, 23, 0.14);
+}
+
+html.light .map-surface .maplibregl-ctrl button .maplibregl-ctrl-icon {
+  opacity: 0.62;
+  filter: invert(0.12) saturate(0.85);
+}
+
+html.light .map-surface .maplibregl-compact-show {
+  background: rgba(255, 255, 255, 0.86);
+  color: #2a3641;
+}
+
+html.light .map-overlay-card {
+  background: color-mix(in srgb, var(--card) 96%, black);
+  box-shadow: 0 18px 42px -34px rgba(15, 23, 42, 0.42);
+}

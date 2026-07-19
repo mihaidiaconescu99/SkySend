@@ -1,0 +1,2466 @@
+.storyRoot {
+  --story-navy: #050b14;
+  --story-ink: #02070d;
+  --story-cyan: #20e7d5;
+  --story-white: #f2efe6;
+  --story-violet: #7250ff;
+  --story-editorial-base: #06131f;
+  --story-final-background:
+    radial-gradient(circle at 22% 37%, rgb(21 67 96 / 0.36), transparent 35rem),
+    radial-gradient(circle at 80% 48%, rgb(28 49 68 / 0.24), transparent 28rem),
+    linear-gradient(110deg, #06131f, #080e17 63%, #0d0e12);
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background: var(--story-navy);
+  color: var(--story-white);
+}
+
+.howStoryRoot {
+  --how-next-scene-color: #000008;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background: var(--how-next-scene-color);
+  color: #f2efe6;
+}
+
+.chapter {
+  position: relative;
+  height: calc(var(--story-screens, 2.4) * 100dvh);
+  min-height: 150dvh;
+  background: var(--story-navy);
+}
+
+.stickyStage {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100dvh;
+  min-height: 36rem;
+  overflow: hidden;
+  background: var(--story-navy);
+  contain: layout paint;
+}
+
+.scrubHost,
+.scrubMedia {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scrubHost {
+  overflow: hidden;
+  background: var(--story-navy);
+}
+
+.scrubMedia {
+  display: block;
+  user-select: none;
+}
+
+.scrubPoster { z-index: 1; }
+
+.mediaLoader {
+  position: absolute;
+  z-index: 2;
+  left: max(1.2rem, env(safe-area-inset-left));
+  top: 50%;
+  z-index: 9;
+  display: grid;
+  gap: 0.3rem;
+  transform: translateY(-50%);
+}
+
+.mediaLoader span {
+  display: block;
+  width: 0.24rem;
+  height: 1.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(242 239 230 / 0.24);
+}
+
+.mediaLoader span::after {
+  display: block;
+  width: 100%;
+  height: 100%;
+  content: "";
+  border-radius: inherit;
+  background: var(--story-white);
+  transform-origin: bottom;
+  animation: media-loading 1.15s ease-in-out infinite;
+}
+
+.mediaLoader span:nth-child(2)::after { animation-delay: 0.13s; }
+.mediaLoader span:nth-child(3)::after { animation-delay: 0.26s; }
+.mediaLoader span:nth-child(4)::after { animation-delay: 0.39s; }
+
+@keyframes media-loading {
+  0%, 100% { transform: scaleY(0.12); opacity: 0.3; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+.progressRail {
+  position: fixed;
+  left: max(1.05rem, env(safe-area-inset-left));
+  top: 50%;
+  z-index: 42;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-0.5rem, -50%, 0);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.progressRailVisible {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0);
+}
+
+:global(.story-explorer-open) .progressRail {
+  opacity: 0;
+  transform: translate3d(-0.6rem, -50%, 0);
+}
+
+.progressRail ol {
+  display: grid;
+  gap: 0.42rem;
+  list-style: none;
+}
+
+.progressRail li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 1.45rem;
+}
+
+.railTrack {
+  position: relative;
+  display: block;
+  width: 0.25rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(242 239 230 / 0.2);
+}
+
+.progressRail li:nth-child(3n + 2) .railTrack { height: 2.35rem; }
+.progressRail li:nth-child(3n) .railTrack { height: 1.25rem; }
+
+.railFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--story-white);
+  box-shadow: 0 0 0.8rem rgb(32 231 213 / 0.34);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  will-change: transform;
+}
+
+.railLabel {
+  max-width: 0;
+  overflow: hidden;
+  color: rgb(242 239 230 / 0.58);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  opacity: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-0.4rem);
+  transition: max-width 260ms ease, opacity 220ms ease, transform 260ms ease;
+}
+
+.railActive .railLabel {
+  max-width: 10rem;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.landingProgressRail {
+  position: fixed;
+  top: 50%;
+  left: max(1rem, env(safe-area-inset-left));
+  z-index: 42;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-0.4rem, -50%, 0);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.landingProgressRailVisible {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0);
+}
+
+.landingProgressRail ol {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landingProgressRail li {
+  display: block;
+}
+
+.landingProgressTrack {
+  position: relative;
+  display: block;
+  width: 0.34rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(190 194 198 / 0.32);
+  transition: height 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landingProgressActive .landingProgressTrack {
+  height: 2.85rem;
+}
+
+.landingProgressFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  transform: scaleY(0);
+  transform-origin: top;
+  will-change: transform;
+}
+
+.landingProgressLabel,
+.partnerMarqueeAccessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.backToTopButton {
+  position: fixed;
+  bottom: max(1.15rem, env(safe-area-inset-bottom));
+  left: max(1.15rem, env(safe-area-inset-left));
+  z-index: 44;
+  display: grid;
+  width: 2.9rem;
+  height: 2.9rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 50%;
+  background: rgb(91 98 105 / 0.78);
+  color: #fff;
+  box-shadow: 0 0.7rem 1.8rem rgb(0 0 0 / 0.24);
+  backdrop-filter: blur(0.7rem);
+  cursor: pointer;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.backToTopButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.backToTopButton:hover {
+  background: rgb(112 120 128 / 0.9);
+  transform: translateY(-0.12rem);
+}
+
+.backToTopButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 0.22rem;
+}
+
+.vCurve {
+  position: absolute;
+  right: -1%;
+  bottom: -2px;
+  left: -1%;
+  z-index: 30;
+  display: flex;
+  height: 34dvh;
+  flex-direction: column;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.vCurve svg {
+  display: block;
+  width: 100%;
+  height: 30%;
+  flex: none;
+  overflow: visible;
+}
+
+.vCurveMobilePath { display: none; }
+
+.vCurve > span {
+  display: block;
+  flex: 1;
+}
+
+.vCurve.vCurveReference {
+  height: 42dvh;
+}
+
+.vCurveReference svg {
+  height: 78%;
+}
+
+.containImage {
+  object-fit: contain;
+  user-select: none;
+}
+
+.schematicWorld {
+  position: absolute;
+  inset: -5%;
+  z-index: 0;
+  width: 110%;
+  height: 110%;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.schematicBuilding {
+  position: absolute;
+  right: 0;
+  bottom: -1%;
+  z-index: 2;
+  width: min(48vw, 45rem);
+  height: 92%;
+  pointer-events: none;
+}
+
+.heroScene,
+.explorerScene,
+.descentScene,
+.weatherScene,
+.finalCtaScene,
+.howScene,
+.howSceneAlt,
+.howSceneViolet,
+.flightScene,
+.deliveryScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.heroScene { background: #82c9e5; }
+
+.landingHeroScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #77bfdc;
+}
+
+.howHeroScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #050b14;
+}
+
+.howHeroVideo {
+  object-fit: cover;
+  object-position: center center;
+}
+
+.howHeroShade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(2 7 13 / 0.08) 0%, rgb(2 7 13 / 0.04) 39%, rgb(2 7 13 / 0.48) 100%),
+    linear-gradient(90deg, rgb(2 7 13 / 0.2), transparent 45%, rgb(2 7 13 / 0.16));
+  pointer-events: none;
+}
+
+.howHeroCopy {
+  position: absolute;
+  bottom: clamp(4.4rem, 12dvh, 8.5rem);
+  left: 50%;
+  z-index: 8;
+  display: grid;
+  width: min(95vw, 86rem);
+  justify-items: center;
+  color: #f5f0e3;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.howHeroCopy h1 {
+  margin: 0;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(4rem, 9.2vw, 10.6rem);
+  font-stretch: condensed;
+  font-weight: 900;
+  letter-spacing: 0.005em;
+  line-height: 0.76;
+  text-shadow: 0 0.18rem 1.6rem rgb(2 7 13 / 0.48);
+  text-transform: uppercase;
+  transform: scaleX(0.84);
+}
+
+.howHeroCopy h1 span {
+  display: block;
+}
+
+.howHeroCopy p {
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+  margin: clamp(1.25rem, 3dvh, 2.1rem) 0 0;
+  color: rgb(245 240 227 / 0.9);
+  font-size: clamp(1.2rem, 1.82vw, 1.62rem);
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.42;
+  text-shadow: 0 0.12rem 0.9rem rgb(2 7 13 / 0.52);
+  white-space: nowrap;
+}
+
+.howHeroScene .vCurve.vCurveReference {
+  height: 57dvh;
+}
+
+.scrollCue {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-top: clamp(1.05rem, 2.6dvh, 1.75rem);
+  place-items: center;
+  color: #fff;
+  filter: drop-shadow(0 0.08rem 0.45rem rgb(2 7 13 / 0.55));
+  pointer-events: none;
+}
+
+.scrollCue svg {
+  width: 100%;
+  height: 100%;
+  animation: scroll-cue-drift 1.8s ease-in-out infinite;
+}
+
+@keyframes scroll-cue-drift {
+  0%, 100% { transform: translateY(-0.16rem); }
+  50% { transform: translateY(0.2rem); }
+}
+
+.landingHeroScene > .scrollCue {
+  position: absolute;
+  right: 0;
+  bottom: max(1.65rem, calc(env(safe-area-inset-bottom) + 0.65rem));
+  left: 0;
+  z-index: 8;
+  margin-inline: auto;
+}
+
+.howTutorialChapter,
+.howTutorialStage {
+  background: var(--how-next-scene-color);
+}
+
+.howTutorialScene,
+.howTutorialContent {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.howTutorialScene {
+  background: var(--how-next-scene-color);
+}
+
+.howTutorialContent {
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.62fr);
+  align-items: center;
+  gap: clamp(2rem, 7vw, 10rem);
+  width: min(92vw, 88rem);
+  height: 100%;
+  margin: 0 auto;
+  padding: max(4.8rem, env(safe-area-inset-top)) 0 max(3rem, env(safe-area-inset-bottom));
+}
+
+.howTutorialText {
+  position: relative;
+  min-height: min(41rem, 74dvh);
+}
+
+.howTutorialCopyLayer {
+  position: absolute;
+  inset: -2rem;
+  display: grid;
+  max-width: calc(43rem + 4rem);
+  padding: 2rem;
+  align-content: center;
+  transform-origin: 2rem center;
+  will-change: opacity, transform, filter;
+}
+
+.howBackToTopButton {
+  top: auto;
+  bottom: max(1.15rem, env(safe-area-inset-bottom));
+}
+
+.howTutorialMeta {
+  display: block;
+}
+
+.howTutorialStep {
+  margin: 0 0 clamp(0.9rem, 2dvh, 1.35rem);
+  color: var(--story-cyan);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  line-height: 1;
+}
+
+.howTutorialCopyLayer h2 {
+  max-width: 11ch;
+  margin: 0;
+  color: #f5f0e3;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(3.65rem, 6.15vw, 7.3rem);
+  font-stretch: condensed;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  line-height: 0.84;
+  text-transform: uppercase;
+}
+
+.howTutorialBody {
+  display: grid;
+  max-width: 37rem;
+  gap: 0.7rem;
+  margin-top: clamp(1.15rem, 2.5dvh, 1.85rem);
+}
+
+.howTutorialBody p {
+  margin: 0;
+  color: rgb(242 239 230 / 0.76);
+  font-size: clamp(0.94rem, 1.12vw, 1.15rem);
+  font-weight: 520;
+  letter-spacing: -0.018em;
+  line-height: 1.55;
+}
+
+.howTutorialCopyLayer[data-scene="3"] h2 {
+  max-width: 13ch;
+  font-size: clamp(2.9rem, 4.25vw, 4.9rem);
+}
+
+.howTutorialVideoCard {
+  position: relative;
+  justify-self: end;
+  width: min(100%, clamp(22rem, 31vw, 34rem));
+  max-height: calc(100dvh - 8rem);
+  aspect-ratio: 9 / 16;
+}
+
+.howNextScene {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--how-next-scene-color);
+}
+
+.landingHeroFrames { z-index: 0; }
+
+.frameSequence,
+.framePoster,
+.frameCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.frameSequence { overflow: hidden; background: #77bfdc; }
+
+.framePoster {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+}
+
+.frameCanvas { display: block; }
+
+.frameLoader {
+  position: absolute;
+  right: max(1.25rem, env(safe-area-inset-right));
+  bottom: max(1.25rem, env(safe-area-inset-bottom));
+  color: rgb(255 255 255 / 0.78);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.landingHeroVeil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgb(2 7 13 / 0.16) 0%, transparent 31%, transparent 67%, rgb(2 7 13 / 0.28) 100%),
+    linear-gradient(90deg, rgb(2 7 13 / 0.12), transparent 44%, rgb(2 7 13 / 0.04));
+  pointer-events: none;
+}
+
+.landingHeroTint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgb(2 7 13 / 0.26);
+  pointer-events: none;
+}
+
+.landingWordmarkWrap {
+  position: absolute;
+  top: max(6.4rem, 11dvh);
+  right: 4vw;
+  left: 4vw;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.landingWordmark {
+  color: #fff;
+  font-family: var(--font-heading), "Segoe UI", sans-serif;
+  font-size: clamp(5.2rem, 10.8vw, 11.8rem);
+  font-weight: 800;
+  -webkit-text-stroke: clamp(0.6px, 0.07vw, 1.1px) currentColor;
+  letter-spacing: -0.065em;
+  line-height: 0.94;
+  text-align: center;
+  transform: scaleX(0.96);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.landingMessage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 4;
+  width: min(96vw, 92rem);
+  margin: 0;
+  color: #fff;
+  font-family: "Arial Black", var(--font-story), sans-serif;
+  font-size: clamp(2.25rem, 3.5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 1.16;
+  padding-block: 0.12em 0.18em;
+  text-align: center;
+  transform: translate(-50%, -50%) scaleX(0.9);
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+.messageClear,
+.messageBlur {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  will-change: clip-path, filter;
+  overflow: visible;
+}
+
+.messageClear { position: relative; }
+.messageBlur { color: #fff; }
+
+.landingTransitionCanvas {
+  min-height: 100dvh;
+  background: #06131f;
+}
+
+.editorialChapter,
+.editorialStage,
+.editorialScene {
+  background: var(--story-editorial-base);
+}
+
+.editorialStage {
+  color: #fff;
+}
+
+.editorialChapter {
+  z-index: 31;
+  margin-top: -8px;
+}
+
+.editorialScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.editorialScene::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 55% 32%, rgb(18 43 69 / 0.3), transparent 38rem),
+    linear-gradient(105deg, transparent 0%, rgb(5 11 19 / 0.72) 56%, rgb(9 10 13 / 0.9) 100%);
+  content: "";
+  mask-image: linear-gradient(180deg, transparent 0, transparent 26dvh, #000 52dvh);
+  pointer-events: none;
+}
+
+.editorialHeadline {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: min(96vw, 110rem);
+  transform: translate(-50%, -50%);
+}
+
+.editorialHeadline h2 {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.04em;
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(5.8rem, 9vw, 10.8rem);
+  font-weight: 850;
+  letter-spacing: -0.062em;
+  line-height: 0.9;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.editorialHeadline h2 > span {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  opacity: var(--editorial-text-opacity, 1);
+  white-space: nowrap;
+  transform: scaleX(0.82);
+  will-change: opacity;
+}
+
+.editorialVideoLayer {
+  position: absolute;
+  top: 24dvh;
+  left: 30vw;
+  z-index: 3;
+  width: 84vw;
+  height: 70dvh;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.editorialVideoLayer::before {
+  position: absolute;
+  inset: 12% 8% 8%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.035) 42%, transparent 72%);
+  filter: blur(3rem);
+  content: "";
+}
+
+.editorialObjectHost {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  background: transparent;
+  transform: scale(1.3);
+  transform-origin: 70% 35%;
+}
+
+.alphaSequence,
+.alphaSequenceFallback,
+.alphaSequenceCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.alphaSequence {
+  overflow: visible;
+}
+
+.alphaSequenceFallback {
+  z-index: 0;
+  object-fit: contain;
+  opacity: 1;
+  user-select: none;
+}
+
+.alphaSequenceCanvas {
+  z-index: 1;
+  display: block;
+  opacity: 0;
+  filter: drop-shadow(0 1.5rem 2.6rem rgb(0 0 0 / 0.28));
+}
+
+.cinematicWeatherFlow {
+  position: relative;
+  z-index: 32;
+}
+
+.cinematicWeatherChapter,
+.cinematicWeatherSticky,
+.cinematicWeatherStage {
+  background: #101217;
+}
+
+.cinematicWeatherChapter {
+  z-index: 32;
+  margin-top: 0;
+}
+
+.cinematicWeatherStage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.cinematicWeatherScene {
+  position: absolute;
+  inset: 0;
+  background: #101217;
+  will-change: opacity;
+}
+
+.cinematicWeatherMediaFrame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--weather-frame-radius, 0rem);
+  clip-path: inset(var(--weather-frame-inset, 0% 0%));
+  transform: scale(var(--weather-frame-scale, 1));
+  will-change: transform, border-radius, clip-path;
+}
+
+.cinematicWeatherVideo {
+  object-fit: cover;
+}
+
+.cinematicWeatherShade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgb(3 5 8 / 0.34), transparent 38%, rgb(3 5 8 / 0.18)),
+    linear-gradient(270deg, rgb(3 5 8 / 0.58), transparent 58%);
+  pointer-events: none;
+}
+
+.cinematicWeatherCopy {
+  position: absolute;
+  top: max(6.3rem, 12dvh);
+  right: clamp(2rem, 6vw, 7rem);
+  z-index: 14;
+  width: min(34rem, 42vw);
+  color: #fff;
+  opacity: var(--weather-copy-opacity, 1);
+  text-align: right;
+  text-shadow: 0 0.15rem 1.2rem rgb(0 0 0 / 0.45);
+}
+
+.cinematicWeatherCopy p {
+  margin: 0 0 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+}
+
+.cinematicWeatherCopy h2 {
+  margin: 0;
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(2rem, 3.5vw, 4.4rem);
+  font-weight: 620;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.cinematicWeatherMessages {
+  position: relative;
+  display: grid;
+}
+
+.cinematicWeatherMessages h2 {
+  grid-area: 1 / 1;
+  will-change: opacity, filter, transform;
+}
+
+.cinematicWeatherPrimary {
+  opacity: var(--weather-primary-opacity, 1);
+  filter: blur(var(--weather-primary-blur, 0px));
+  transform: translateY(var(--weather-primary-y, 0rem));
+}
+
+.cinematicWeatherSecondary {
+  opacity: var(--weather-secondary-opacity, 0);
+  filter: blur(var(--weather-secondary-blur, 5px));
+  transform: translateY(var(--weather-secondary-y, 1.15rem));
+}
+
+.cinematicLockerMotion {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 10;
+  width: min(56vw, 58rem);
+  aspect-ratio: 1;
+  opacity: 0.55;
+  filter: blur(14px);
+  transform: translate(-50%, -50%) scale(0.72);
+  transform-origin: center;
+  will-change: transform, filter, opacity;
+}
+
+.cinematicLocker {
+  position: absolute;
+  inset: 0;
+}
+
+.cinematicLockerShell {
+  z-index: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 1.5rem 2.8rem rgb(0 0 0 / 0.34));
+}
+
+.cinematicLockerOpening {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  clip-path: inset(38.5% 21.7% 31.2% 37.2% round 0.8rem);
+}
+
+.cinematicLockerContent {
+  position: absolute;
+  inset: 0;
+  transform-origin: 57% 54%;
+  will-change: opacity, filter, transform;
+}
+
+.cinematicLockerContent img {
+  object-fit: contain;
+}
+
+.weatherProgressRail {
+  position: absolute;
+  top: 50%;
+  left: max(1.35rem, calc(env(safe-area-inset-left) + 0.6rem));
+  z-index: 16;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.weatherProgressRail ol {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weatherProgressRail li {
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+.weatherRailTrack {
+  position: relative;
+  display: block;
+  width: 0.27rem;
+  height: 1.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(174 174 170 / 0.82);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.16);
+  transition: height 260ms cubic-bezier(0.22, 1, 0.36, 1), background-color 220ms ease;
+}
+
+.weatherRailActive .weatherRailTrack {
+  height: 4.5rem;
+  background: rgb(187 187 183 / 0.9);
+}
+
+.weatherRailFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #050505;
+  opacity: 0;
+  transform-origin: top;
+  transition: opacity 120ms ease;
+  will-change: transform;
+}
+
+.weatherRailActive .weatherRailFill {
+  opacity: 1;
+}
+
+.weatherRailLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.finalRevealChapter,
+.finalRevealSticky,
+.finalRevealScene,
+.finalCtaLandingChapter,
+.finalCtaLandingSticky,
+.finalCtaLandingScene {
+  background: #06131f;
+}
+
+.finalRevealScene,
+.finalCtaLandingScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.finalRevealRain {
+  z-index: 0;
+  object-fit: cover;
+}
+
+.finalRevealRainMobile { display: none; }
+
+.finalRevealCurtain {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--story-final-background);
+  will-change: opacity;
+}
+
+.cinematicWeatherFinalCurtain {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  background: var(--story-final-background);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.finalCtaLandingScene {
+  background: var(--story-final-background);
+}
+
+.cinematicWeatherFinalCurtain,
+.finalCtaLandingScene {
+  background-attachment: fixed;
+  background-position: 0 0;
+  background-size: 100vw 100dvh;
+}
+
+.finalCtaComposition {
+  position: absolute;
+  inset: max(5rem, 8dvh) 0 max(2rem, 4dvh);
+}
+
+.finalCtaDrone {
+  position: absolute;
+  top: 2%;
+  bottom: 0;
+  left: -2vw;
+  width: 62vw;
+  pointer-events: none;
+}
+
+.finalCtaDroneImage {
+  object-fit: contain;
+  object-position: center;
+}
+
+.finalCtaGlass {
+  position: absolute;
+  top: 50%;
+  right: clamp(2rem, 6vw, 7rem);
+  z-index: 3;
+  width: min(44vw, 46rem);
+  min-height: 26rem;
+  padding: clamp(2.2rem, 3.6vw, 4.1rem);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: clamp(1.8rem, 3vw, 3.2rem);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.17), rgb(255 255 255 / 0.055) 44%, rgb(255 255 255 / 0.025)),
+    rgb(9 20 31 / 0.52);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1.3rem 2.4rem rgb(0 0 0 / 0.12),
+    0 2.2rem 5rem rgb(0 0 0 / 0.38),
+    0 0.35rem 0 rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(1.55rem) saturate(135%);
+  transform: translateY(-50%) perspective(70rem) rotateY(-2.2deg) rotateX(1deg);
+}
+
+.finalCtaReflection {
+  position: absolute;
+  top: -42%;
+  left: -18%;
+  width: 74%;
+  height: 92%;
+  border-radius: 50%;
+  background: linear-gradient(130deg, rgb(255 255 255 / 0.22), transparent 64%);
+  filter: blur(1.2rem);
+  opacity: 0.42;
+  pointer-events: none;
+  transform: rotate(-12deg);
+}
+
+.finalCtaGlass h2 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(2.25rem, 3.6vw, 4.4rem);
+  font-weight: 700;
+  letter-spacing: -0.047em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.finalCtaActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: clamp(2rem, 3.5vw, 3.3rem);
+}
+
+.finalCtaPrimary,
+.finalCtaSecondary {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-height: 3.7rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.45rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.98rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  text-shadow: none;
+  transition: border-color 180ms ease, background-color 180ms ease, font-weight 180ms ease, text-shadow 180ms ease;
+}
+
+.finalCtaPrimary::after,
+.finalCtaSecondary::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0.28rem -0.16rem -0.22rem 0.15rem;
+  border-radius: inherit;
+  content: "";
+  opacity: 0.92;
+  transform: rotate(-1.1deg);
+  transition: opacity 180ms ease;
+}
+
+.finalCtaLabel {
+  display: inline-block;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), letter-spacing 300ms cubic-bezier(0.22, 1, 0.36, 1), text-shadow 220ms ease;
+}
+
+.finalCtaPrimary {
+  background: var(--story-cyan);
+  color: #03151a;
+}
+
+.finalCtaPrimary::after {
+  background: rgb(0 104 102);
+}
+
+.finalCtaSecondary {
+  border-color: rgb(255 255 255 / 0.3);
+  background: rgb(255 255 255 / 0.07);
+  color: #fff;
+}
+
+.finalCtaSecondary::after {
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: rgb(255 255 255 / 0.045);
+}
+
+.finalCtaPrimary:hover,
+.finalCtaPrimary:focus-visible {
+  font-weight: 800;
+  text-shadow: 0.5px 0 currentColor, -0.5px 0 currentColor;
+}
+
+.finalCtaPrimary:hover::after,
+.finalCtaPrimary:focus-visible::after,
+.finalCtaSecondary:hover::after,
+.finalCtaSecondary:focus-visible::after {
+  opacity: 1;
+}
+
+.finalCtaPrimary:hover .finalCtaLabel,
+.finalCtaPrimary:focus-visible .finalCtaLabel {
+  letter-spacing: 0.055em;
+  text-shadow: 0.5px 0 currentColor, -0.5px 0 currentColor;
+  transform: scale(1.075);
+}
+
+.finalCtaPrimary:focus-visible,
+.finalCtaSecondary:focus-visible,
+.partnerMarquee:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 0.25rem;
+}
+
+.partnerCarousel {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  min-height: 76dvh;
+  align-content: center;
+  overflow: hidden;
+  padding: clamp(5rem, 11dvh, 9rem) 0;
+  background: var(--story-final-background);
+  background-attachment: fixed;
+  background-position: 0 0;
+  background-size: 100vw 100dvh;
+}
+
+.partnerCarousel::before {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  content: "";
+  pointer-events: none;
+}
+
+.partnerCarouselTitle {
+  position: relative;
+  z-index: 2;
+  width: min(90vw, 72rem);
+  margin: 0 auto clamp(3rem, 7dvh, 5.5rem);
+  color: #fff;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(3.2rem, 6.4vw, 7.2rem);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 0.94;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.partnerMarquee {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  padding-block: 1.2rem;
+  border-block: 1px solid rgb(255 255 255 / 0.13);
+  outline: none;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.partnerMarqueeAccessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.partnerMarqueeTrack {
+  display: flex;
+  width: max-content;
+  animation: partner-marquee 38s linear infinite;
+  will-change: transform;
+}
+
+.partnerMarquee:hover .partnerMarqueeTrack,
+.partnerMarquee:focus-within .partnerMarqueeTrack {
+  animation-play-state: paused;
+}
+
+.partnerMarqueeGroup {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.8rem);
+  padding-right: clamp(1rem, 2vw, 1.8rem);
+}
+
+.partnerLogo {
+  position: relative;
+  display: block;
+  flex: none;
+  width: clamp(10rem, 14vw, 15rem);
+  height: clamp(5.5rem, 8vw, 7.5rem);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: clamp(1.2rem, 2vw, 1.8rem);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.035)),
+    rgb(8 19 29 / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16), 0 1.2rem 3rem rgb(0 0 0 / 0.24);
+  backdrop-filter: blur(1rem) saturate(125%);
+}
+
+.partnerLogo img {
+  object-fit: contain;
+  padding: clamp(1rem, 1.6vw, 1.4rem);
+}
+
+@keyframes partner-marquee {
+  to { transform: translateX(calc(-100% / 6)); }
+}
+
+.heroVideo { object-position: center center; }
+
+.heroVeil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(2 7 13 / 0.34) 0%, transparent 34%, transparent 67%, rgb(2 7 13 / 0.42) 100%),
+    linear-gradient(90deg, rgb(2 7 13 / 0.2), transparent 42%, rgb(2 7 13 / 0.08));
+  pointer-events: none;
+}
+
+.heroTitleWrap {
+  position: absolute;
+  top: clamp(6.7rem, 14dvh, 9.5rem);
+  right: 4vw;
+  left: 4vw;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.heroTitleWrap h1 {
+  color: #fff;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(6rem, 15vw, 14.5rem);
+  font-stretch: condensed;
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.78;
+  text-align: center;
+  text-shadow: 0 0.15rem 1.7rem rgb(2 7 13 / 0.22);
+}
+
+.heroMessage {
+  position: absolute;
+  top: 54%;
+  left: clamp(2.7rem, 8vw, 9rem);
+  z-index: 4;
+  max-width: min(56rem, 72vw);
+  color: #fff;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(2.65rem, 6vw, 6.4rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  text-shadow: 0 0.2rem 1.5rem rgb(2 7 13 / 0.36);
+  transform: translateY(-50%);
+}
+
+.scrollHint {
+  position: absolute;
+  right: 0;
+  bottom: max(2.2rem, env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  color: rgb(255 255 255 / 0.9);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  text-shadow: 0 0.12rem 0.5rem rgb(2 7 13 / 0.55);
+}
+
+.scrollHint svg {
+  width: 1rem;
+  height: 1rem;
+  animation: hint-drift 1.8s ease-in-out infinite;
+}
+
+@keyframes hint-drift {
+  0%, 100% { transform: translateY(-0.2rem); }
+  50% { transform: translateY(0.25rem); }
+}
+
+.explorerScene,
+.descentScene,
+.finalCtaScene,
+.howScene,
+.howSceneAlt,
+.flightScene,
+.deliveryScene {
+  background:
+    radial-gradient(circle at 68% 38%, rgb(32 231 213 / 0.08), transparent 31rem),
+    var(--story-navy);
+}
+
+.howSceneAlt { background-color: #07131d; }
+.howSceneViolet { background: radial-gradient(circle at 70% 45%, rgb(114 80 255 / 0.13), transparent 30rem), #07131d; }
+
+.ambientOrb {
+  position: absolute;
+  top: 22%;
+  left: 56%;
+  z-index: 0;
+  width: min(40vw, 38rem);
+  aspect-ratio: 1;
+  border: 1px solid rgb(32 231 213 / 0.22);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(32 231 213 / 0.1), transparent 68%);
+  box-shadow: 0 0 8rem rgb(32 231 213 / 0.08);
+  transform: translate(-50%, -50%);
+}
+
+.storyHeader,
+.descentCopy,
+.weatherCopy,
+.finalCtaCopy,
+.howIntro,
+.departureCopy,
+.howSceneCopy,
+.howSceneCopyRight,
+.deliveryCta {
+  position: absolute;
+  z-index: 12;
+}
+
+.storyHeader > p,
+.descentCopy > p,
+.weatherCopy > p,
+.finalCtaCopy > p,
+.howIntro > p,
+.departureCopy > p,
+.howSceneCopy > p,
+.howSceneCopyRight > p,
+.deliveryCta > p,
+.detailCopy > p {
+  margin-bottom: 0.85rem;
+  color: var(--story-cyan);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.storyHeader h2,
+.descentCopy h2,
+.weatherCopy h2,
+.finalCtaCopy h2,
+.howIntro h1,
+.departureCopy h2,
+.howSceneCopy h2,
+.howSceneCopyRight h2 {
+  max-width: 12ch;
+  color: var(--story-white);
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(3.8rem, 7.8vw, 8.7rem);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 0.82;
+}
+
+.storyHeader > span,
+.descentCopy > span,
+.weatherCopy > span,
+.finalCtaCopy > span,
+.howIntro > span,
+.departureCopy > span,
+.howSceneCopy > span,
+.howSceneCopyRight > span,
+.deliveryCta > span {
+  display: block;
+  max-width: 34rem;
+  margin-top: 1.25rem;
+  color: rgb(242 239 230 / 0.72);
+  font-size: clamp(0.96rem, 1.35vw, 1.25rem);
+  line-height: 1.6;
+}
+
+.explorerWide,
+.explorerDetail {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
+.storyHeader {
+  top: clamp(6.8rem, 14dvh, 9rem);
+  left: clamp(3.6rem, 7vw, 8.5rem);
+}
+
+.storyHeader h2 { font-size: clamp(3.5rem, 6.5vw, 7.2rem); }
+
+.rigFrame {
+  position: absolute;
+  top: 18%;
+  right: 1.5%;
+  bottom: 1%;
+  left: 21%;
+  z-index: 3;
+}
+
+.hotspotLayer { position: absolute; inset: 0; z-index: 5; }
+
+.hotspot {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  min-width: 3.25rem;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.droneHotspot { top: 30%; left: 37%; }
+.lockerHotspot { top: 67%; right: 31%; }
+
+.hotspotPulse {
+  position: absolute;
+  inset: -0.55rem;
+  border: 1px solid rgb(114 80 255 / 0.5);
+  border-radius: inherit;
+  animation: hotspot-pulse 2.3s ease-out infinite;
+}
+
+.hotspotIcon {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.34);
+  border-radius: inherit;
+  background: var(--story-violet);
+  box-shadow: 0 0.8rem 2.6rem rgb(63 35 190 / 0.45);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.hotspotIcon svg { width: 1.45rem; height: 1.45rem; }
+
+.hotspotLabel {
+  position: absolute;
+  left: calc(100% + 0.6rem);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: max-content;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 999px;
+  background: rgb(5 11 20 / 0.86);
+  font-size: 0.72rem;
+  font-weight: 750;
+  opacity: 0;
+  backdrop-filter: blur(1rem);
+  transform: translateX(-0.4rem);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.hotspotLabel svg { width: 0.9rem; height: 0.9rem; color: var(--story-cyan); }
+.hotspot:hover .hotspotIcon, .hotspot:focus-visible .hotspotIcon { transform: scale(1.08); box-shadow: 0 0.9rem 3.1rem rgb(88 54 235 / 0.62); }
+.hotspot:hover .hotspotLabel, .hotspot:focus-visible .hotspotLabel { opacity: 1; transform: translateX(0); }
+
+@keyframes hotspot-pulse {
+  0% { opacity: 0.8; transform: scale(0.7); }
+  70%, 100% { opacity: 0; transform: scale(1.38); }
+}
+
+.backButton {
+  position: absolute;
+  top: max(6.4rem, calc(4.8rem + env(safe-area-inset-top)));
+  left: clamp(2.8rem, 6vw, 7rem);
+  z-index: 16;
+  display: inline-flex;
+  min-height: 2.8rem;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.95rem;
+  border: 1px solid rgb(242 239 230 / 0.32);
+  border-radius: 999px;
+  color: var(--story-white);
+  font-size: 0.78rem;
+  font-weight: 750;
+  backdrop-filter: blur(1rem);
+}
+
+.backButton:hover { border-color: var(--story-cyan); color: var(--story-cyan); }
+.backButton svg { width: 1rem; height: 1rem; }
+
+.detailCopy {
+  position: absolute;
+  bottom: max(3.4rem, env(safe-area-inset-bottom));
+  left: clamp(2.8rem, 6vw, 7rem);
+  z-index: 15;
+  width: min(30rem, 36vw);
+}
+
+.detailCopy > h2 {
+  color: var(--story-white);
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(2.2rem, 4vw, 4.8rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 0.94;
+}
+
+.detailCopy ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 1.35rem;
+  list-style: none;
+}
+
+.detailCopy li {
+  padding: 0.48rem 0.72rem;
+  border: 1px solid rgb(32 231 213 / 0.24);
+  border-radius: 999px;
+  color: rgb(242 239 230 / 0.78);
+  font-size: 0.7rem;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+}
+
+.droneDetailVisual,
+.lockerDetailVisual {
+  position: absolute;
+  top: 8%;
+  right: -3%;
+  bottom: 4%;
+  left: 30%;
+  z-index: 5;
+}
+
+.lockerDetailVisual {
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--story-white);
+}
+
+.lockerDetailVisual video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.lockerAction {
+  position: absolute;
+  right: 10%;
+  bottom: 7%;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgb(242 239 230 / 0.25);
+  border-radius: 999px;
+  background: rgb(5 11 20 / 0.76);
+  font-size: 0.72rem;
+  font-weight: 750;
+  backdrop-filter: blur(1rem);
+}
+
+.lockerAction svg { width: 0.9rem; height: 0.9rem; color: var(--story-cyan); }
+
+.rotorField { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+
+.rotorField span {
+  position: absolute;
+  width: clamp(4rem, 9vw, 9.5rem);
+  height: clamp(0.8rem, 1.6vw, 1.5rem);
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgb(32 231 213 / 0.55) 0 12deg, rgb(242 239 230 / 0.06) 12deg 28deg);
+  filter: blur(1.8px);
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%) rotate(0deg);
+  animation: rotor-spin 0.3s linear infinite;
+}
+
+.rotorField span:nth-child(2) { animation-duration: 0.27s; }
+.rotorField span:nth-child(3) { animation-duration: 0.32s; }
+.rotorField span:nth-child(4) { animation-duration: 0.29s; }
+
+@keyframes rotor-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.descentCloud {
+  position: absolute;
+  right: -12vw;
+  bottom: -13vh;
+  z-index: 3;
+  width: 64vw;
+  height: 32vh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(242 239 230 / 0.15), rgb(242 239 230 / 0.03) 48%, transparent 72%);
+  filter: blur(1.1rem);
+}
+
+.descentProduct {
+  position: absolute;
+  top: 3%;
+  right: -3%;
+  bottom: 0;
+  left: 30%;
+  z-index: 6;
+}
+
+.descentCopy {
+  top: 18%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(34rem, 38vw);
+}
+
+.descentCopy h2 { font-size: clamp(3.9rem, 7vw, 8rem); }
+
+.weatherScene { background: #0b1420; }
+.weatherVideo { filter: saturate(0.76) contrast(1.08) brightness(0.78); }
+
+.weatherGrade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(90deg, rgb(2 7 13 / 0.72), transparent 50%, rgb(2 7 13 / 0.18)),
+    linear-gradient(180deg, rgb(2 7 13 / 0.28), transparent 45%, rgb(2 7 13 / 0.52));
+  pointer-events: none;
+}
+
+.weather_rain .weatherGrade { background-color: rgb(2 18 31 / 0.28); }
+.weather_clear .weatherGrade { background-color: rgb(4 49 78 / 0.15); }
+.weather_snow .weatherGrade { background-color: rgb(11 20 32 / 0.34); }
+
+.weatherLines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(90deg, transparent 49.9%, rgb(32 231 213 / 0.2) 50%, transparent 50.1%),
+    radial-gradient(circle at 80% 60%, transparent 0 10rem, rgb(32 231 213 / 0.28) 10.05rem, transparent 10.1rem);
+  background-size: 32vw 100%, 100% 100%;
+  mix-blend-mode: screen;
+}
+
+.weatherLockerGhost {
+  position: absolute;
+  top: 16%;
+  right: 4%;
+  bottom: 5%;
+  z-index: 4;
+  width: 55vw;
+  filter: grayscale(0.4) contrast(1.1) drop-shadow(0 2rem 4rem rgb(2 7 13 / 0.55));
+  mix-blend-mode: screen;
+}
+
+.weatherPayload {
+  position: absolute;
+  top: 32%;
+  right: 18%;
+  z-index: 7;
+  width: min(25vw, 24rem);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 2rem 3rem rgb(2 7 13 / 0.7));
+}
+
+.weatherCopy {
+  top: 18%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(34rem, 40vw);
+}
+
+.weatherCopy h2 { font-size: clamp(4rem, 8vw, 8.8rem); }
+
+.finalCtaScene {
+  background:
+    radial-gradient(circle at 68% 52%, rgb(32 231 213 / 0.12), transparent 33rem),
+    linear-gradient(155deg, #07131d, #02070d 70%);
+}
+
+.finalProduct {
+  position: absolute;
+  top: 7%;
+  right: -7%;
+  bottom: 0;
+  left: 34%;
+  z-index: 4;
+}
+
+.finalCtaCopy {
+  top: 21%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(40rem, 46vw);
+}
+
+.finalCtaCopy h2 { max-width: 9ch; font-size: clamp(4.6rem, 9vw, 10rem); }
+
+.ctaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.8rem;
+}
+
+.primaryStoryButton,
+.secondaryStoryButton {
+  display: inline-flex;
+  min-height: 3.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.15rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 780;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.primaryStoryButton {
+  background: var(--story-cyan);
+  color: #02110f;
+  box-shadow: 0 1rem 3rem rgb(32 231 213 / 0.18);
+}
+
+.secondaryStoryButton {
+  border: 1px solid rgb(242 239 230 / 0.25);
+  color: var(--story-white);
+  backdrop-filter: blur(0.8rem);
+}
+
+.primaryStoryButton:hover, .secondaryStoryButton:hover { transform: translateY(-0.12rem); }
+.secondaryStoryButton:hover { border-color: var(--story-cyan); color: var(--story-cyan); }
+.primaryStoryButton svg, .secondaryStoryButton svg { width: 1rem; height: 1rem; }
+
+.howIntro {
+  top: 18%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(48rem, 50vw);
+}
+
+.howIntro h1 { max-width: 10ch; font-size: clamp(4.8rem, 9.2vw, 10rem); }
+
+.howIntro small {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  color: rgb(242 239 230 / 0.56);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.howIntro small svg { width: 0.9rem; height: 0.9rem; }
+
+.howDrone {
+  position: absolute;
+  top: 45%;
+  left: 5%;
+  z-index: 6;
+  width: min(38vw, 36rem);
+  aspect-ratio: 1.5;
+}
+
+.departureCopy {
+  right: 7vw;
+  bottom: 12%;
+  width: min(30rem, 34vw);
+}
+
+.departureCopy h2 { max-width: 9ch; font-size: clamp(3.6rem, 6vw, 6.4rem); }
+
+.howSceneCopy,
+.howSceneCopyRight {
+  top: 18%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(34rem, 38vw);
+}
+
+.howSceneCopyRight {
+  right: clamp(3.6rem, 7vw, 8.5rem);
+  left: auto;
+}
+
+.howSceneCopy h2,
+.howSceneCopyRight h2 { font-size: clamp(4rem, 7.6vw, 8.2rem); }
+
+.arrivalDrone {
+  position: absolute;
+  top: 39%;
+  left: 28%;
+  z-index: 7;
+  width: min(47vw, 43rem);
+  aspect-ratio: 1.55;
+}
+
+.howSequenceVideo {
+  position: absolute;
+  top: 0;
+  right: -2%;
+  bottom: 0;
+  left: 25%;
+  z-index: 7;
+}
+
+.flightScene { background: linear-gradient(180deg, #09202d 0%, #06121c 56%, #050b14 100%); }
+
+.flightWord {
+  position: absolute;
+  top: 44%;
+  right: -2vw;
+  z-index: 3;
+  color: rgb(242 239 230 / 0.07);
+  font-family: var(--font-story), sans-serif;
+  font-size: clamp(8rem, 23vw, 24rem);
+  font-weight: 750;
+  letter-spacing: -0.06em;
+  line-height: 0.7;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.flightDrone {
+  position: absolute;
+  top: 36%;
+  left: 22%;
+  z-index: 7;
+  width: min(52vw, 49rem);
+  aspect-ratio: 1.55;
+}
+
+.deliveryScene { background: radial-gradient(circle at 72% 40%, rgb(32 231 213 / 0.09), transparent 31rem), #081018; }
+
+.deliveryVideo {
+  position: absolute;
+  top: 2%;
+  right: -4%;
+  bottom: 0;
+  left: 27%;
+  z-index: 6;
+}
+
+.deliveryCta {
+  top: 21%;
+  left: clamp(3.6rem, 7vw, 8.5rem);
+  width: min(35rem, 42vw);
+}
+
+.deliveryCta > p {
+  color: var(--story-white);
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(4.3rem, 8vw, 8.5rem);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 0.83;
+  text-transform: none;
+}
+
+@media (max-width: 1023px) {
+  .landingMessage {
+    font-size: clamp(1.05rem, 3.5vw, 2rem);
+    transform: translate(-50%, -50%) scaleX(0.86);
+  }
+
+  .storyHeader h2,
+  .descentCopy h2,
+  .weatherCopy h2,
+  .howSceneCopy h2,
+  .howSceneCopyRight h2 { font-size: clamp(3.4rem, 8.6vw, 6.4rem); }
+
+  .detailCopy { width: min(28rem, 42vw); }
+  .rigFrame { left: 12%; }
+  .schematicBuilding { width: 56vw; }
+}
+
+@media (max-width: 767px) {
+  .stickyStage { min-height: 32rem; }
+
+  .vCurveDesktopPath { display: none; }
+  .vCurveMobilePath { display: block; }
+  .vCurve.vCurveMobileCompact { height: 30dvh; }
+  .vCurveMobileCompact svg { height: 45%; }
+  .vCurve.vCurveReference { height: 34dvh; }
+  .vCurveReference svg { height: 78%; }
+
+  .editorialHeadline {
+    top: 52dvh;
+    width: calc(100vw - 0.75rem);
+  }
+
+  .editorialHeadline h2 {
+    gap: 0.04em;
+    font-size: clamp(1.95rem, 9.9vw, 3rem);
+    line-height: 0.9;
+  }
+
+  .editorialHeadline h2 > span {
+    width: max-content;
+    justify-self: center;
+    transform: none;
+  }
+
+  .editorialVideoLayer {
+    top: 20dvh;
+    left: -13vw;
+    width: 126vw;
+    height: 74dvh;
+  }
+
+  .editorialObjectHost {
+    transform: scale(2.05);
+    transform-origin: 50% 50%;
+  }
+
+  .cinematicWeatherCopy {
+    top: max(5.8rem, 11dvh);
+    right: 1.35rem;
+    width: min(20rem, calc(100vw - 4.5rem));
+  }
+
+  .cinematicWeatherCopy p {
+    margin-bottom: 0.55rem;
+    font-size: 0.62rem;
+  }
+
+  .cinematicWeatherCopy h2 {
+    font-size: clamp(1.9rem, 8.8vw, 3.3rem);
+  }
+
+  .cinematicLockerMotion {
+    top: 50%;
+    width: min(70vw, 42rem);
+  }
+
+  .cinematicLockerOpening {
+    clip-path: inset(38.5% 21.7% 31.2% 37.2% round 0.45rem);
+  }
+
+  .cinematicWeatherShade {
+    background:
+      linear-gradient(180deg, rgb(3 5 8 / 0.58), transparent 48%, rgb(3 5 8 / 0.22)),
+      linear-gradient(270deg, rgb(3 5 8 / 0.34), transparent 78%);
+  }
+
+  .weatherProgressRail {
+    left: max(0.9rem, calc(env(safe-area-inset-left) + 0.35rem));
+  }
+
+  .weatherRailTrack {
+    width: 0.23rem;
+    height: 1.3rem;
+  }
+
+  .weatherRailActive .weatherRailTrack {
+    height: 3.7rem;
+  }
+
+  .finalRevealRainDesktop { display: none; }
+  .finalRevealRainMobile { display: block; }
+
+  .finalCtaComposition {
+    inset: max(4.2rem, 8dvh) 0 max(0.75rem, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(8rem, 25dvh) auto;
+    align-content: center;
+    gap: clamp(0.25rem, 1.2dvh, 0.8rem);
+  }
+
+  .finalCtaDrone {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    order: 1;
+    width: min(112vw, 38rem);
+    height: 100%;
+    margin: 0 auto;
+  }
+
+  .finalCtaGlass {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    order: 2;
+    width: calc(100% - 1.5rem);
+    min-height: 0;
+    margin: 0 auto;
+    padding: clamp(1.35rem, 6vw, 2.1rem);
+    border-radius: 1.8rem;
+    transform: perspective(60rem) rotateX(1deg);
+  }
+
+  .finalCtaGlass h2 {
+    font-size: clamp(2rem, 9.6vw, 3.2rem);
+    line-height: 0.99;
+  }
+
+  .finalCtaActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-top: 1.6rem;
+  }
+
+  .finalCtaPrimary,
+  .finalCtaSecondary {
+    min-height: 3.2rem;
+    padding-inline: 0.8rem;
+    font-size: 0.72rem;
+  }
+
+  .partnerCarousel {
+    min-height: 72dvh;
+    padding: clamp(4rem, 9dvh, 6rem) 0;
+  }
+
+  .partnerCarouselTitle {
+    width: calc(100vw - 2rem);
+    margin-bottom: clamp(2.2rem, 6dvh, 3.5rem);
+    font-size: clamp(2.45rem, 11.5vw, 4rem);
+    line-height: 0.96;
+  }
+
+  .partnerMarquee {
+    padding-block: 0.85rem;
+    mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  }
+
+  .partnerMarqueeGroup {
+    gap: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .partnerLogo {
+    width: 8.5rem;
+    height: 5rem;
+    border-radius: 1.15rem;
+  }
+
+  .partnerLogo img {
+    padding: 0.9rem;
+  }
+
+  .progressRail {
+    right: max(0.65rem, env(safe-area-inset-right));
+    left: auto;
+    z-index: 38;
+  }
+
+  .progressRail li { justify-content: flex-end; }
+  .railTrack { width: 0.2rem; height: 1.2rem; }
+  .progressRail li:nth-child(3n + 2) .railTrack { height: 1.6rem; }
+  .progressRail li:nth-child(3n) .railTrack { height: 0.9rem; }
+  .railLabel { display: none; }
+
+  .landingProgressRail {
+    right: max(0.65rem, env(safe-area-inset-right));
+    left: auto;
+  }
+
+  .landingProgressTrack {
+    width: 0.31rem;
+    height: 1.35rem;
+  }
+
+  .landingProgressActive .landingProgressTrack {
+    height: 2.35rem;
+  }
+
+  .backToTopButton {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .mediaLoader { right: max(0.75rem, env(safe-area-inset-right)); left: auto; }
+
+  .heroVideo { object-position: center center; }
+  .landingWordmarkWrap { top: max(5.2rem, 9dvh); }
+  .landingWordmark {
+    font-size: clamp(4rem, 17vw, 6rem);
+    letter-spacing: -0.02em;
+    transform: scaleX(0.86);
+  }
+  .landingMessage {
+    width: 98vw;
+    font-size: clamp(0.72rem, 3.35vw, 0.95rem);
+    letter-spacing: -0.045em;
+    line-height: 1.24;
+    padding-block: 0.16em 0.24em;
+    transform: translate(-50%, -50%) scaleX(0.8);
+  }
+  .howHeroCopy {
+    bottom: max(15rem, calc(env(safe-area-inset-bottom) + 2.6rem));
+    width: calc(100vw - 1.5rem);
+  }
+  .howHeroCopy h1 {
+    font-size: clamp(2rem, 7.9vw, 3.1rem);
+    letter-spacing: 0.003em;
+    line-height: 0.79;
+    transform: scaleX(0.91);
+  }
+  .howHeroCopy p {
+    width: max-content;
+    max-width: calc(100vw - 1.25rem);
+    margin-top: 0.8rem;
+    font-size: clamp(0.84rem, 3.8vw, 1.08rem);
+    letter-spacing: -0.035em;
+    transform: scaleX(0.86);
+  }
+  .howHeroScene .vCurve.vCurveReference { height: 54dvh; }
+  .howTutorialContent {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: clamp(0.35rem, 1dvh, 0.75rem);
+    padding: max(4.35rem, calc(env(safe-area-inset-top) + 0.8rem)) 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+  }
+  .howTutorialVideoCard {
+    width: auto;
+    height: min(60dvh, calc(100dvh - 13rem));
+    max-width: 78vw;
+    margin-top: 0;
+    flex: none;
+    order: 1;
+    align-self: center;
+  }
+  .howTutorialText {
+    order: 2;
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+  .howTutorialCopyLayer {
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    transform-origin: center bottom;
+  }
+  .howTutorialStep { margin-bottom: 0.7rem; font-size: 0.6rem; }
+  .howTutorialCopyLayer h2 {
+    max-width: 14ch;
+    font-size: clamp(1.85rem, 8.6vw, 2.8rem);
+    letter-spacing: -0.052em;
+    line-height: 0.86;
+  }
+  .howTutorialCopyLayer[data-scene="3"] h2 { font-size: clamp(1.65rem, 7.1vw, 2.3rem); }
+  .howTutorialBody { display: none; }
+  .scrollCue {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 1rem;
+  }
+  .landingHeroScene > .scrollCue {
+    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.45rem));
+  }
+  .heroTitleWrap { top: max(6.3rem, 15dvh); }
+  .heroTitleWrap h1 { font-size: clamp(5.2rem, 25vw, 8rem); line-height: 0.82; }
+
+  .heroMessage {
+    top: 56%;
+    left: 7vw;
+    max-width: 84vw;
+    font-size: clamp(2.7rem, 12.2vw, 4.7rem);
+  }
+
+  .scrollHint { bottom: max(1.7rem, calc(env(safe-area-inset-bottom) + 0.7rem)); font-size: 0.62rem; }
+  .vCurve { height: 67dvh; }
+
+  .storyHeader,
+  .descentCopy,
+  .weatherCopy,
+  .finalCtaCopy,
+  .howIntro,
+  .howSceneCopy,
+  .howSceneCopyRight,
+  .deliveryCta {
+    top: max(5.8rem, 12dvh);
+    right: 2.6rem;
+    left: 1.35rem;
+    width: auto;
+  }
+
+  .storyHeader h2,
+  .descentCopy h2,
+  .weatherCopy h2,
+  .finalCtaCopy h2,
+  .howIntro h1,
+  .howSceneCopy h2,
+  .howSceneCopyRight h2 {
+    max-width: 10ch;
+    font-size: clamp(3.25rem, 15vw, 5.8rem);
+  }
+
+  .storyHeader > span,
+  .descentCopy > span,
+  .weatherCopy > span,
+  .finalCtaCopy > span,
+  .howIntro > span,
+  .howSceneCopy > span,
+  .howSceneCopyRight > span { max-width: 24rem; margin-top: 0.85rem; font-size: 0.9rem; }
+
+  .rigFrame { top: 29%; right: -21%; bottom: 0; left: -21%; }
+  .ambientOrb { top: 51%; left: 50%; width: 78vw; }
+  .droneHotspot { top: 29%; left: 31%; }
+  .lockerHotspot { top: 67%; right: 27%; }
+  .hotspotLabel { display: none; }
+  .hotspotIcon { width: 3rem; height: 3rem; }
+
+  .backButton { top: max(4.5rem, calc(3.8rem + env(safe-area-inset-top))); left: 1.25rem; }
+  .detailCopy { top: 15%; bottom: auto; left: 1.25rem; width: calc(100% - 2.5rem); }
+  .detailCopy > h2 { max-width: 14ch; font-size: clamp(2rem, 8.8vw, 3.2rem); }
+  .detailCopy ul { gap: 0.35rem; margin-top: 0.8rem; }
+  .detailCopy li { padding: 0.38rem 0.58rem; font-size: 0.62rem; }
+  .droneDetailVisual, .lockerDetailVisual { top: 33%; right: -18%; bottom: 1%; left: -18%; }
+  .lockerDetailVisual { right: -7%; left: -7%; }
+  .lockerAction { right: 50%; bottom: max(1.3rem, env(safe-area-inset-bottom)); transform: translateX(50%); white-space: nowrap; }
+
+  .rotorField span { width: clamp(3.3rem, 19vw, 5.5rem); height: 0.75rem; }
+
+  .schematicBuilding { right: -18%; bottom: -1%; width: 88vw; height: 68%; opacity: 0.7; }
+  .descentProduct { top: 24%; right: -22%; bottom: -1%; left: -20%; }
+  .descentCloud { width: 110vw; }
+
+  .weatherGrade { background: linear-gradient(180deg, rgb(2 7 13 / 0.68) 0%, rgb(2 7 13 / 0.05) 55%, rgb(2 7 13 / 0.62) 100%); }
+  .weatherLockerGhost { top: 31%; right: -24%; bottom: 0; width: 145vw; }
+  .weatherPayload { top: 55%; right: 22%; width: 56vw; }
+  .weatherLines { background-size: 55vw 100%, 100% 100%; }
+
+  .finalProduct { top: 30%; right: -29%; bottom: 0; left: -28%; opacity: 0.82; }
+  .finalCtaCopy { top: max(6rem, 14dvh); }
+  .finalCtaCopy h2 { font-size: clamp(4rem, 18vw, 6.4rem); }
+  .ctaActions { gap: 0.55rem; margin-top: 1.25rem; }
+  .primaryStoryButton, .secondaryStoryButton { min-height: 2.9rem; padding: 0.65rem 0.9rem; font-size: 0.72rem; }
+
+  .howIntro h1 { font-size: clamp(4.2rem, 18vw, 6.8rem); }
+  .howIntro small { margin-top: 1.1rem; }
+  .howDrone { top: 51%; left: -13%; width: 84vw; }
+  .departureCopy { right: 1.4rem; bottom: 8%; left: 1.4rem; width: auto; }
+  .departureCopy h2 { font-size: clamp(3.1rem, 13vw, 4.8rem); }
+  .departureCopy > span { font-size: 0.88rem; }
+  .arrivalDrone { top: 45%; left: -20%; width: 96vw; }
+  .howSequenceVideo { top: 27%; right: -35%; bottom: -2%; left: -34%; }
+  .flightWord { top: 59%; font-size: 31vw; }
+  .flightDrone { top: 45%; left: -22%; width: 104vw; }
+  .deliveryVideo { top: 25%; right: -37%; bottom: -2%; left: -37%; }
+  .deliveryCta { top: max(6rem, 13dvh); }
+  .deliveryCta > p { font-size: clamp(3.6rem, 15.5vw, 5.6rem); }
+}
+
+@media (max-width: 767px) and (max-height: 640px) {
+  .finalCtaComposition {
+    inset: max(3.6rem, 7dvh) 0 0.5rem;
+    grid-template-rows: minmax(7rem, 20dvh) auto;
+    gap: 0.2rem;
+  }
+
+  .finalCtaDrone {
+    width: min(108vw, 34rem);
+  }
+
+  .finalCtaGlass {
+    width: calc(100% - 1rem);
+    padding: 0.9rem 1rem 1rem;
+    border-radius: 1.4rem;
+  }
+
+  .finalCtaGlass h2 {
+    font-size: clamp(1.38rem, 7.2vw, 1.8rem);
+    line-height: 0.98;
+  }
+
+  .finalCtaActions {
+    gap: 0.45rem;
+    margin-top: 0.8rem;
+  }
+
+  .finalCtaPrimary,
+  .finalCtaSecondary {
+    min-height: 2.7rem;
+    padding-inline: 0.55rem;
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 359px) {
+  .finalCtaActions {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    margin-top: 0.7rem;
+  }
+
+  .finalCtaPrimary,
+  .finalCtaSecondary {
+    min-height: 2.55rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mediaLoader span::after,
+  .scrollHint svg,
+  .scrollCue svg,
+  .hotspotPulse,
+  .rotorField span,
+  .finalCtaPrimary {
+    animation: none;
+  }
+
+  .hotspotPulse { opacity: 0.25; transform: scale(1); }
+  .rotorField span { opacity: 0.45; }
+  .primaryStoryButton, .secondaryStoryButton, .hotspotIcon { transition-duration: 0.01ms; }
+  .weatherRailTrack,
+  .weatherRailFill { transition-duration: 0.01ms; }
+  .partnerMarqueeTrack { width: 100%; animation: none; }
+  .partnerMarqueeGroup { width: 100vw; justify-content: space-around; gap: 1rem; padding: 0 2vw; }
+  .partnerMarqueeGroup:not(:first-child) { display: none; }
+}
