@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ImagePlus,
-  Camera,
   LoaderCircle,
   MessageSquareText,
   Send,
@@ -402,13 +401,16 @@ function getWeatherNotes(estimate: ParcelEstimatorResponse) {
 
 function getClarificationQuestions(
   estimate: ParcelEstimatorResponse | null,
+  answeredQuestionIds: ReadonlySet<string> = new Set(),
 ): ParcelClarificationQuestion[] {
   if (!estimate || estimate.confidence === "high") {
     return [];
   }
 
   if (estimate.clarificationQuestions?.length) {
-    return estimate.clarificationQuestions.slice(0, 3);
+    return estimate.clarificationQuestions
+      .filter((question) => !answeredQuestionIds.has(question.id))
+      .slice(0, 3);
   }
 
   if (estimate.confidence === "low") {
@@ -646,9 +648,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const [parcelAiImages, setParcelAiImages] = useState<ParcelAiImageDraft[]>([]);
   const [parcelAiImageError, setParcelAiImageError] = useState<string | null>(null);
   const [isUploadingParcelImage, setIsUploadingParcelImage] = useState(false);
-  const [canUseCamera, setCanUseCamera] = useState(false);
   const parcelImagePickerRef = useRef<HTMLInputElement>(null);
-  const parcelCameraPickerRef = useRef<HTMLInputElement>(null);
   const [evaluationViewId] = useState(() => crypto.randomUUID());
   const [operatorRequestError, setOperatorRequestError] = useState<string | null>(
     null,
@@ -678,7 +678,13 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const handlingNotes = pendingEstimate?.handlingNotes ?? [];
   const weatherNotes = pendingEstimate ? getWeatherNotes(pendingEstimate) : [];
   const riskFlags = pendingEstimate?.riskFlags ?? [];
-  const clarificationQuestions = getClarificationQuestions(pendingEstimate);
+  const answeredQuestionIds = new Set(
+    pendingEstimate?.previousClarificationAnswers?.map((answer) => answer.questionId) ?? [],
+  );
+  const clarificationQuestions = getClarificationQuestions(
+    pendingEstimate,
+    answeredQuestionIds,
+  );
   const hasClarificationQuestions = clarificationQuestions.length > 0;
   const hasBlockingClarificationQuestions = clarificationQuestions.some(
     (question) => question.blocksConfirmation === true,
@@ -746,10 +752,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     const timer = window.setInterval(() => void refreshOperatorEvaluation(), 10_000);
     return () => { active = false; window.clearInterval(timer); };
   }, [evaluationViewId, sessionId]);
-
-  useEffect(() => {
-    setCanUseCamera(Boolean(navigator.mediaDevices?.getUserMedia));
-  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -1207,6 +1209,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Descriere colet
             </span>
+            <div className="relative">
             <textarea
               value={naturalDescription}
               aria-label="Descriere naturală colet"
@@ -1223,38 +1226,21 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                 setEstimateError(null);
               }}
               disabled={operatorEvaluationLocksParcel}
-              className="min-h-32 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 py-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:min-h-36 sm:px-4"
+              className="min-h-36 w-full resize-y rounded-[var(--ui-radius-card)] border border-input bg-background px-3.5 pb-20 pr-14 pt-3 text-base leading-7 outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring sm:px-4"
             />
+              <input ref={parcelImagePickerRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={(event) => { const slot = parcelAiImages.find((image) => image.slot === 0) ? 1 : 0; const file = event.target.files?.[0]; if (file) void uploadParcelAiImage(file, slot); event.currentTarget.value = ""; }} />
+              {parcelAiImages.length ? <div className="absolute bottom-3 left-3 flex gap-2">
+                {parcelAiImages.map((image) => <div key={image.id} className="relative size-14 overflow-hidden rounded-xl border bg-muted shadow-sm">
+                  <img src={image.previewUrl} alt="Imagine atașată coletului" className="size-full object-cover" />
+                  <button type="button" onClick={() => void removeParcelAiImage(image)} disabled={operatorEvaluationLocksParcel} aria-label={`Elimină ${image.name}`} className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-foreground text-background shadow hover:opacity-80 disabled:opacity-50"><X className="size-3" /></button>
+                </div>)}
+              </div> : null}
+              <button type="button" onClick={() => parcelImagePickerRef.current?.click()} disabled={operatorEvaluationLocksParcel || isUploadingParcelImage || parcelAiImages.length >= 2} aria-label="Adaugă imagine" className={cn("absolute bottom-3 right-3 grid size-11 place-items-center rounded-full border bg-background shadow-sm transition-colors", parcelAiImages.length >= 2 ? "border-destructive bg-destructive/10 text-destructive opacity-70" : "border-input text-muted-foreground hover:bg-muted hover:text-foreground", "disabled:pointer-events-none")}>
+                {isUploadingParcelImage ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-5" />}
+              </button>
+            </div>
+            {parcelAiImageError ? <span className="text-xs text-destructive">{parcelAiImageError}</span> : null}
           </label>
-
-          <div className="grid gap-3 rounded-[calc(var(--radius)+0.35rem)] border border-dashed border-primary/30 bg-primary/5 p-3.5 sm:p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Fotografii opționale pentru analiză</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Prima poză: produsul. A doua poză: ambalajul, dacă există separat.</p>
-              </div>
-              <span className="text-xs text-muted-foreground">{parcelAiImages.length}/2 imagini</span>
-            </div>
-            <input ref={parcelImagePickerRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only" onChange={(event) => { const slot = parcelAiImages.find((image) => image.slot === 0) ? 1 : 0; const file = event.target.files?.[0]; if (file) void uploadParcelAiImage(file, slot); event.currentTarget.value = ""; }} />
-            <input ref={parcelCameraPickerRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" className="sr-only" onChange={(event) => { const slot = parcelAiImages.find((image) => image.slot === 0) ? 1 : 0; const file = event.target.files?.[0]; if (file) void uploadParcelAiImage(file, slot); event.currentTarget.value = ""; }} />
-            {parcelAiImages.length ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[0, 1].map((slot) => {
-                  const image = parcelAiImages.find((item) => item.slot === slot);
-                  return image ? <div key={image.id} className="relative overflow-hidden rounded-2xl border bg-background">
-                    <img src={image.previewUrl} alt={slot === 0 ? "Produs atașat" : "Ambalaj atașat"} className="h-36 w-full object-cover" />
-                    <div className="flex items-center justify-between gap-2 p-2"><span className="truncate text-xs text-muted-foreground">{slot === 0 ? "Produs" : "Ambalaj"}: {image.name}</span><button type="button" onClick={() => void removeParcelAiImage(image)} disabled={operatorEvaluationLocksParcel} aria-label={`Elimină ${image.name}`} className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="size-4" /></button></div>
-                  </div> : <div key={`empty-${slot}`} className="grid min-h-24 place-items-center rounded-2xl border border-dashed bg-background/50 px-3 text-center text-xs text-muted-foreground">{slot === 0 ? "Fotografie produs" : "Fotografie ambalaj (opțională)"}</div>;
-                })}
-              </div>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => parcelImagePickerRef.current?.click()} disabled={operatorEvaluationLocksParcel || isUploadingParcelImage} className="inline-flex h-10 items-center gap-2 rounded-xl border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"><ImagePlus className="size-4" />{isUploadingParcelImage ? "Se încarcă…" : parcelAiImages.length >= 2 ? "Înlocuiește ambalajul" : "Încarcă imagine"}</button>
-              {canUseCamera ? <button type="button" onClick={() => parcelCameraPickerRef.current?.click()} disabled={operatorEvaluationLocksParcel || isUploadingParcelImage} className="inline-flex h-10 items-center gap-2 rounded-xl border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"><Camera className="size-4" />Folosește camera</button> : null}
-            </div>
-            <p className="text-xs text-muted-foreground">Imaginile sunt private, folosite doar pentru estimare și expiră automat în 24 de ore.</p>
-            {parcelAiImageError ? <p className="text-xs text-destructive">{parcelAiImageError}</p> : null}
-          </div>
 
           <button
             type="button"
@@ -1595,11 +1581,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                   Verifică profilul înainte de confirmare
                 </h3>
               </div>
-              <StatusBadge
-                label={getConfidenceLabel(pendingEstimate)}
-                tone={pendingEstimate.confidence === "low" ? "warning" : "info"}
-                className="max-w-full shrink whitespace-normal"
-              />
             </div>
 
             <dl className="grid min-w-0 grid-cols-2 border-y border-border/70 sm:grid-cols-4">
