@@ -171,7 +171,7 @@ function ActiveDeliveryOrderCard({
 
       {order.publicTrackingCode ? (
         <div className="grid gap-4 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-card p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 expanded-ui:flex-row expanded-ui:items-center expanded-ui:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">
                 Cod comandă
@@ -180,7 +180,7 @@ function ActiveDeliveryOrderCard({
                 {normalizePublicTrackingCode(order.publicTrackingCode)}
               </p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 md:min-w-80">
+            <div className="grid gap-2 expanded-ui:min-w-80 expanded-ui:grid-cols-2">
               <AppButton
                 type="button"
                 variant="outline"

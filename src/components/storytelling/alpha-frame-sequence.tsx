@@ -5,6 +5,7 @@ import { useMotionValueEvent } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { COMPACT_LAYOUT_MEDIA_QUERY } from "@/lib/responsive-layout";
 import { cn } from "@/lib/utils";
 import styles from "./storytelling.module.css";
 
@@ -60,7 +61,7 @@ export function AlphaFrameSequence({
   const targetFrameRef = useRef(0);
   const previousFrameRef = useRef(0);
   const animationFrameRef = useRef(0);
-  const isMobile = useMediaQuery("(max-width: 767px)");
+  const isMobile = useMediaQuery(COMPACT_LAYOUT_MEDIA_QUERY);
   const reducedMotion = usePrefersReducedMotion();
   const asset = isMobile ? mobile : desktop;
 

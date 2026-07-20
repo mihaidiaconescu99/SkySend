@@ -86,14 +86,23 @@ export function DashboardTopbar({
       className={cn(
         "min-w-0",
         floating
-          ? "px-3 pt-[calc(0.55rem_+_env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-[calc(0.75rem_+_env(safe-area-inset-top))] sm:pb-3 lg:px-8"
+          ? isClientWorkspace
+            ? "px-3 pb-2 pt-[calc(0.55rem_+_env(safe-area-inset-top))] expanded-ui:px-8 expanded-ui:pb-3 expanded-ui:pt-[calc(0.75rem_+_env(safe-area-inset-top))]"
+            : "px-3 pt-[calc(0.55rem_+_env(safe-area-inset-top))] pb-2 sm:px-6 sm:pt-[calc(0.75rem_+_env(safe-area-inset-top))] sm:pb-3 lg:px-8"
           : "px-1 py-1",
       )}
     >
       <div
         className={cn(
-          "flex min-w-0 flex-col md:flex-row md:items-center md:justify-between",
-          floating ? "gap-2 sm:gap-3 md:gap-4" : "gap-4",
+          "flex min-w-0 flex-col",
+          isClientWorkspace
+            ? "expanded-ui:flex-row expanded-ui:items-center expanded-ui:justify-between"
+            : "md:flex-row md:items-center md:justify-between",
+          floating
+            ? isClientWorkspace
+              ? "gap-2 expanded-ui:gap-4"
+              : "gap-2 sm:gap-3 md:gap-4"
+            : "gap-4",
         )}
       >
         <div className={cn("min-w-0 cd-chrome", floating ? "pointer-events-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.62)]" : undefined)}>
@@ -102,7 +111,7 @@ export function DashboardTopbar({
               <Link
                 href="/"
                 aria-label="Pagina principala SkySend"
-                className="pointer-events-auto flex w-fit min-w-0 items-center gap-3 rounded-2xl text-foreground outline-none transition-opacity hover:opacity-85 focus-visible:ring-4 focus-visible:ring-ring sm:hidden"
+                className="pointer-events-auto hidden w-fit min-w-0 items-center gap-3 rounded-2xl text-foreground outline-none transition-opacity hover:opacity-85 focus-visible:ring-4 focus-visible:ring-ring compact-ui:flex expanded-ui:hidden"
               >
                 <Image
                   src="/icons/icon-192.png"
@@ -116,7 +125,7 @@ export function DashboardTopbar({
                   SkySend
                 </span>
               </Link>
-              <div className="hidden sm:block">
+              <div className="compact-ui:hidden expanded-ui:block">
                 <p
                   className={cn(
                     "text-xs font-semibold uppercase tracking-[0.16em]",
@@ -250,7 +259,12 @@ export function DashboardTopbar({
                 ) : null}
                 </div>
               ) : null}
-              <span className={cn(mutedClientControlClassName, "hidden md:inline-flex")}>
+              <span
+                className={cn(
+                  mutedClientControlClassName,
+                  "compact-ui:hidden expanded-ui:inline-flex",
+                )}
+              >
                 <Warehouse className="size-4 text-foreground" />
                 <span
                   className={cn(
@@ -272,7 +286,10 @@ export function DashboardTopbar({
               <Link
                 href="/client/notifications"
                 aria-label="Notificări"
-                className={cn(iconControlClassName, "hidden md:inline-flex")}
+                className={cn(
+                  iconControlClassName,
+                  "compact-ui:hidden expanded-ui:inline-flex",
+                )}
               >
                 <Bell className="size-4" />
                 {notificationBadge}
@@ -282,7 +299,7 @@ export function DashboardTopbar({
                 aria-label="Notificări"
                 className={cn(
                   iconControlClassName,
-                  "fixed right-3 top-[calc(0.55rem_+_env(safe-area-inset-top))] z-[60] md:hidden",
+                  "fixed right-3 top-[calc(0.55rem_+_env(safe-area-inset-top))] z-[60] compact-ui:inline-flex expanded-ui:hidden",
                   floating
                     ? "border-transparent bg-transparent shadow-none backdrop-blur-none hover:border-transparent hover:bg-transparent"
                     : undefined,

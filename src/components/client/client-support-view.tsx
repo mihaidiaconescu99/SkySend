@@ -62,7 +62,7 @@ export function ClientSupportView() {
   }
 
   return (
-    <section className="app-container grid gap-5 py-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
+    <section className="app-container grid gap-5 py-6 expanded-ui:grid-cols-[19rem_minmax(0,1fr)]">
       <aside className="rounded-[var(--ui-radius-panel)] border bg-card p-3">
         <h1 className="px-2 font-heading text-2xl">Suport SkySend</h1>
         <p className="mb-4 px-2 text-sm text-muted-foreground">Conversațiile tale rămân în istoric 90 de zile.</p>

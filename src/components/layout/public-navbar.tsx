@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, LayoutGroup, m } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { HeaderAccount } from "@/components/layout/header-account";
 import { publicNavigation } from "@/constants/public-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/lib/settings/settings-context";
 import { dictionaries } from "@/lib/settings/dictionaries";
+import { COMPACT_LAYOUT_MEDIA_QUERY } from "@/lib/responsive-layout";
 import { cn } from "@/lib/utils";
 
 type PublicNavbarProps = {
@@ -29,16 +30,57 @@ export function PublicNavbar({
   hideOnScroll = false,
 }: PublicNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { t } = useSettings();
+  const { language, t } = useSettings();
 
   const [scrolled, setScrolled] = useState(false);
   const [navHidden, setNavHidden] = useState(false);
   const pathname = usePathname();
+  const shouldReduceMotion = useReducedMotion();
   const headerRef = useRef<HTMLElement>(null);
+  const desktopNavRef = useRef<HTMLElement>(null);
+  const desktopLinkRefs = useRef(new Map<string, HTMLAnchorElement>());
   const lastScrollYRef = useRef(0);
+  const [activeIndicator, setActiveIndicator] = useState<{
+    x: number;
+    width: number;
+  } | null>(null);
 
   const opaque = overlay ? scrolled || isOpen : true;
   const transparent = !opaque;
+
+  const measureActiveIndicator = useCallback(() => {
+    const nav = desktopNavRef.current;
+    const link = desktopLinkRefs.current.get(pathname);
+    if (!nav || !link || nav.offsetWidth === 0 || link.offsetWidth === 0) {
+      setActiveIndicator(null);
+      return;
+    }
+
+    setActiveIndicator({ x: link.offsetLeft, width: link.offsetWidth });
+  }, [pathname]);
+
+  useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(measureActiveIndicator);
+    const observer = new ResizeObserver(measureActiveIndicator);
+    if (desktopNavRef.current) observer.observe(desktopNavRef.current);
+    desktopLinkRefs.current.forEach((link) => observer.observe(link));
+    window.addEventListener("resize", measureActiveIndicator);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measureActiveIndicator);
+    };
+  }, [language, measureActiveIndicator]);
+
+  useEffect(() => {
+    const query = window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY);
+    const closeMenuInExpandedLayout = () => {
+      if (!query.matches) setIsOpen(false);
+    };
+    query.addEventListener("change", closeMenuInExpandedLayout);
+    return () => query.removeEventListener("change", closeMenuInExpandedLayout);
+  }, []);
 
   useEffect(() => {
     if (!overlay) return;
@@ -128,24 +170,45 @@ export function PublicNavbar({
       }}
     >
       <div className="app-container flex justify-center">
-        <div className="pointer-events-auto flex h-[3.85rem] min-w-0 max-w-[calc(100vw-1.5rem)] flex-nowrap items-center gap-3 rounded-[1.25rem] border border-white/12 bg-[#070b10]/88 px-3 shadow-[0_0.75rem_2.6rem_rgb(0_0_0_/_0.3)] backdrop-blur-xl xl:h-[4.6rem] xl:max-w-[calc(100vw-2rem)] xl:gap-2 xl:rounded-full xl:px-3">
+        <div className="pointer-events-auto flex h-[3.85rem] min-w-0 max-w-[calc(100vw-1.5rem)] flex-nowrap items-center gap-3 rounded-full border border-white/12 bg-[#070b10]/88 px-3 shadow-[0_0.75rem_2.6rem_rgb(0_0_0_/_0.3)] backdrop-blur-xl expanded-ui:h-[4.6rem] expanded-ui:max-w-[calc(100vw-2rem)] expanded-ui:gap-2 expanded-ui:px-3">
           <Link href="/" aria-label={t("brand.homeAria")} className="min-w-0 shrink-0">
-            <BrandMark compact iconClassName="size-18 xl:size-24" labelClassName="text-2xl xl:text-[1.75rem]" />
+            <BrandMark compact iconClassName="size-18 expanded-ui:size-24" labelClassName="text-2xl expanded-ui:text-[1.75rem]" />
           </Link>
 
-          <span aria-hidden="true" className="h-7 w-px shrink-0 bg-white/12 xl:h-8" />
+          <span aria-hidden="true" className="h-7 w-px shrink-0 bg-white/12 expanded-ui:h-8" />
 
-          <LayoutGroup id="public-navbar-active-link">
-            <nav
-              aria-label={t("nav.mainAria")}
-              className="hidden shrink-0 flex-nowrap items-center gap-0.5 xl:flex"
-            >
+          <nav
+            ref={desktopNavRef}
+            aria-label={t("nav.mainAria")}
+            className="relative isolate hidden shrink-0 flex-nowrap items-center gap-0.5 expanded-ui:flex"
+          >
+              <m.span
+                aria-hidden="true"
+                data-public-nav-indicator=""
+                initial={false}
+                animate={{
+                  x: activeIndicator?.x ?? 0,
+                  width: activeIndicator?.width ?? 0,
+                  opacity: activeIndicator ? 1 : 0,
+                }}
+                className="pointer-events-none absolute inset-y-0 left-0 z-0 rounded-full bg-white/[0.16] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_0.5rem_1.5rem_rgb(0_0_0_/_0.28)]"
+                transition={
+                  shouldReduceMotion
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 260, damping: 30, mass: 1 }
+                }
+              />
               {publicNavigation.map((item) => {
                 const isActive = pathname === item.href;
 
                 return (
                   <Link
                     key={item.href}
+                    data-public-nav-link={item.href}
+                    ref={(node) => {
+                      if (node) desktopLinkRefs.current.set(item.href, node);
+                      else desktopLinkRefs.current.delete(item.href);
+                    }}
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     style={{ minWidth: stableMinWidthCh(item.labelKey) }}
@@ -157,23 +220,15 @@ export function PublicNavbar({
                       transparent && "text-white/90 hover:text-white",
                     )}
                   >
-                    {isActive ? (
-                      <m.span
-                        layoutId="public-navbar-active-link-indicator"
-                        className="pointer-events-none absolute inset-0 z-0 rounded-full bg-white/[0.16] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_0.5rem_1.5rem_rgb(0_0_0_/_0.28)]"
-                        transition={{ type: "spring", stiffness: 260, damping: 30, mass: 1 }}
-                      />
-                    ) : null}
                     <span className="relative z-10">{t(item.labelKey)}</span>
                   </Link>
                 );
               })}
-            </nav>
-          </LayoutGroup>
+          </nav>
 
           <div
             className={cn(
-              "hidden shrink-0 flex-nowrap items-center gap-1.5 xl:flex",
+              "hidden shrink-0 flex-nowrap items-center gap-1.5 expanded-ui:flex",
               transparent &&
                 "[&_[data-variant=ghost]]:text-white/78 [&_[data-variant=ghost]:hover]:bg-white/10 [&_[data-variant=ghost]:hover]:text-white [&_[data-variant=outline]]:border-white/24 [&_[data-variant=outline]]:bg-white/8 [&_[data-variant=outline]]:text-white [&_[data-variant=outline]:hover]:bg-white/14 [&_[data-variant=outline]:hover]:text-white",
             )}
@@ -199,7 +254,10 @@ export function PublicNavbar({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className={cn("ml-auto xl:hidden", transparent && "text-white hover:bg-white/12")}
+            className={cn(
+              "ml-auto compact-ui:inline-flex expanded-ui:hidden",
+              transparent && "text-white hover:bg-white/12",
+            )}
             aria-expanded={isOpen}
             aria-controls="public-mobile-nav"
             aria-label={isOpen ? t("nav.closeMenu") : t("nav.openMenu")}
@@ -241,7 +299,7 @@ export function PublicNavbar({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="pointer-events-auto absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl xl:hidden"
+            className="pointer-events-auto absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl compact-ui:block expanded-ui:hidden"
           >
             <div
               className="flex flex-col gap-2"

@@ -131,7 +131,7 @@ export default async function ClientFailedOrdersPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="grid gap-4 expanded-ui:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                       <div className="rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">
                         <p className="text-sm text-muted-foreground">Rezumat traseu</p>
                         <p className="mt-2 text-sm leading-7 text-foreground">

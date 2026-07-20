@@ -93,7 +93,7 @@ export function ClientDashboardView() {
   return (
     <section id="overview" className="grid gap-6">
       <Card className="rounded-[var(--ui-radius-panel)] border-border/80 bg-card shadow-[var(--elevation-panel)]">
-        <CardContent className="grid gap-6 p-5 sm:p-7 lg:p-8">
+        <CardContent className="grid gap-6 p-5 compact-ui:p-5 expanded-ui:p-8">
           {activeOrder ? (
             <>
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -136,7 +136,7 @@ export function ClientDashboardView() {
               </div>
             </>
           ) : (
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="grid gap-5 expanded-ui:grid-cols-[minmax(0,1fr)_auto] expanded-ui:items-end">
               <div className="grid gap-3">
                 <StatusBadge label="Acoperire activă în Pitești" tone="info" />
                 <div>
@@ -159,7 +159,7 @@ export function ClientDashboardView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-5 expanded-ui:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <SectionCard
           eyebrow="Operațiuni"
           title="Drone disponibile"
@@ -236,7 +236,7 @@ export function ClientDashboardView() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="grid gap-5 expanded-ui:grid-cols-3">
         <SectionCard
           eyebrow="Notificări"
           title="Actualizări recente"

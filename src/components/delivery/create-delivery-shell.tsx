@@ -35,6 +35,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { COMPACT_LAYOUT_MEDIA_QUERY } from "@/lib/responsive-layout";
 import { useServiceCity } from "@/hooks/use-service-city";
 import {
   fetchHandoffCandidatePoints,
@@ -752,7 +753,7 @@ export function CreateDeliveryShell() {
   }));
   const { savedPlaces } = useSavedPlaces();
   const [flowStep, setFlowStep] = useState<CreateDeliveryFlowStep>("route");
-  const isMobile = useMediaQuery("(max-width: 767px)");
+  const isMobile = useMediaQuery(COMPACT_LAYOUT_MEDIA_QUERY);
   const [routeSheetState, setRouteSheetState] =
     useState<RouteSheetState>("half");
   const routeSheetDragRef = useRef<{
@@ -2415,7 +2416,7 @@ export function CreateDeliveryShell() {
 
   const routeActions = (
     <div className="sticky bottom-0 z-10 mt-3 grid gap-2 border-t border-border/70 bg-background px-3.5 pt-3 pb-[calc(0.85rem_+_env(safe-area-inset-bottom))] shadow-[0_-18px_34px_-26px_rgba(0,0,0,0.85)] sm:static sm:flex sm:flex-row sm:items-center sm:justify-between sm:rounded-none sm:border-0 sm:bg-background sm:px-0 sm:pb-0 lg:mt-5 lg:px-6 lg:pb-6">
-      <p className="order-1 text-center text-xs leading-5 text-muted-foreground sm:order-none sm:text-left lg:hidden">
+      <p className="order-1 text-center text-xs leading-5 text-muted-foreground compact-ui:block expanded-ui:hidden">
         {deliveryGateMessage ?? routeDisabledReason}
       </p>
       <AppButton
@@ -2425,10 +2426,10 @@ export function CreateDeliveryShell() {
         disabled={!routeReady || Boolean(deliveryGateMessage)}
         onClick={handleStepContinue}
       >
-        <span className="lg:hidden">
+        <span className="compact-ui:inline expanded-ui:hidden">
           {routeReady && !deliveryGateMessage ? "Analizează coletul" : "Alege punctele"}
         </span>
-        <span className="hidden lg:inline">Continuă</span>
+        <span className="compact-ui:hidden expanded-ui:inline">Continuă</span>
         <ArrowRight className="size-4" />
       </AppButton>
     </div>
@@ -2968,7 +2969,7 @@ export function CreateDeliveryShell() {
                                 Caută sau fixează ambele puncte în zona activă a orașului.
                               </p>
                             </div>
-                            <div className="hidden items-center gap-1 sm:flex lg:hidden">
+                            <div className="hidden items-center gap-1 compact-ui:flex expanded-ui:hidden">
                               <button
                                 type="button"
                                 aria-label="Restrânge panoul traseului"
@@ -2987,7 +2988,7 @@ export function CreateDeliveryShell() {
                               </button>
                             </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 lg:hidden">
+                          <div className="flex flex-wrap items-center gap-2 compact-ui:flex expanded-ui:hidden">
                             <StatusBadge
                               label={
                                 routeSheetState === "collapsed"

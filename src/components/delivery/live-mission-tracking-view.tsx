@@ -1184,7 +1184,7 @@ export function LiveMissionTrackingView({
 
   return (
     <>
-      <section className="relative isolate h-dvh min-h-dvh overflow-hidden bg-background lg:hidden">
+      <section className="relative isolate h-dvh min-h-dvh overflow-hidden bg-background compact-ui:block expanded-ui:hidden">
         <LiveMissionMap
           presentation="frameless"
           showMapOverlay={false}
@@ -1321,7 +1321,7 @@ export function LiveMissionTrackingView({
         </MobileMissionDrawer>
       </section>
 
-      <section className="app-container hidden flex-col gap-6 pb-12 lg:flex">
+      <section className="app-container hidden flex-col gap-6 pb-12 expanded-ui:flex">
       <PageHeader
         eyebrow="Livrare live"
         title={order.id}

@@ -33,7 +33,7 @@ export function SavedItemsView() {
         description="Gestioneaza locatiile folosite des pentru comenzi."
       />
 
-      <div className="grid grid-cols-2 gap-2 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-1.5 md:hidden">
+      <div className="grid grid-cols-2 gap-2 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-1.5 compact-ui:grid expanded-ui:hidden">
         {savedItemsTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -57,10 +57,10 @@ export function SavedItemsView() {
         })}
       </div>
 
-      <div className="md:hidden">
+      <div className="compact-ui:block expanded-ui:hidden">
         {activeTab === "places" ? <SavedPlacesView /> : <PaymentMethodsView />}
       </div>
-      <div className="hidden md:block">
+      <div className="compact-ui:hidden expanded-ui:block">
         <SavedPlacesView />
       </div>
     </section>

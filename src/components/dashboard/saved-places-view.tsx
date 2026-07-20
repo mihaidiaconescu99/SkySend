@@ -106,7 +106,7 @@ export function SavedPlacesView() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start">
+    <div className="grid gap-6 expanded-ui:grid-cols-[minmax(0,1fr)_24rem] expanded-ui:items-start">
       <SectionCard
         eyebrow="Locații"
         title={places.length ? "Locații salvate" : "Nu există locații salvate încă"}
@@ -121,7 +121,7 @@ export function SavedPlacesView() {
             {places.map((place) => (
               <article
                 key={place.id}
-                className="grid gap-4 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start"
+                className="grid gap-4 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-4 expanded-ui:grid-cols-[minmax(0,1fr)_auto] expanded-ui:items-start"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -144,7 +144,7 @@ export function SavedPlacesView() {
                     Actualizat la {formatDate(place.updatedAt)}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2 md:justify-end">
+                <div className="flex flex-wrap gap-2 expanded-ui:justify-end">
                   <AppButton
                     type="button"
                     variant="outline"

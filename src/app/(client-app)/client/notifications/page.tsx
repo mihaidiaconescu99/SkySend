@@ -14,7 +14,7 @@ export default function NotificăriPage() {
     <section className="grid gap-6">
       <Link
         href="/client/settings"
-        className="inline-flex size-11 items-center justify-center rounded-full border border-border/80 bg-secondary/45 text-foreground transition hover:border-primary/35 hover:bg-secondary/70 md:hidden"
+        className="inline-flex size-11 items-center justify-center rounded-full border border-border/80 bg-secondary/45 text-foreground transition hover:border-primary/35 hover:bg-secondary/70 compact-ui:inline-flex expanded-ui:hidden"
         aria-label="Inapoi la cont"
       >
         <ArrowLeft className="size-4" />

@@ -172,7 +172,7 @@ function OrderListSection({
         )
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-[calc(var(--radius)+0.5rem)] border border-border/80 lg:block">
+          <div className="hidden overflow-hidden rounded-[calc(var(--radius)+0.5rem)] border border-border/80 expanded-ui:block">
             <table>
               <thead className="bg-secondary/45 text-left">
                 <tr className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -247,7 +247,7 @@ function OrderListSection({
             </table>
           </div>
 
-          <div className="grid gap-3 lg:hidden">
+          <div className="grid gap-3 compact-ui:grid expanded-ui:hidden">
             {orders.map((order) => {
               const statusLabel = scheduledSection
                 ? getStatusLabel(order)

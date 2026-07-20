@@ -5,6 +5,7 @@ import { m, type MotionValue, useMotionValueEvent, useSpring, useTransform } fro
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { PublicCopy } from "@/lib/i18n/public-copy";
+import { COMPACT_LAYOUT_MEDIA_QUERY } from "@/lib/responsive-layout";
 import { storytellingAssets } from "@/lib/storytelling-assets";
 import { cn } from "@/lib/utils";
 import { BackToTopButton } from "./back-to-top-button";
@@ -40,7 +41,7 @@ function useTutorialMobileLayout() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
+    const query = window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY);
     const update = () => setIsMobile(query.matches);
     update();
     query.addEventListener("change", update);

@@ -213,7 +213,7 @@ function MeetingPointSelector({
         </p>
       </div>
 
-      <div className="grid gap-2 lg:hidden">
+      <div className="grid gap-2 compact-ui:grid expanded-ui:hidden">
         {sortedCandidatePoints.slice(0, 4).map((candidatePoint) => {
           const isSelected = candidatePoint.id === selectedCandidatePointId;
           const isUnavailable =
@@ -360,7 +360,7 @@ const AddressFieldBlock = memo(function AddressFieldBlock({
       </div>
 
       {noteLabel ? (
-        <details className="group rounded-[calc(var(--radius)+0.3rem)] border border-border/70 bg-background/45 px-3.5 py-3 lg:hidden">
+        <details className="group rounded-[calc(var(--radius)+0.3rem)] border border-border/70 bg-background/45 px-3.5 py-3 compact-ui:block expanded-ui:hidden">
           <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
             {noteLabel}
           </summary>

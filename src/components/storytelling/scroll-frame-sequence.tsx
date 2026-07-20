@@ -4,6 +4,7 @@ import type { MotionValue } from "motion/react";
 import { useMotionValueEvent } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+import { COMPACT_LAYOUT_MEDIA_QUERY } from "@/lib/responsive-layout";
 import { cn } from "@/lib/utils";
 import styles from "./storytelling.module.css";
 
@@ -136,7 +137,7 @@ export function ScrollFrameSequence({
   });
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
+    const query = window.matchMedia(COMPACT_LAYOUT_MEDIA_QUERY);
     const update = () => setViewport(query.matches ? "mobile" : "desktop");
     update();
     query.addEventListener("change", update);

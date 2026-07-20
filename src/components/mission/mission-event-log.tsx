@@ -99,7 +99,7 @@ export function MissionEventLog() {
       title="Actualizări livrare"
       description="A clear record of the delivery as it moves through pickup and drop-off."
     >
-      <details className="group rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/30 p-4 md:hidden">
+      <details className="group rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/30 p-4 compact-ui:block expanded-ui:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium text-foreground">
           Latest delivery updates
           <StatusBadge label={`${events.length} events`} tone="neutral" />
@@ -109,7 +109,7 @@ export function MissionEventLog() {
         </div>
       </details>
 
-      <div className="hidden max-h-[36rem] overflow-y-auto pr-1 md:block">
+      <div className="hidden max-h-[36rem] overflow-y-auto pr-1 expanded-ui:block">
         <MissionEventLogList events={events} />
       </div>
     </SectionCard>

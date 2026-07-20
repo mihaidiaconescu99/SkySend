@@ -291,10 +291,10 @@ function AddStripePaymentMethodPanel({
         onClick={onClose}
       />
 
-      <aside className="absolute inset-x-0 bottom-0 flex max-h-[min(88svh,calc(100dvh_-_env(safe-area-inset-top)_-_0.75rem))] flex-col rounded-t-[2rem] border border-border/80 bg-background shadow-[var(--elevation-panel)] md:inset-y-0 md:right-0 md:left-auto md:h-full md:max-h-none md:w-[32rem] md:rounded-none md:rounded-l-[2rem]">
-        <div className="mx-auto mt-3 h-1.5 w-14 rounded-full bg-border md:hidden" />
+      <aside className="absolute inset-x-0 bottom-0 flex max-h-[min(88svh,calc(100dvh_-_env(safe-area-inset-top)_-_0.75rem))] flex-col rounded-t-[2rem] border border-border/80 bg-background shadow-[var(--elevation-panel)] expanded-ui:md:inset-y-0 expanded-ui:md:right-0 expanded-ui:md:left-auto expanded-ui:md:h-full expanded-ui:md:max-h-none expanded-ui:md:w-[32rem] expanded-ui:md:rounded-none expanded-ui:md:rounded-l-[2rem]">
+        <div className="mx-auto mt-3 h-1.5 w-14 rounded-full bg-border compact-ui:block expanded-ui:hidden" />
 
-        <div className="flex items-start justify-between gap-4 border-b border-border/80 px-5 py-5 md:px-6">
+        <div className="flex items-start justify-between gap-4 border-b border-border/80 px-5 py-5 expanded-ui:md:px-6">
           <div className="space-y-3">
             <Badge variant="outline" className="w-fit">
               Stripe Setup
@@ -321,7 +321,7 @@ function AddStripePaymentMethodPanel({
           </AppButton>
         </div>
 
-        <div className="grid flex-1 overflow-y-auto px-5 pt-5 pb-[calc(1.25rem_+_env(safe-area-inset-bottom))] md:px-6 md:pb-5">
+        <div className="grid flex-1 overflow-y-auto px-5 pt-5 pb-[calc(1.25rem_+_env(safe-area-inset-bottom))] expanded-ui:md:px-6 expanded-ui:md:pb-5">
           <StripeSetupPaymentElement
             active={open}
             onSaved={async () => {
@@ -522,7 +522,7 @@ export function PaymentMethodsView() {
             />
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 expanded-ui:lg:grid-cols-2">
             {paymentMethods.map((paymentMethod) => (
               <div
                 key={paymentMethod.id}
@@ -555,7 +555,7 @@ export function PaymentMethodsView() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 expanded-ui:sm:grid-cols-2 expanded-ui:xl:grid-cols-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Brand</p>
                     <p className="mt-1 font-medium text-foreground">

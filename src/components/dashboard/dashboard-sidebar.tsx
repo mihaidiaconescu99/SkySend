@@ -92,7 +92,12 @@ export function DashboardSidebar({ role }: { role: DashboardRole }) {
   const isClientWorkspace = role === "client";
 
   return (
-    <aside className="hidden h-dvh min-h-0 overflow-y-auto border-r border-border/80 bg-sidebar/95 lg:block">
+    <aside
+      className={cn(
+        "hidden h-dvh min-h-0 overflow-y-auto border-r border-border/80 bg-sidebar/95",
+        isClientWorkspace ? "expanded-ui:block" : "lg:block",
+      )}
+    >
       <div className="flex min-h-full min-w-0 flex-col gap-7 px-5 py-7">
         <Link
           href="/"

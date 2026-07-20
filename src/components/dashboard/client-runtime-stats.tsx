@@ -15,7 +15,7 @@ export function ClientRuntimeStats({
   failedCount,
 }: ClientRuntimeStatsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 expanded-ui:grid-cols-3">
       <StatCard
         label="Livrari active"
         value={`${activeCount}`}
