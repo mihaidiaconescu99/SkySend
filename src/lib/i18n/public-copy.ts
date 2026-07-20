@@ -139,6 +139,13 @@ export type PublicCopy = {
           body: string[];
         }[];
       };
+      journey: {
+        pickup: { title: string; body: string };
+        flight: { title: string; body: string };
+        dropoff: { title: string; body: string };
+        revealLabel: string;
+        trackOrder: string;
+      };
     };
     heroEyebrow: string;
     heroTitle: string;
@@ -531,6 +538,22 @@ const ro: PublicCopy = {
             ],
           },
         ],
+      },
+      journey: {
+        pickup: {
+          title: "RIDICARE",
+          body: "Drona pleacă de la SkySend Hub și ajunge la punctul de preluare. Confirmă poziția sau alege unul dintre cele patru puncte alternative; respingerea tuturor anulează comanda. După verificarea zonei, compartimentul este coborât. Deblochează-l cu PIN-ul de preluare, introdu coletul și confirmă „Colet încărcat”.",
+        },
+        flight: {
+          title: "ZBOR",
+          body: "După ce coletul este securizat, compartimentul este ridicat, iar drona își începe călătoria către punctul de întâlnire de la livrare.",
+        },
+        dropoff: {
+          title: "LIVRARE",
+          body: "Când drona ajunge la primul punct de întâlnire pentru livrare, confirmă poziția acesteia în aplicație. Drona verifică dacă zona de aterizare este sigură și coboară compartimentul la sol cu ajutorul cablului. Folosește codul PIN de livrare afișat pe pagina de urmărire pentru a debloca compartimentul și a-ți ridica coletul.",
+        },
+        revealLabel: "Finalizare livrare",
+        trackOrder: "Urmărește comanda",
       },
     },
     heroEyebrow: "Cum funcționează",
@@ -1093,6 +1116,22 @@ const en: PublicCopy = {
             ],
           },
         ],
+      },
+      journey: {
+        pickup: {
+          title: "PICK UP",
+          body: "The drone departs from the SkySend Hub and reaches your pickup point. Confirm its position or choose one of four alternative points; rejecting them all cancels the order. After checking the area, the locker is lowered. Unlock it with the pickup PIN, place the package inside, and confirm “Package Loaded.”",
+        },
+        flight: {
+          title: "FLIGHT",
+          body: "Once your package is secured, the locker rises and the drone begins its journey to the drop-off meeting point.",
+        },
+        dropoff: {
+          title: "DROP OFF",
+          body: "Once the drone reaches the first delivery meeting point, confirm its position in the app. The drone verifies a safe landing zone and lowers the locker to the ground by cable. Use the delivery PIN shown on the tracking page to unlock the locker and retrieve your package.",
+        },
+        revealLabel: "Delivery complete",
+        trackOrder: "Track your order",
       },
     },
     heroEyebrow: "How it works",

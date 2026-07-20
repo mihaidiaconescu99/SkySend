@@ -16,28 +16,32 @@ const secondViewport: MapViewport = {
 };
 
 describe("useMapCenterSelectionController", () => {
-  it("does not resolve an address while placement mode is inactive", async () => {
+  it("does not resolve an address while placement mode is inactive", () => {
     const onResolve = vi.fn().mockResolvedValue(true);
     const { result } = renderHook(() =>
       useMapCenterSelectionController({ onResolve }),
     );
 
-    await act(async () => {
-      await result.current.handleViewportSettled(firstViewport);
-    });
+    act(() => result.current.handleViewportSettled(firstViewport));
 
     expect(onResolve).not.toHaveBeenCalled();
   });
 
-  it("updates the selected address field and toggles the active pin off", async () => {
+  it("waits for an explicit confirmation before updating the selected address", async () => {
     const onResolve = vi.fn().mockResolvedValue(true);
     const { result } = renderHook(() =>
       useMapCenterSelectionController({ onResolve }),
     );
 
     act(() => result.current.toggleField("pickup"));
+    act(() => result.current.handleViewportSettled(firstViewport));
+
+    expect(onResolve).not.toHaveBeenCalled();
+    expect(result.current.canConfirm).toBe(true);
+    expect(result.current.feedback).toContain("ridicare");
+
     await act(async () => {
-      await result.current.handleViewportSettled(firstViewport);
+      await result.current.confirmPendingViewport();
     });
 
     expect(onResolve).toHaveBeenCalledWith(
@@ -45,7 +49,7 @@ describe("useMapCenterSelectionController", () => {
       firstViewport,
       expect.any(AbortSignal),
     );
-    expect(result.current.feedback).toContain("ridicare");
+    expect(result.current.canConfirm).toBe(false);
 
     act(() => result.current.toggleField("pickup"));
     expect(result.current.activeField).toBeNull();
@@ -59,8 +63,9 @@ describe("useMapCenterSelectionController", () => {
 
     act(() => result.current.toggleField("pickup"));
     act(() => result.current.toggleField("dropoff"));
+    act(() => result.current.handleViewportSettled(secondViewport));
     await act(async () => {
-      await result.current.handleViewportSettled(secondViewport);
+      await result.current.confirmPendingViewport();
     });
 
     expect(onResolve).toHaveBeenCalledWith(
@@ -70,38 +75,26 @@ describe("useMapCenterSelectionController", () => {
     );
   });
 
-  it("aborts an older reverse-geocoding request when the map moves again", async () => {
-    const requests: Array<{
-      signal: AbortSignal;
-      resolve: (value: boolean) => void;
-    }> = [];
-    const onResolve = vi.fn(
-      (_field, _viewport, signal: AbortSignal) =>
-        new Promise<boolean>((resolve) => requests.push({ signal, resolve })),
-    );
+  it("uses only the latest map position when confirmation is requested", async () => {
+    const onResolve = vi.fn().mockResolvedValue(true);
     const { result } = renderHook(() =>
       useMapCenterSelectionController({ onResolve }),
     );
 
     act(() => result.current.toggleField("pickup"));
-    act(() => {
-      void result.current.handleViewportSettled(firstViewport);
-    });
-    act(() => {
-      void result.current.handleViewportSettled(secondViewport);
-    });
-
-    expect(requests).toHaveLength(2);
-    expect(requests[0]?.signal.aborted).toBe(true);
-    expect(requests[1]?.signal.aborted).toBe(false);
+    act(() => result.current.handleViewportSettled(firstViewport));
+    act(() => result.current.handleViewportSettled(secondViewport));
 
     await act(async () => {
-      requests[0]?.resolve(true);
-      requests[1]?.resolve(true);
-      await Promise.resolve();
+      await result.current.confirmPendingViewport();
     });
 
-    expect(result.current.feedback).toContain("actualizată");
+    expect(onResolve).toHaveBeenCalledTimes(1);
+    expect(onResolve).toHaveBeenCalledWith(
+      "pickup",
+      secondViewport,
+      expect.any(AbortSignal),
+    );
   });
 
   it("shows a non-blocking message when the center cannot be resolved", async () => {
@@ -111,8 +104,9 @@ describe("useMapCenterSelectionController", () => {
     );
 
     act(() => result.current.toggleField("dropoff"));
+    act(() => result.current.handleViewportSettled(firstViewport));
     await act(async () => {
-      await result.current.handleViewportSettled(firstViewport);
+      await result.current.confirmPendingViewport();
     });
 
     expect(result.current.activeField).toBe("dropoff");

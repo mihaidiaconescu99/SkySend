@@ -21,6 +21,7 @@ type ScrollScrubVideoProps = {
   objectFit?: "cover" | "contain";
   seekMode?: "damped" | "direct";
   onReadyChange?: (ready: boolean) => void;
+  showLoadingPoster?: boolean;
 };
 
 type ViewportKind = "desktop" | "mobile";
@@ -43,6 +44,7 @@ export function ScrollScrubVideo({
   objectFit = "cover",
   seekMode = "damped",
   onReadyChange,
+  showLoadingPoster = true,
 }: ScrollScrubVideoProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -175,7 +177,7 @@ export function ScrollScrubVideo({
         />
       ) : (
         <>
-          {!ready ? (
+          {!ready && showLoadingPoster ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={poster}
@@ -188,7 +190,7 @@ export function ScrollScrubVideo({
           <video
             ref={videoRef}
             src={canLoad ? src : undefined}
-            poster={poster}
+            poster={showLoadingPoster ? poster : undefined}
             preload={eager || nearViewport ? "auto" : "none"}
             muted
             playsInline

@@ -124,6 +124,74 @@ export const storytellingAssets = {
       posterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial-poster.png`,
       posterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/mobile-tutorial-poster.png`,
     },
+    pickup: {
+      first: {
+        desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-alpha.webm`,
+        mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-alpha.webm`,
+        posterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-poster.webp`,
+        posterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-poster.webp`,
+        sequence: {
+          desktop: {
+            frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-frames`,
+            frameCount: 189,
+            poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-poster.webp`,
+          },
+          mobile: {
+            frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-frames`,
+            frameCount: 189,
+            poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-first-poster.webp`,
+          },
+        },
+      },
+      second: {
+        desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-alpha.webm`,
+        mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-alpha.webm`,
+        posterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-poster.webp`,
+        posterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-poster.webp`,
+        sequence: {
+          desktop: {
+            frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-frames`,
+            frameCount: 180,
+            poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-poster.webp`,
+          },
+          mobile: {
+            frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-frames`,
+            frameCount: 180,
+            poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/pickup-second-poster.webp`,
+          },
+        },
+      },
+    },
+    flight: {
+      background: {
+        desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/flight-desktop.webp`,
+        mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/flight-mobile.webp`,
+      },
+      droneFinal: {
+        desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/flight-drone-final-desktop.webp`,
+        mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/flight-drone-final-mobile.webp`,
+      },
+    },
+    dropoff: {
+      desktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-alpha.webm`,
+      mobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-alpha.webm`,
+      posterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-poster.webp`,
+      posterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-poster.webp`,
+      endPosterDesktop: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-end.webp`,
+      endPosterMobile: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-end.webp`,
+      sequence: {
+        desktop: {
+          frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-frames`,
+          frameCount: 137,
+          poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-poster.webp`,
+        },
+        mobile: {
+          frameRoot: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-frames`,
+          frameCount: 137,
+          poster: `${HOW_IT_WORKS_RUNTIME_ROOT}/dropoff-poster.webp`,
+        },
+      },
+    },
   },
   weather: {
     rain: {

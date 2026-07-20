@@ -1,7 +1,15 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-export function BrandMark({ compact = false }: { compact?: boolean }) {
+export function BrandMark({
+  compact = false,
+  iconClassName,
+  labelClassName,
+}: {
+  compact?: boolean;
+  iconClassName?: string;
+  labelClassName?: string;
+}) {
   return (
     <div className="flex min-w-0 items-center gap-4">
       <span
@@ -9,6 +17,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
         className={cn(
           "relative flex shrink-0 items-center justify-center overflow-visible",
           compact ? "size-24" : "size-28",
+          iconClassName,
         )}
       >
         <Image
@@ -22,7 +31,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
       </span>
 
       <span className={cn("grid min-w-0 gap-0.5", compact && "gap-0")}>
-        <span className="truncate font-heading text-xl font-semibold tracking-tight">
+        <span className={cn("truncate font-heading text-xl font-semibold tracking-tight", labelClassName)}>
           SkySend
         </span>
         {!compact ? (

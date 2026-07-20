@@ -80,6 +80,12 @@ export type MapContainerProps = {
   ariaLabel?: string;
   center?: GeoPoint;
   zoom?: number;
+  padding?: {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+  };
   interactive?: boolean;
   showNavigation?: boolean;
   selectionMode?: MapSelectionMode;

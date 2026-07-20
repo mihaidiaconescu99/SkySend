@@ -31,7 +31,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         data-storytelling-route={isStorytellingRoute ? "true" : undefined}
         data-homepage={isHomePage ? "true" : undefined}
       >
-        <PublicNavbar overlay={isStorytellingRoute} hideOnScroll={isHomePage} />
+        <PublicNavbar overlay={isStorytellingRoute} hideOnScroll />
         <main
           id="main-content"
           className={cn(

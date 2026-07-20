@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { LoaderCircle, MapPin } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, LoaderCircle } from "lucide-react";
 import { AddressDrawer, type AddressDrawerState } from "@/components/delivery/mobile/address-drawer";
 import { useMapCenterSelectionController } from "@/components/delivery/mobile/map-tap-controller";
 import { LazyMapContainer } from "@/components/maps/lazy-map-container";
@@ -76,6 +77,7 @@ export function CreateDeliveryMapStep({
   const currentViewportRef = useRef<MapViewport>(mapViewport);
   const [selectionViewport, setSelectionViewport] =
     useState<MapViewport | null>(null);
+  const [visibleMapBottomPadding, setVisibleMapBottomPadding] = useState(316);
 
   const resolveViewportCenter = useCallback(
     (
@@ -89,12 +91,35 @@ export function CreateDeliveryMapStep({
     activeField: activeMapSelectionField,
     feedback,
     isResolving,
+    canConfirm,
     toggleField,
     stopSelection,
     handleViewportSettled,
+    confirmPendingViewport,
   } = useMapCenterSelectionController({
     onResolve: resolveViewportCenter,
   });
+
+  useEffect(() => {
+    const updateVisiblePadding = () => {
+      const root = getComputedStyle(document.documentElement);
+      const navHeight =
+        Number.parseFloat(root.getPropertyValue("--bottom-nav-height")) || 68;
+      const safeBottom =
+        window.innerHeight - (window.visualViewport?.height ?? window.innerHeight);
+
+      setVisibleMapBottomPadding(Math.round(navHeight + safeBottom + 248));
+    };
+
+    updateVisiblePadding();
+    window.addEventListener("resize", updateVisiblePadding);
+    window.visualViewport?.addEventListener("resize", updateVisiblePadding);
+
+    return () => {
+      window.removeEventListener("resize", updateVisiblePadding);
+      window.visualViewport?.removeEventListener("resize", updateVisiblePadding);
+    };
+  }, []);
 
   useEffect(() => {
     if (!activeMapSelectionField) {
@@ -142,6 +167,10 @@ export function CreateDeliveryMapStep({
   const continueReady = routeReady && !platformGateMessage;
   const showCenterPin = Boolean(activeMapSelectionField);
   const displayedViewport = selectionViewport ?? mapViewport;
+  const mapPadding = useMemo(
+    () => (showCenterPin ? { bottom: visibleMapBottomPadding } : undefined),
+    [showCenterPin, visibleMapBottomPadding],
+  );
 
   return (
     <div className="relative h-dvh min-h-svh overflow-hidden bg-[#081416]">
@@ -153,6 +182,7 @@ export function CreateDeliveryMapStep({
         ariaLabel="Hartă creare livrare"
         center={displayedViewport.center}
         zoom={displayedViewport.zoom}
+        padding={mapPadding}
         interactive
         showNavigation={false}
         markers={mapMarkers}
@@ -163,12 +193,18 @@ export function CreateDeliveryMapStep({
 
       {showCenterPin ? (
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-full"
+          className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 -translate-y-full"
+          style={{
+            top: `calc((100dvh - ${visibleMapBottomPadding}px) / 2)`,
+          }}
           aria-hidden="true"
         >
-          <div className="relative drop-shadow-[0_10px_18px_rgba(0,0,0,0.55)]">
-            <MapPin className="size-11 fill-red-500 text-red-200" strokeWidth={2.25} />
-            <span className="absolute bottom-0 left-1/2 size-2 -translate-x-1/2 translate-y-1/2 rounded-full bg-red-400 ring-4 ring-red-500/25" />
+          <div className="mobile-location-pin">
+            <span className="mobile-location-pin__head">
+              <span className="mobile-location-pin__core" />
+            </span>
+            <span className="mobile-location-pin__tail" />
+            <span className="mobile-location-pin__shadow" />
           </div>
         </div>
       ) : null}
@@ -181,13 +217,32 @@ export function CreateDeliveryMapStep({
               "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 248px + 0.75rem)",
           }}
         >
-          <div
-            className="flex max-w-full items-center gap-2 rounded-full border border-border/80 bg-background/95 px-4 py-2 text-xs font-medium text-foreground shadow-[var(--elevation-soft)] backdrop-blur-md"
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 380, damping: 34 }}
+            className="flex max-w-full items-center gap-2 overflow-hidden rounded-full border border-border/80 bg-background/95 px-4 py-2 text-xs font-medium text-foreground shadow-[var(--elevation-soft)] backdrop-blur-md"
             aria-live="polite"
           >
             {isResolving ? <LoaderCircle className="size-3.5 shrink-0 animate-spin" /> : null}
             <span className="truncate">{feedback}</span>
-          </div>
+            <AnimatePresence initial={false}>
+              {canConfirm ? (
+                <motion.button
+                  key="confirm-map-address"
+                  type="button"
+                  className="pointer-events-auto -my-1 -mr-2 grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_0_18px_rgba(32,231,213,0.34)]"
+                  aria-label="Confirmă locația"
+                  initial={{ width: 0, opacity: 0, scale: 0.72, marginLeft: 0 }}
+                  animate={{ width: 28, opacity: 1, scale: 1, marginLeft: 4 }}
+                  exit={{ width: 0, opacity: 0, scale: 0.72, marginLeft: 0 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  onClick={confirmPendingViewport}
+                >
+                  <Check className="size-4" strokeWidth={3} />
+                </motion.button>
+              ) : null}
+            </AnimatePresence>
+          </motion.div>
         </div>
       ) : null}
 

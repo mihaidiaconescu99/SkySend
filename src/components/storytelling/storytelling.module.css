@@ -17,7 +17,18 @@
 }
 
 .howStoryRoot {
+  --story-navy: #050b14;
+  --story-cyan: #20e7d5;
+  --story-white: #f2efe6;
   --how-next-scene-color: #000008;
+  --how-story-surface:
+    radial-gradient(circle at 18% 34%, rgb(32 231 213 / 0.16), transparent 34rem),
+    radial-gradient(circle at 80% 68%, rgb(114 80 255 / 0.15), transparent 38rem),
+    linear-gradient(118deg, #071923 0%, #0a202d 52%, #0d1726 100%);
+  --story-final-background:
+    radial-gradient(circle at 22% 37%, rgb(21 67 96 / 0.36), transparent 35rem),
+    radial-gradient(circle at 80% 48%, rgb(28 49 68 / 0.24), transparent 28rem),
+    linear-gradient(110deg, #06131f, #080e17 63%, #0d0e12);
   position: relative;
   isolation: isolate;
   overflow: clip;
@@ -432,6 +443,7 @@
 
 .howHeroScene .vCurve.vCurveReference {
   height: 57dvh;
+  bottom: -4px;
 }
 
 .scrollCue {
@@ -513,6 +525,14 @@
   top: auto;
   bottom: max(1.15rem, env(safe-area-inset-bottom));
 }
+
+.howTutorialProgressRail {
+  right: max(1rem, env(safe-area-inset-right));
+  left: auto;
+}
+
+.howTutorialProgressRail .landingProgressTrack { height: 2.25rem; }
+.howTutorialProgressRail .landingProgressActive .landingProgressTrack { height: 4.1rem; }
 
 .howTutorialMeta {
   display: block;
@@ -1015,6 +1035,174 @@
   will-change: transform;
 }
 
+.howJourneyChapter,
+.howJourneyStage,
+.howFlightChapter,
+.howFlightStage {
+  background: var(--how-story-surface);
+}
+
+.howJourneyFlowScene {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--how-story-surface);
+}
+
+.howJourneyPanel {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--how-story-surface);
+}
+
+.howPickupPanel { z-index: 1; }
+.howFlightPanel { z-index: 2; will-change: transform; }
+.howDropoffPanel { z-index: 3; will-change: transform; }
+
+.howJourneyScene,
+.howFlightScene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--how-story-surface);
+}
+
+.howJourneySplit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+  background: var(--how-story-surface);
+}
+
+.howJourneySplitReverse { grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr); }
+
+.howJourneyVideoLeft,
+.howJourneyVideoRight {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.howJourneyVideoLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.howJourneyFrameSequence {
+  overflow: visible;
+  transform: scale(1.42);
+  transform-origin: center;
+}
+
+.howJourneyFrameSequence canvas,
+.howJourneyFrameSequence img { filter: none; }
+
+.howJourneyCopy {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  padding: clamp(4.8rem, 12dvh, 9rem) clamp(2.25rem, 7vw, 8rem) clamp(3rem, 10dvh, 7rem);
+  align-content: center;
+  background: transparent;
+}
+
+.howJourneyCopy h2,
+.howFlightCopy h2 {
+  max-width: 9ch;
+  margin: 0;
+  color: #f5f0e3;
+  font-family: var(--font-story), var(--font-heading), sans-serif;
+  font-size: clamp(5.1rem, 8.1vw, 10rem);
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 0.82;
+  text-transform: uppercase;
+}
+
+.howJourneyCopy > p {
+  position: absolute;
+  top: calc(50% + clamp(3.6rem, 8vw, 7rem));
+  right: clamp(2.25rem, 7vw, 8rem);
+  left: clamp(2.25rem, 7vw, 8rem);
+  max-width: 38rem;
+  margin: 0;
+  color: rgb(245 240 227 / 0.91);
+  font-size: clamp(1.2rem, 1.42vw, 1.56rem);
+  font-weight: 560;
+  letter-spacing: -0.018em;
+  line-height: 1.54;
+  text-shadow: 0 0.18rem 1.2rem rgb(2 7 13 / 0.36);
+  will-change: transform, opacity;
+}
+
+.howFlightScene { background: var(--how-story-surface); }
+
+.howFlightBackground {
+  z-index: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.howFlightBackgroundMobile { display: none; }
+
+.howFlightDroneFinal {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: min(52vw, 58rem);
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.howFlightDroneFinalImage { object-fit: contain; }
+.howFlightDroneFinalMobile { display: none; }
+
+.howFlightCopy {
+  position: absolute;
+  top: max(6.5rem, calc(env(safe-area-inset-top) + 2rem));
+  left: clamp(1.5rem, 7vw, 8rem);
+  z-index: 3;
+  max-width: min(35rem, 48vw);
+  will-change: transform, opacity;
+}
+
+.howFlightCopy h2 { max-width: 8ch; }
+
+.howFlightCopy p {
+  max-width: 31rem;
+  margin: clamp(1.2rem, 3dvh, 2rem) 0 0;
+  color: rgb(245 240 227 / 0.93);
+  font-size: clamp(1.22rem, 1.45vw, 1.62rem);
+  font-weight: 580;
+  letter-spacing: -0.02em;
+  line-height: 1.55;
+  text-shadow: 0 0.12rem 1rem rgb(0 0 0 / 0.38);
+}
+
+.howJourneyCurtain {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: var(--story-final-background);
+  background-attachment: fixed;
+  background-position: 0 0;
+  background-size: 100vw 100dvh;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.finalCtaFadeIn {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+
 .weatherRailActive .weatherRailFill {
   opacity: 1;
 }
@@ -1175,19 +1363,10 @@
   letter-spacing: 0.04em;
   text-decoration: none;
   text-shadow: none;
-  transition: border-color 180ms ease, background-color 180ms ease, font-weight 180ms ease, text-shadow 180ms ease;
-}
-
-.finalCtaPrimary::after,
-.finalCtaSecondary::after {
-  position: absolute;
-  z-index: -1;
-  inset: 0.28rem -0.16rem -0.22rem 0.15rem;
-  border-radius: inherit;
-  content: "";
-  opacity: 0.92;
-  transform: rotate(-1.1deg);
-  transition: opacity 180ms ease;
+  box-shadow: none;
+  transform: perspective(44rem) rotateX(0deg) translateY(0) scale(1);
+  transform-style: preserve-3d;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, background-color 180ms ease;
 }
 
 .finalCtaLabel {
@@ -1202,39 +1381,25 @@
   color: #03151a;
 }
 
-.finalCtaPrimary::after {
-  background: rgb(0 104 102);
-}
-
 .finalCtaSecondary {
   border-color: rgb(255 255 255 / 0.3);
   background: rgb(255 255 255 / 0.07);
   color: #fff;
 }
 
-.finalCtaSecondary::after {
-  border: 1px solid rgb(255 255 255 / 0.2);
-  background: rgb(255 255 255 / 0.045);
-}
-
 .finalCtaPrimary:hover,
-.finalCtaPrimary:focus-visible {
-  font-weight: 800;
-  text-shadow: 0.5px 0 currentColor, -0.5px 0 currentColor;
-}
-
-.finalCtaPrimary:hover::after,
-.finalCtaPrimary:focus-visible::after,
-.finalCtaSecondary:hover::after,
-.finalCtaSecondary:focus-visible::after {
-  opacity: 1;
+.finalCtaPrimary:focus-visible,
+.finalCtaSecondary:hover,
+.finalCtaSecondary:focus-visible {
+  transform: perspective(44rem) rotateX(-5deg) translateY(-0.16rem) scale(1.055);
 }
 
 .finalCtaPrimary:hover .finalCtaLabel,
-.finalCtaPrimary:focus-visible .finalCtaLabel {
+.finalCtaPrimary:focus-visible .finalCtaLabel,
+.finalCtaSecondary:hover .finalCtaLabel,
+.finalCtaSecondary:focus-visible .finalCtaLabel {
   letter-spacing: 0.055em;
-  text-shadow: 0.5px 0 currentColor, -0.5px 0 currentColor;
-  transform: scale(1.075);
+  transform: scale(1.035);
 }
 
 .finalCtaPrimary:focus-visible,
@@ -2230,12 +2395,13 @@
     transform: scaleX(0.86);
   }
   .landingMessage {
-    width: 98vw;
-    font-size: clamp(0.72rem, 3.35vw, 0.95rem);
+    z-index: 43;
+    width: 165vw;
+    font-size: clamp(1.35rem, 7.4vw, 2.05rem);
     letter-spacing: -0.045em;
     line-height: 1.24;
     padding-block: 0.16em 0.24em;
-    transform: translate(-50%, -50%) scaleX(0.8);
+    transform: translate(-50%, -50%) scaleX(0.58);
   }
   .howHeroCopy {
     bottom: max(15rem, calc(env(safe-area-inset-bottom) + 2.6rem));
@@ -2295,6 +2461,57 @@
   }
   .howTutorialCopyLayer[data-scene="3"] h2 { font-size: clamp(1.65rem, 7.1vw, 2.3rem); }
   .howTutorialBody { display: none; }
+  .howJourneySplit,
+  .howJourneySplitReverse {
+    display: flex;
+    flex-direction: column;
+  }
+  .howJourneyVideoLeft,
+  .howJourneyVideoRight {
+    order: 2;
+    height: min(40dvh, 21rem);
+    flex: none;
+  }
+  .howJourneyFrameSequence { transform: scale(1.5); }
+  .howJourneyCopy {
+    order: 1;
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: max(4.9rem, calc(env(safe-area-inset-top) + 1.45rem)) 1.35rem 0.8rem;
+    align-content: start;
+  }
+  .howJourneyCopy h2,
+  .howFlightCopy h2 {
+    max-width: 11ch;
+    font-size: clamp(2.55rem, 12.8vw, 4rem);
+  }
+  .howJourneyCopy > p {
+    top: max(8.55rem, calc(env(safe-area-inset-top) + 4.8rem));
+    right: 1.35rem;
+    left: 1.35rem;
+    max-width: none;
+    font-size: clamp(0.93rem, 3.92vw, 1.06rem);
+    line-height: 1.43;
+  }
+  .howFlightBackgroundDesktop { display: none; }
+  .howFlightBackgroundMobile { display: block; }
+  .howFlightCopy {
+    top: max(5.8rem, calc(env(safe-area-inset-top) + 1.8rem));
+    right: 1.35rem;
+    left: 1.35rem;
+    max-width: none;
+  }
+  .howFlightCopy p {
+    max-width: 25rem;
+    margin-top: 1rem;
+    font-size: clamp(1.02rem, 4.35vw, 1.2rem);
+    line-height: 1.45;
+  }
+  .howFlightDroneFinal {
+    width: 84vw;
+  }
+  .howFlightDroneFinalDesktop { display: none; }
+  .howFlightDroneFinalMobile { display: block; }
   .scrollCue {
     width: 1.25rem;
     height: 1.25rem;

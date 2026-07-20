@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useRef, useState, type MutableRefObject } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type {
   GeoJSONSource,
   Map as MapLibreMap,
@@ -373,6 +373,7 @@ export const MapContainer = memo(function MapContainer({
   ariaLabel = "SkySend map",
   center = mapConfig.defaultCenter,
   zoom = mapConfig.defaultZoom,
+  padding,
   interactive = true,
   showNavigation = true,
   selectionMode = "preview",
@@ -404,6 +405,15 @@ export const MapContainer = memo(function MapContainer({
   const [diagnostics, setDiagnostics] = useState<MapDiagnostics>(initialDiagnostics);
   const shouldShowDiagnostics =
     process.env.NEXT_PUBLIC_SHOW_MAP_DIAGNOSTICS === "true";
+  const mapPadding = useMemo(
+    () => ({
+      top: padding?.top ?? 0,
+      right: padding?.right ?? 0,
+      bottom: padding?.bottom ?? 0,
+      left: padding?.left ?? 0,
+    }),
+    [padding?.bottom, padding?.left, padding?.right, padding?.top],
+  );
 
   useEffect(() => {
     clickHandlerRef.current = onPointSelect;
@@ -728,13 +738,22 @@ export const MapContainer = memo(function MapContainer({
       return;
     }
 
+    mapRef.current.setPadding(mapPadding);
+  }, [isReady, mapPadding]);
+
+  useEffect(() => {
+    if (!mapRef.current || !isReady) {
+      return;
+    }
+
     mapRef.current.easeTo({
       center: [center.longitude, center.latitude],
       zoom,
+      padding: mapPadding,
       duration: 720,
       essential: true,
     });
-  }, [center.latitude, center.longitude, isReady, zoom]);
+  }, [center.latitude, center.longitude, isReady, mapPadding, zoom]);
 
   useEffect(() => {
     if (!isReady || !mapRef.current) {

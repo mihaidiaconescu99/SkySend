@@ -13,6 +13,7 @@
     "test:supabase": "node --env-file=.env.local scripts/test-supabase-connection.mjs",
     "storytelling:hero-frames": "node scripts/generate-hero-frame-sequence.mjs",
     "storytelling:landing-media": "node scripts/process-landing-story-assets.mjs",
+    "storytelling:how-media": "node scripts/process-how-it-works-assets.mjs",
     "storytelling:r2:plan": "node scripts/storytelling-r2.mjs plan",
     "storytelling:r2:upload": "node --env-file=.env.local scripts/storytelling-r2.mjs upload",
     "storytelling:r2:verify": "node --env-file=.env.local scripts/storytelling-r2.mjs verify",

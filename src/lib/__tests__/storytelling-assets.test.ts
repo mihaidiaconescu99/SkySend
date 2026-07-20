@@ -45,4 +45,17 @@ describe("storytelling R2 release", () => {
     expect(tutorial.desktop).toContain("/runtime/how-it-works/mobile-tutorial.mp4");
     expect(tutorial.posterDesktop).toBe(tutorial.posterMobile);
   });
+
+  it("exposes the pickup, flight and drop-off journey media on the active release", () => {
+    const journey = storytellingAssets.howItWorks;
+    expect(journey.pickup.first.desktop).toContain("/runtime/how-it-works/pickup-first-alpha.webm");
+    expect(journey.pickup.second.desktop).toContain("/runtime/how-it-works/pickup-second-alpha.webm");
+    expect(journey.pickup.first.sequence.desktop.frameCount).toBe(189);
+    expect(journey.pickup.second.sequence.desktop.frameCount).toBe(180);
+    expect(journey.flight.droneFinal.desktop).toContain("/runtime/how-it-works/flight-drone-final-desktop.webp");
+    expect(journey.flight.background.mobile).toContain("/runtime/how-it-works/flight-mobile.webp");
+    expect(journey.dropoff.desktop).toContain("/runtime/how-it-works/dropoff-alpha.webm");
+    expect(journey.dropoff.sequence.desktop.frameCount).toBe(137);
+    expect(journey.dropoff.endPosterDesktop).toContain("/runtime/how-it-works/dropoff-end.webp");
+  });
 });

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, LayoutGroup, m } from "motion/react";
 import { HeaderAccount } from "@/components/layout/header-account";
 import { publicNavigation } from "@/constants/public-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -21,7 +21,7 @@ function stableMinWidthCh(key: string): string {
   const roLabel = dictionaries.ro[key] ?? "";
   const enLabel = dictionaries.en[key] ?? "";
   const longest = Math.max(roLabel.length, enLabel.length);
-  return `${Math.ceil(longest * 1.2)}ch`;
+  return `${Math.ceil(longest * 1.04)}ch`;
 }
 
 export function PublicNavbar({
@@ -39,23 +39,6 @@ export function PublicNavbar({
 
   const opaque = overlay ? scrolled || isOpen : true;
   const transparent = !opaque;
-
-  let navBackground: string;
-  let navBorder: string;
-  let navBlur: number;
-  if (!overlay) {
-    navBackground = "rgb(4 10 12 / 0.88)";
-    navBorder = "rgb(34 211 238 / 0.7)";
-    navBlur = 20;
-  } else if (opaque) {
-    navBackground = "rgba(5, 7, 10, 0.85)";
-    navBorder = "rgba(255, 255, 255, 0.05)";
-    navBlur = 12;
-  } else {
-    navBackground = "rgba(5, 7, 10, 0)";
-    navBorder = "rgba(255, 255, 255, 0)";
-    navBlur = 0;
-  }
 
   useEffect(() => {
     if (!overlay) return;
@@ -132,54 +115,65 @@ export function PublicNavbar({
     <header
       ref={headerRef}
       className={cn(
-        "fixed inset-x-0 top-0 z-50 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color,backdrop-filter,color,transform] duration-200 ease-out",
+        "pointer-events-none fixed inset-x-0 top-0 z-50 pt-[calc(env(safe-area-inset-top)+0.7rem)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         transparent
           ? "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.4)]"
           : "text-foreground",
       )}
       style={{
-        backgroundColor: navBackground,
-        borderColor: navBorder,
-        backdropFilter: `blur(${navBlur}px)`,
-        WebkitBackdropFilter: `blur(${navBlur}px)`,
         transform:
           hideOnScroll && navHidden && !isOpen
-            ? "translate3d(0, -105%, 0)"
+            ? "translate3d(0, calc(-100% - 1rem), 0)"
             : "translate3d(0, 0, 0)",
       }}
     >
-      <div className="app-container">
-        <div className="flex h-14 min-w-0 items-center justify-between gap-4 xl:h-16 xl:gap-6">
+      <div className="app-container flex justify-center">
+        <div className="pointer-events-auto flex h-[3.85rem] min-w-0 max-w-[calc(100vw-1.5rem)] flex-nowrap items-center gap-3 rounded-[1.25rem] border border-white/12 bg-[#070b10]/88 px-3 shadow-[0_0.75rem_2.6rem_rgb(0_0_0_/_0.3)] backdrop-blur-xl xl:h-[4.6rem] xl:max-w-[calc(100vw-2rem)] xl:gap-2 xl:rounded-full xl:px-3">
           <Link href="/" aria-label={t("brand.homeAria")} className="min-w-0 shrink-0">
-            <BrandMark compact />
+            <BrandMark compact iconClassName="size-18 xl:size-24" labelClassName="text-2xl xl:text-[1.75rem]" />
           </Link>
 
-          <nav
-            aria-label={t("nav.mainAria")}
-            className="hidden min-w-0 items-center gap-1 xl:flex"
-          >
-            {publicNavigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={pathname === item.href ? "page" : undefined}
-                style={{ minWidth: stableMinWidthCh(item.labelKey) }}
-                className={cn(
-                  "public-nav-link whitespace-nowrap rounded-full px-3 py-1.5 text-center text-sm transition-colors duration-300",
-                  pathname === item.href
-                    ? "bg-secondary/80 text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                  transparent && "text-white/90 hover:text-white",
-                )}
-              >
-                {t(item.labelKey)}
-              </Link>
-            ))}
-          </nav>
+          <span aria-hidden="true" className="h-7 w-px shrink-0 bg-white/12 xl:h-8" />
+
+          <LayoutGroup id="public-navbar-active-link">
+            <nav
+              aria-label={t("nav.mainAria")}
+              className="hidden shrink-0 flex-nowrap items-center gap-0.5 xl:flex"
+            >
+              {publicNavigation.map((item) => {
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    style={{ minWidth: stableMinWidthCh(item.labelKey) }}
+                    className={cn(
+                      "public-nav-link relative isolate whitespace-nowrap rounded-full px-2.5 py-1.5 text-center text-sm transition-colors duration-300",
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                      transparent && "text-white/90 hover:text-white",
+                    )}
+                  >
+                    {isActive ? (
+                      <m.span
+                        layoutId="public-navbar-active-link-indicator"
+                        className="pointer-events-none absolute inset-0 z-0 rounded-full bg-white/[0.16] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_0.5rem_1.5rem_rgb(0_0_0_/_0.28)]"
+                        transition={{ type: "spring", stiffness: 260, damping: 30, mass: 1 }}
+                      />
+                    ) : null}
+                    <span className="relative z-10">{t(item.labelKey)}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </LayoutGroup>
 
           <div
             className={cn(
-              "hidden shrink-0 items-center gap-2 xl:flex",
+              "hidden shrink-0 flex-nowrap items-center gap-1.5 xl:flex",
               transparent &&
                 "[&_[data-variant=ghost]]:text-white/78 [&_[data-variant=ghost]:hover]:bg-white/10 [&_[data-variant=ghost]:hover]:text-white [&_[data-variant=outline]]:border-white/24 [&_[data-variant=outline]]:bg-white/8 [&_[data-variant=outline]]:text-white [&_[data-variant=outline]:hover]:bg-white/14 [&_[data-variant=outline]:hover]:text-white",
             )}
@@ -205,7 +199,7 @@ export function PublicNavbar({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className={cn("xl:hidden", transparent && "text-white hover:bg-white/12")}
+            className={cn("ml-auto xl:hidden", transparent && "text-white hover:bg-white/12")}
             aria-expanded={isOpen}
             aria-controls="public-mobile-nav"
             aria-label={isOpen ? t("nav.closeMenu") : t("nav.openMenu")}
@@ -247,7 +241,7 @@ export function PublicNavbar({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl xl:hidden"
+            className="pointer-events-auto absolute right-3 top-[calc(100%+0.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[calc(var(--radius)+0.75rem)] border border-border/80 bg-background/96 p-2 shadow-[var(--elevation-panel)] backdrop-blur-xl xl:hidden"
           >
             <div
               className="flex flex-col gap-2"

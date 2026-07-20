@@ -482,6 +482,63 @@
     filter: saturate(0.78) contrast(1.14) brightness(1.22) hue-rotate(8deg);
   }
 
+  .mobile-location-pin {
+    position: relative;
+    width: 2.45rem;
+    height: 3.1rem;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.56));
+  }
+
+  .mobile-location-pin__head {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    display: grid;
+    width: 2.18rem;
+    height: 2.18rem;
+    place-items: center;
+    border: 0.22rem solid rgba(238, 255, 253, 0.96);
+    border-radius: 999px 999px 999px 0;
+    background: linear-gradient(180deg, #32f6e8, #17cabd);
+    transform: translateX(-50%) rotate(-45deg);
+    box-shadow:
+      0 0 0 0.14rem rgba(32, 231, 213, 0.26),
+      0 0 22px rgba(32, 231, 213, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  .mobile-location-pin__core {
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px rgba(1, 32, 35, 0.12);
+  }
+
+  .mobile-location-pin__tail {
+    position: absolute;
+    bottom: 0.18rem;
+    left: 50%;
+    width: 0.28rem;
+    height: 0.86rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1fe7d5, rgba(31, 231, 213, 0.15));
+    transform: translateX(-50%);
+    box-shadow: 0 0 14px rgba(32, 231, 213, 0.34);
+  }
+
+  .mobile-location-pin__shadow {
+    position: absolute;
+    bottom: -0.08rem;
+    left: 50%;
+    width: 1.5rem;
+    height: 0.34rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.42);
+    transform: translateX(-50%);
+    filter: blur(6px);
+  }
+
   .map-overlay-card {
     max-width: calc(100vw - 2rem);
     border: 1px solid var(--border);

@@ -10,23 +10,29 @@ import { StoryChapter } from "./story-chapter";
 import styles from "./storytelling.module.css";
 
 type FinalCopy = PublicCopy["home"]["story"]["cta"];
+type FinalRevealAsset = {
+  endPosterDesktop?: string;
+  endPosterMobile?: string;
+};
 
-function FinalRevealScene({ progress }: { progress: MotionValue<number> }) {
+function FinalRevealScene({ progress, asset }: { progress: MotionValue<number>; asset: FinalRevealAsset }) {
   const reducedMotion = usePrefersReducedMotion();
   const curtainOpacity = useTransform(progress, [0, 1], [0, 1]);
-  const rain = storytellingAssets.landingWeather.rain;
+  const rain = asset.endPosterDesktop ? asset : storytellingAssets.landingWeather.rain;
+  const desktopPoster = rain.endPosterDesktop ?? storytellingAssets.landingWeather.rain.endPosterDesktop!;
+  const mobilePoster = rain.endPosterMobile ?? desktopPoster;
 
   return (
     <div className={styles.finalRevealScene}>
       <Image
-        src={rain.endPosterDesktop}
+        src={desktopPoster}
         alt=""
         fill
         sizes="100vw"
         className={`${styles.finalRevealRain} ${styles.finalRevealRainDesktop}`}
       />
       <Image
-        src={rain.endPosterMobile}
+        src={mobilePoster}
         alt=""
         fill
         sizes="100vw"
@@ -41,16 +47,24 @@ function FinalRevealScene({ progress }: { progress: MotionValue<number> }) {
   );
 }
 
-export function FinalRevealChapter({ copy }: { copy: FinalCopy }) {
+export function FinalRevealChapter({
+  copy,
+  id = "story-final-reveal",
+  asset,
+}: {
+  copy: FinalCopy;
+  id?: string;
+  asset?: FinalRevealAsset;
+}) {
   return (
     <StoryChapter
-      id="story-final-reveal"
+      id={id}
       label={copy.chapterLabel}
       screens={4}
       className={styles.finalRevealChapter}
       stickyClassName={styles.finalRevealSticky}
     >
-      {(progress) => <FinalRevealScene progress={progress} />}
+      {(progress) => <FinalRevealScene progress={progress} asset={asset ?? storytellingAssets.landingWeather.rain} />}
     </StoryChapter>
   );
 }

@@ -19,6 +19,9 @@ export function useMapCenterSelectionController({
     useState<CreateDeliveryAddressField | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [pendingViewport, setPendingViewport] = useState<MapViewport | null>(
+    null,
+  );
   const requestRef = useRef<{ id: number; controller: AbortController } | null>(
     null,
   );
@@ -34,11 +37,16 @@ export function useMapCenterSelectionController({
       cancelPendingRequest();
       setActiveField((current) => {
         const nextField = current === field ? null : field;
+
+        setPendingViewport(null);
         setFeedback(
           nextField
-            ? `Mută harta pentru adresa de ${nextField === "pickup" ? "ridicare" : "livrare"}.`
+            ? `Mută harta pentru adresa de ${
+                nextField === "pickup" ? "ridicare" : "livrare"
+              }.`
             : null,
         );
+
         return nextField;
       });
     },
@@ -49,58 +57,73 @@ export function useMapCenterSelectionController({
     cancelPendingRequest();
     setActiveField(null);
     setFeedback(null);
+    setPendingViewport(null);
   }, [cancelPendingRequest]);
 
   const handleViewportSettled = useCallback(
-    async (viewport: MapViewport) => {
+    (viewport: MapViewport) => {
       if (!activeField) {
         return;
       }
 
-      requestRef.current?.controller.abort();
-      const controller = new AbortController();
-      const requestId = (requestRef.current?.id ?? 0) + 1;
-      requestRef.current = { id: requestId, controller };
-      setIsResolving(true);
-      setFeedback("Actualizăm adresa din centrul hărții…");
-
-      try {
-        const didResolve = await onResolve(
-          activeField,
-          viewport,
-          controller.signal,
-        );
-
-        if (
-          controller.signal.aborted ||
-          requestRef.current?.id !== requestId
-        ) {
-          return;
-        }
-
-        setFeedback(
-          didResolve
-            ? `Adresa de ${activeField === "pickup" ? "ridicare" : "livrare"} a fost actualizată.`
-            : "Nu am putut identifica o adresă sigură în acel punct.",
-        );
-      } catch {
-        if (
-          controller.signal.aborted ||
-          requestRef.current?.id !== requestId
-        ) {
-          return;
-        }
-
-        setFeedback("Adresa nu a putut fi actualizată. Încearcă o poziție apropiată.");
-      } finally {
-        if (requestRef.current?.id === requestId) {
-          requestRef.current = null;
-          setIsResolving(false);
-        }
-      }
+      cancelPendingRequest();
+      setPendingViewport(viewport);
+      setFeedback(
+        `Adresa de ${
+          activeField === "pickup" ? "ridicare" : "livrare"
+        } a fost actualizată.`,
+      );
     },
-    [activeField, onResolve],
+    [activeField, cancelPendingRequest],
   );
+
+  const confirmPendingViewport = useCallback(async () => {
+    if (!activeField || !pendingViewport || isResolving) {
+      return;
+    }
+
+    requestRef.current?.controller.abort();
+    const controller = new AbortController();
+    const requestId = (requestRef.current?.id ?? 0) + 1;
+
+    requestRef.current = { id: requestId, controller };
+    setIsResolving(true);
+    setFeedback("Confirmăm adresa din centrul hărții...");
+
+    try {
+      const didResolve = await onResolve(
+        activeField,
+        pendingViewport,
+        controller.signal,
+      );
+
+      if (controller.signal.aborted || requestRef.current?.id !== requestId) {
+        return;
+      }
+
+      setFeedback(
+        didResolve
+          ? `Adresa de ${
+              activeField === "pickup" ? "ridicare" : "livrare"
+            } a fost actualizată.`
+          : "Nu am putut identifica o adresă sigură în acel punct.",
+      );
+      setPendingViewport(null);
+    } catch {
+      if (controller.signal.aborted || requestRef.current?.id !== requestId) {
+        return;
+      }
+
+      setFeedback(
+        "Adresa nu a putut fi actualizată. Încearcă o poziție apropiată.",
+      );
+    } finally {
+      if (requestRef.current?.id === requestId) {
+        requestRef.current = null;
+        setIsResolving(false);
+      }
+    }
+  }, [activeField, isResolving, onResolve, pendingViewport]);
 
   useEffect(
     () => () => {
@@ -114,8 +137,10 @@ export function useMapCenterSelectionController({
     activeField,
     feedback,
     isResolving,
+    canConfirm: Boolean(activeField && pendingViewport && !isResolving),
     toggleField,
     stopSelection,
     handleViewportSettled,
+    confirmPendingViewport,
   };
 }

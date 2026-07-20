@@ -8,5 +8,5 @@ export default function HowItWorksContent() {
   const { language } = useSettings();
   const copy = getPublicCopy(language);
 
-  return <HowItWorksStory copy={copy.howItWorks.story} />;
+  return <HowItWorksStory copy={copy.howItWorks.story} finalCopy={copy.home.story.cta} />;
 }
