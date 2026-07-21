@@ -40,6 +40,7 @@ function buildOrderRow(
     id: "00000000-0000-0000-0000-000000000001",
     local_order_id: "SKY-PT-12345",
     public_tracking_code: "TRK-ABCDEF",
+    public_code_access_mode: "view",
     recipient_tracking_token: "TKN-XYZ",
     sender_profile_id: "00000000-0000-0000-0000-000000000111",
     recipient_email: "recipient@example.com",

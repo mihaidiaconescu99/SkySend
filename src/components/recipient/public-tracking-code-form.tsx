@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Search } from "lucide-react";
 import { AppButton } from "@/components/shared/app-button";
 import { Input } from "@/components/ui/input";
-import { normalizePublicTrackingCode } from "@/lib/recipient-tracking";
+import { normalizeTrackingIdentifier } from "@/lib/recipient-tracking";
 
 export function PublicTrackingCodeForm() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const normalizedCode = normalizePublicTrackingCode(code);
+  const normalizedCode = normalizeTrackingIdentifier(code);
   const canSubmit = normalizedCode.length >= 8;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -55,7 +55,7 @@ export function PublicTrackingCodeForm() {
               setCode(event.target.value);
               setError(null);
             }}
-            placeholder="Ex: SKY-PIT-70110-943"
+            placeholder="Ex: SKY-PT-453..."
             className="h-12 pl-9 font-mono uppercase tracking-normal"
             autoComplete="off"
             spellCheck={false}

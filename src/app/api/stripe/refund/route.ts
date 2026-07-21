@@ -91,8 +91,13 @@ export async function POST(request: Request) {
   const stripe = getStripeServer();
 
   try {
+    await orders.updatePaymentStatus(order.id, "refund_pending", "pending");
     const refundParams: Parameters<typeof stripe.refunds.create>[0] = {
       reason: "requested_by_customer",
+      metadata: {
+        orderId: order.localOrderId,
+        failureReason: body.reason ?? "manual",
+      },
     };
 
     if (order.stripePaymentIntentId) {
@@ -101,7 +106,9 @@ export async function POST(request: Request) {
       refundParams.charge = order.stripeChargeId;
     }
 
-    const stripeRefund = await stripe.refunds.create(refundParams);
+    const stripeRefund = await stripe.refunds.create(refundParams, {
+      idempotencyKey: `skysend-refund:${order.id}:${body.reason ?? "manual"}`,
+    });
 
     await orders.updatePaymentStatus(order.id, "refunded", "completed");
 

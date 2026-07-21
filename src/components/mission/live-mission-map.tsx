@@ -70,6 +70,19 @@ const dropoffReachedStatuses: MissionStatus[] = [
   "proof_generated",
   "mission_closed",
 ];
+const dropoffPhaseStatuses = new Set<MissionStatus>([
+  "en_route_to_dropoff",
+  "arrived_at_dropoff",
+  "awaiting_recipient_position_confirmation",
+  "dropoff_safety_check",
+  "locker_descending_dropoff",
+  "awaiting_recipient_pin",
+  "awaiting_parcel_collection",
+  "locker_ascending_dropoff",
+  "delivery_completed",
+  "proof_generated",
+  "mission_closed",
+]);
 
 function formatSegmentLabel(value: string) {
   switch (value) {
@@ -132,28 +145,32 @@ function buildRouteLinePoints({
   segmentProgress: number;
 }) {
   if (activeSegmentType === "warehouse_to_pickup") {
+    const routeStart = activeSegmentFrom ?? hubPoint;
+    const routeEnd = activeSegmentTo ?? pickupPoint;
     const progressPoint = interpolateGeoPoint(
-      hubPoint,
-      pickupPoint,
+      routeStart,
+      routeEnd,
       segmentProgress,
     );
 
     return {
-      completed: [hubPoint, progressPoint],
-      remaining: [progressPoint, pickupPoint, dropoffPoint],
+      completed: [routeStart, progressPoint],
+      remaining: [progressPoint, routeEnd],
     };
   }
 
   if (activeSegmentType === "pickup_to_dropoff") {
+    const routeStart = activeSegmentFrom ?? pickupPoint;
+    const routeEnd = activeSegmentTo ?? dropoffPoint;
     const progressPoint = interpolateGeoPoint(
-      pickupPoint,
-      dropoffPoint,
+      routeStart,
+      routeEnd,
       segmentProgress,
     );
 
     return {
-      completed: [hubPoint, pickupPoint, progressPoint],
-      remaining: [progressPoint, dropoffPoint],
+      completed: [routeStart, progressPoint],
+      remaining: [progressPoint, routeEnd],
     };
   }
 
@@ -181,13 +198,15 @@ function buildRouteLinePoints({
   if (currentStatus && pickupReachedStatuses.includes(currentStatus)) {
     return {
       completed: [hubPoint, pickupPoint],
-      remaining: [pickupPoint, dropoffPoint],
+      remaining: dropoffPhaseStatuses.has(currentStatus)
+        ? [pickupPoint, dropoffPoint]
+        : [],
     };
   }
 
   return {
     completed: [],
-    remaining: [hubPoint, pickupPoint, dropoffPoint],
+    remaining: [hubPoint, pickupPoint],
   };
 }
 
@@ -214,10 +233,13 @@ export function LiveMissionMap({
   const dropoffPoint = currentMission?.dropoff.location ?? fallbackDropoff.point;
   const liveDronePoint = dronePosition ?? hubPoint;
   const progressPercent = Math.round(segmentProgress * 100);
-  const markers = useMemo<readonly MapMarkerDefinition[]>(() => {
+  const markers: readonly MapMarkerDefinition[] = (() => {
     const meetingPointMarkers: MapMarkerDefinition[] = [];
+    const showDropoffCandidates = Boolean(
+      currentStatus && dropoffPhaseStatuses.has(currentStatus),
+    );
 
-    currentMission?.meetingPointAttempts.pickupMeetingPoints.forEach((point) => {
+    if (!showDropoffCandidates) currentMission?.meetingPointAttempts.pickupMeetingPoints.forEach((point) => {
       meetingPointMarkers.push({
         id: `pickup-meeting-${point.id}`,
         point: point.coordinates,
@@ -235,7 +257,7 @@ export function LiveMissionMap({
       });
     });
 
-    currentMission?.meetingPointAttempts.dropoffMeetingPoints.forEach((point) => {
+    if (showDropoffCandidates) currentMission?.meetingPointAttempts.dropoffMeetingPoints.forEach((point) => {
       meetingPointMarkers.push({
         id: `dropoff-meeting-${point.id}`,
         point: point.coordinates,
@@ -253,6 +275,24 @@ export function LiveMissionMap({
       });
     });
 
+    const fallbackPhaseMarker: MapMarkerDefinition[] =
+      meetingPointMarkers.length > 0
+        ? []
+        : [
+            {
+              id: showDropoffCandidates ? "mission-dropoff" : "mission-pickup",
+              point: showDropoffCandidates ? dropoffPoint : pickupPoint,
+              label: showDropoffCandidates
+                ? currentMission?.dropoff.label ?? fallbackDropoff.label
+                : currentMission?.pickup.label ?? fallbackPickup.label,
+              description: showDropoffCandidates ? "Punct de livrare" : "Punct de ridicare",
+              kind: showDropoffCandidates ? "dropoff" : "pickup",
+              tone: showDropoffCandidates ? "dropoff" : "pickup",
+              variant: showDropoffCandidates ? "dropoff" : "pickup",
+              emphasized: true,
+            },
+          ];
+
     return [
       {
         id: "mission-hub",
@@ -265,53 +305,27 @@ export function LiveMissionMap({
         emphasized: true,
       },
       {
-        id: "mission-pickup",
-        point: pickupPoint,
-        label: currentMission?.pickup.label ?? fallbackPickup.label,
-        description: "Punct de ridicare",
-        kind: "pickup",
-        tone: "pickup",
-        variant: "pickup",
-        emphasized: true,
-      },
-      {
-        id: "mission-dropoff",
-        point: dropoffPoint,
-        label: currentMission?.dropoff.label ?? fallbackDropoff.label,
-        description: "Punct de livrare",
-        kind: "dropoff",
-        tone: "dropoff",
-        variant: "dropoff",
-        emphasized: true,
-      },
-      {
         id: "mission-drone",
         point: liveDronePoint,
-        label: "Pozișie live drone",
-        description: "Pozișie curentă din telemetrie",
+        label: "Poziție live dronă",
+        description: "Poziție curentă din telemetrie",
         kind: "drone",
         tone: "meeting",
         variant: "drone",
         headingDegrees: droneTelemetry?.headingDegrees ?? 0,
         emphasized: true,
       },
+      ...fallbackPhaseMarker,
       ...meetingPointMarkers,
     ];
-  }, [
-      currentMission?.dropoff.label,
-      currentMission?.hub.name,
-      currentMission?.meetingPointAttempts.dropoffMeetingPoints,
-      currentMission?.meetingPointAttempts.pickupMeetingPoints,
-      currentMission?.pickup.label,
-      dropoffPoint,
-      fallbackDropoff.label,
-      fallbackPickup.label,
-      hubPoint,
-      liveDronePoint,
-      pickupPoint,
-      droneTelemetry?.headingDegrees,
-    ]);
-  const viewport = useMemo(() => getMarkerDrivenViewport(markers), [markers]);
+  })();
+  const viewport = useMemo(() => {
+    const markerViewport = getMarkerDrivenViewport(markers);
+    return {
+      ...markerViewport,
+      zoom: Math.max(11, markerViewport.zoom - 0.55),
+    };
+  }, [markers]);
   const lines = useMemo<readonly MapLineDefinition[]>(() => {
     const routeLinePoints = buildRouteLinePoints({
       hubPoint,

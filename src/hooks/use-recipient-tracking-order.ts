@@ -11,26 +11,28 @@ export function useRecipientTrackingOrder(
   useEffect(() => {
     let cancelled = false;
 
-    fetch(
-      `/api/orders/by-tracking-identifier?identifier=${encodeURIComponent(identifier)}`,
-    )
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json() as Promise<CreatedDeliveryOrder>;
-      })
-      .then((apiOrder) => {
-        if (!cancelled) {
-          setOrder(apiOrder);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOrder(null);
-        }
-      });
+    const load = () => {
+      fetch(
+        `/api/orders/by-tracking-identifier?identifier=${encodeURIComponent(identifier)}`,
+      )
+        .then((res) => {
+          if (!res.ok) return null;
+          return res.json() as Promise<CreatedDeliveryOrder>;
+        })
+        .then((apiOrder) => {
+          if (!cancelled) setOrder(apiOrder);
+        })
+        .catch(() => {
+          if (!cancelled) setOrder(null);
+        });
+    };
+
+    load();
+    const interval = window.setInterval(load, 2_000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [identifier]);
 

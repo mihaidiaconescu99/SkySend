@@ -25,6 +25,7 @@ export type UseMissionRuntimeResult = MissionRuntimeSnapshot & {
   verifyRecipientPin: typeof missionRuntimeStore.verifyRecipientPin;
   confirmParcelCollected: typeof missionRuntimeStore.confirmParcelCollected;
   resetMission: typeof missionRuntimeStore.resetMission;
+  syncMissionStatusFromOrder: typeof missionRuntimeStore.syncMissionStatusFromOrder;
 };
 
 export function useMissionRuntime(): UseMissionRuntimeResult {
@@ -71,6 +72,7 @@ export function useMissionRuntime(): UseMissionRuntimeResult {
       verifyRecipientPin: missionRuntimeStore.verifyRecipientPin,
       confirmParcelCollected: missionRuntimeStore.confirmParcelCollected,
       resetMission: missionRuntimeStore.resetMission,
+      syncMissionStatusFromOrder: missionRuntimeStore.syncMissionStatusFromOrder,
     }),
     [snapshot],
   );

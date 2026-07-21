@@ -22,8 +22,12 @@ import { droneClassLabels } from "@/constants/domain";
 import { deliveryPlatformLabels } from "@/constants/delivery-configurations";
 import { missionStatusDescriptions } from "@/constants/mission";
 import { useMissionRuntime } from "@/hooks/use-mission-runtime";
+import { PremiumTrackingWorkspace } from "@/components/delivery/premium-tracking-workspace";
 import { useRecipientTrackingOrder } from "@/hooks/use-recipient-tracking-order";
-import { updateCreatedDeliveryOrderFulfillment } from "@/lib/create-delivery-submit";
+import {
+  suspendCreatedDeliveryRemoteStatusSync,
+  updateCreatedDeliveryOrderFulfillment,
+} from "@/lib/create-delivery-submit";
 import {
   doesPublicTrackingCodeMatchMission,
   doesRecipientTokenMatchMission,
@@ -272,6 +276,7 @@ export function RecipientMissionTrackingView({
     createMissionFromOrder,
     startMission,
     syncPaidCreatedDeliveryOrderMission,
+    syncMissionStatusFromOrder,
   } = useMissionRuntime();
 
   const missionMatchesIdentifier =
@@ -301,6 +306,8 @@ export function RecipientMissionTrackingView({
       ? formatScheduledDeliveryCountdown(scheduledStartMs - scheduledNowMs)
       : null;
 
+  useEffect(() => suspendCreatedDeliveryRemoteStatusSync(), []);
+
   useEffect(() => {
     if (!isWaitingForScheduledStart) {
       return;
@@ -323,6 +330,7 @@ export function RecipientMissionTrackingView({
 
     const syncedSnapshot = syncPaidCreatedDeliveryOrderMission(order, {
       isLiveTrackingVisible: true,
+      readOnly: true,
     });
 
     if (
@@ -332,7 +340,7 @@ export function RecipientMissionTrackingView({
       return;
     }
 
-    createMissionFromOrder(order);
+    createMissionFromOrder(order, { persist: false });
   }, [
     createMissionFromOrder,
     currentMission?.sourceOrderId,
@@ -340,6 +348,12 @@ export function RecipientMissionTrackingView({
     order,
     syncPaidCreatedDeliveryOrderMission,
   ]);
+
+  useEffect(() => {
+    if (order && currentMission?.sourceOrderId === order.id) {
+      syncMissionStatusFromOrder(order);
+    }
+  }, [currentMission?.sourceOrderId, order, syncMissionStatusFromOrder]);
 
   useEffect(() => {
     if (
@@ -368,6 +382,7 @@ export function RecipientMissionTrackingView({
   useEffect(() => {
     if (
       !orderId ||
+      order?.trackingAccessScope !== "owner" ||
       isWaitingForScheduledStart ||
       !currentStatus ||
       currentMission?.sourceOrderId !== orderId
@@ -427,7 +442,7 @@ export function RecipientMissionTrackingView({
       missionId: currentMission.id,
       missionStatus: currentStatus,
     });
-  }, [currentMission, currentStatus, isWaitingForScheduledStart, orderId]);
+  }, [currentMission, currentStatus, isWaitingForScheduledStart, order, orderId]);
 
   if (!order) {
     return <InvalidRecipientLink />;
@@ -489,15 +504,7 @@ export function RecipientMissionTrackingView({
     );
   }
 
-  return (
-    <ActiveRecipientMissionView
-      order={order}
-      mission={missionMatchesIdentifier ? currentMission : null}
-      currentStatus={missionMatchesIdentifier ? currentStatus : null}
-      activeSegment={missionMatchesIdentifier ? activeSegment : null}
-      segmentProgress={missionMatchesIdentifier ? segmentProgress : 0}
-    />
-  );
+  return <PremiumTrackingWorkspace order={order} paymentStatus={order.paymentStatus ?? "paid"} />;
 }
 
 type ActiveRecipientMissionViewProps = {

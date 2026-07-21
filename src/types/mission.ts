@@ -147,6 +147,10 @@ export type MissionFailureReason =
   | "unsafe_handoff_zone"
   | "no_suitable_pickup_meeting_point"
   | "no_suitable_dropoff_meeting_point"
+  | "pickup_confirmation_timeout"
+  | "pickup_load_timeout"
+  | "dropoff_confirmation_timeout"
+  | "dropoff_collection_timeout"
   | "payload_mismatch"
   | "operator_abort"
   | "unknown";

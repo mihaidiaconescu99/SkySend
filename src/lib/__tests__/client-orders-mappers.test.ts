@@ -15,6 +15,7 @@ function buildOrder(overrides: Partial<Order> = {}): Order {
     localOrderId: "SKY-PT-1",
     publicTrackingCode: "TRK-PUB",
     recipientTrackingToken: "TKN-REC",
+    publicCodeAccessMode: "view",
     senderProfileId: "p-1",
     recipientEmail: null,
     recipientName: null,

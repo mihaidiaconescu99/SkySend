@@ -11,7 +11,7 @@ import {
   generateRecipientTrackingToken,
 } from "@/lib/recipient-tracking";
 
-const orderStorageChangedEvent = "skysend:created-orders-changed";
+export const createdDeliveryOrdersChangedEvent = "skysend:created-orders-changed";
 
 export function createLocalOrderId(createdAt: string) {
   const timestamp = Math.abs(Date.parse(createdAt) % 90000) + 10000;
@@ -134,7 +134,7 @@ export async function submitCreateDelivery(
     throw new Error(data.error ?? "Comanda nu a putut fi salvata in baza de date.");
   }
 
-  window.dispatchEvent(new Event(orderStorageChangedEvent));
+  window.dispatchEvent(new Event(createdDeliveryOrdersChangedEvent));
 
   return buildCreatedOrder({
     id,
@@ -170,14 +170,27 @@ export function readCreatedDeliveryOrderByPublicTrackingIdentifier(): CreatedDel
   return null;
 }
 
+let remoteStatusSyncBlockers = 0;
+
+export function suspendCreatedDeliveryRemoteStatusSync() {
+  remoteStatusSyncBlockers += 1;
+  let released = false;
+
+  return () => {
+    if (released) return;
+    released = true;
+    remoteStatusSyncBlockers = Math.max(0, remoteStatusSyncBlockers - 1);
+  };
+}
+
 function postOrderStatusUpdate(body: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || remoteStatusSyncBlockers > 0) return;
   void fetch("/api/orders/update-status", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).then(() => {
-    window.dispatchEvent(new Event(orderStorageChangedEvent));
+    window.dispatchEvent(new Event(createdDeliveryOrdersChangedEvent));
   });
 }
 

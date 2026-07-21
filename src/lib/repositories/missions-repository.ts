@@ -97,6 +97,58 @@ export class MissionsRepository extends BaseRepository<"missions"> {
     return this.updateById(id, { currentStatus: status });
   }
 
+  async updateIfVersion(
+    id: string,
+    expectedVersion: number,
+    input: UpdateMissionInput,
+  ): Promise<RepositoryResult<MissionRecord>> {
+    let patch: ReturnType<typeof updateInputToRow>;
+    try {
+      patch = updateInputToRow({
+        ...input,
+        stateVersion: expectedVersion + 1,
+      });
+      const { data, error } = await this.supabase
+        .from("missions")
+        .update(patch)
+        .eq("id", id)
+        .eq("state_version", expectedVersion)
+        .select("*")
+        .maybeSingle();
+
+      if (error) return toMapperFailure(error);
+      if (!data) {
+        return {
+          ok: false,
+          error: new RepositoryError(
+            "validation_error",
+            "Mission state changed before this action was committed.",
+          ),
+        };
+      }
+      return { ok: true, data: rowToMission(data) };
+    } catch (caught) {
+      return toMapperFailure(caught);
+    }
+  }
+
+  async listExpiredActionTimers(now = new Date().toISOString()) {
+    const { data, error } = await this.supabase
+      .from("missions")
+      .select("*")
+      .is("failed_at", null)
+      .not("step_expires_at", "is", null)
+      .lte("step_expires_at", now)
+      .limit(200);
+
+    if (error) return toMapperFailure(error);
+    try {
+      return { ok: true as const, data: (data ?? []).map(rowToMission) };
+    } catch (caught) {
+      return toMapperFailure(caught);
+    }
+  }
+
   async updateTelemetry(
     id: string,
     telemetry: DroneTelemetrySnapshot,

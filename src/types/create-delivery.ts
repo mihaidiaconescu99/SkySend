@@ -15,6 +15,8 @@ import type {
   CreateDeliveryAddressDraft,
 } from "@/lib/create-delivery-addresses";
 import type { GeoPoint } from "@/types/service-area";
+import type { Json } from "@/types/database";
+import type { DroneTelemetrySnapshot } from "@/types/mission-record";
 
 export type CreateDeliveryReviewUrgency = DeliveryUrgency | "scheduled";
 
@@ -41,7 +43,11 @@ export type CreatedDeliveryPaymentStatus =
 
 export type CreatedDeliveryFallbackOutcome =
   | "no_suitable_pickup_meeting_point"
-  | "delivery_failed_return_required";
+  | "delivery_failed_return_required"
+  | "pickup_confirmation_timeout"
+  | "pickup_load_timeout"
+  | "dropoff_confirmation_timeout"
+  | "dropoff_collection_timeout";
 
 export type CreateDeliveryAddressPayload = {
   input: string;
@@ -147,6 +153,16 @@ export type CreatedDeliveryOrder = {
   fulfillmentStatus?: CreatedDeliveryFulfillmentStatus;
   missionId?: string | null;
   missionStatus?: string | null;
+  missionStepStartedAt?: string | null;
+  missionStepExpiresAt?: string | null;
+  missionFailureCode?: string | null;
+  missionStateVersion?: number;
+  missionRuntimeState?: Json;
+  missionDroneTelemetry?: DroneTelemetrySnapshot;
+  missionPickupPin?: string | null;
+  missionDropoffPin?: string | null;
+  missionStartedAt?: string | null;
+  missionUpdatedAt?: string | null;
   publicTrackingCode?: string | null;
   recipientTrackingToken?: string | null;
   recipientTrackingTokenExpiresAt?: string | null;
@@ -157,6 +173,9 @@ export type CreatedDeliveryOrder = {
   fallbackReason?: string | null;
   refundStatus?: "not_required" | "pending" | "started" | "completed" | "failed";
   warehousePickupRequired?: boolean;
+  publicCodeAccessMode?: "view" | "control";
+  trackingAccessScope?: "owner" | "full" | "pickup" | "dropoff" | "view";
+  trackingIdentifier?: string | null;
   href: string;
   payload: CreateDeliveryPayload;
 };

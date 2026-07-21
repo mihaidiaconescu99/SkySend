@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useCurrentProfile } from "@/lib/profile-context/profile-context";
+import { createdDeliveryOrdersChangedEvent } from "@/lib/create-delivery-submit";
 import type { CreatedDeliveryOrder } from "@/types/create-delivery";
 
 export type CreatedDeliveryOrderWithSource = CreatedDeliveryOrder & {
@@ -71,8 +72,22 @@ export function useCreatedDeliveryOrders(): {
   }, [profileId]);
 
   useEffect(() => {
-
     void Promise.resolve().then(() => refresh());
+
+    const refreshAfterOrderChange = () => {
+      void refresh();
+    };
+    window.addEventListener(
+      createdDeliveryOrdersChangedEvent,
+      refreshAfterOrderChange,
+    );
+
+    return () => {
+      window.removeEventListener(
+        createdDeliveryOrdersChangedEvent,
+        refreshAfterOrderChange,
+      );
+    };
   }, [refresh]);
 
   return { orders, isLoading, error, refresh };

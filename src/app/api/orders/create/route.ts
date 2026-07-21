@@ -12,6 +12,8 @@ import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ParcelsRepository } from "@/lib/repositories/parcels-repository";
 import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { createCompleteHandoffSnapshot } from "@/lib/meeting-point-snapshot";
+import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
 import type { CreateDeliveryPayload } from "@/types/create-delivery";
 import type {
   DispatchTiming,
@@ -149,11 +151,7 @@ export async function POST(request: Request) {
     }
 
     const paymentStatus = (body.paymentStatus as PaymentStatus) ?? "pending";
-    const updatePatch: {
-      paymentStatus?: PaymentStatus;
-      stripePaymentIntentId?: string | null;
-      fulfillmentStatus?: string;
-    } = {};
+    const updatePatch: Parameters<typeof orders.updateById>[1] = {};
 
     if (body.paymentStatus !== undefined) {
       updatePatch.paymentStatus = paymentStatus;
@@ -164,7 +162,12 @@ export async function POST(request: Request) {
     if (existing.fulfillmentStatus === null) {
       updatePatch.fulfillmentStatus = "order_created";
     }
+    if (paymentStatus === "paid") {
+      updatePatch.status = "in_progress";
+      updatePatch.fulfillmentStatus = "active_mission";
+    }
 
+    let savedOrder = existing;
     if (Object.keys(updatePatch).length > 0) {
       const updated = await orders.updateById(existing.id, updatePatch);
       if (!updated.ok) {
@@ -177,6 +180,7 @@ export async function POST(request: Request) {
           { status: 502 },
         );
       }
+      savedOrder = updated.data;
     }
 
     if (updatePatch.paymentStatus === "paid") {
@@ -188,6 +192,10 @@ export async function POST(request: Request) {
         amountMinor: existing.totalAmountMinor,
         currency: existing.currency,
       });
+    }
+
+    if (paymentStatus === "paid") {
+      await ensureOrderMission(adminSupabase, savedOrder);
     }
 
     return NextResponse.json({
@@ -265,10 +273,7 @@ export async function POST(request: Request) {
   const dropoffHandoffPoint = toStoredHandoffPoint(payload.selectedDropoffPoint);
   const handoffPointsSnapshot: HandoffPointsSnapshot | null =
     pickupHandoffPoint && dropoffHandoffPoint
-      ? {
-          pickup: [pickupHandoffPoint],
-          dropoff: [dropoffHandoffPoint],
-        }
+      ? createCompleteHandoffSnapshot(payload)
       : null;
 
   const dispatchTiming = payload.urgency as DispatchTiming;
@@ -284,8 +289,9 @@ export async function POST(request: Request) {
     pickupAddressId: pickupAddrResult.data.id,
     dropoffAddressId: dropoffAddrResult.data.id,
     parcelId: parcelResult.data.id,
-    status: "pending",
-    fulfillmentStatus: "order_created",
+    status: body.paymentStatus === "paid" ? "in_progress" : "pending",
+    fulfillmentStatus:
+      body.paymentStatus === "paid" ? "active_mission" : "order_created",
     dispatchTiming,
     scheduledAt: payload.scheduledAt ?? null,
     droneClass: payload.recommendedDroneClass,
@@ -315,6 +321,7 @@ export async function POST(request: Request) {
       amountMinor: orderResult.data.totalAmountMinor,
       currency: orderResult.data.currency,
     });
+    await ensureOrderMission(adminSupabase, orderResult.data);
   }
 
   return NextResponse.json({

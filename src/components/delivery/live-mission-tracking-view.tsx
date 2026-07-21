@@ -30,6 +30,7 @@ import {
 } from "@/components/mission/proof-of-delivery";
 import { RecipientTrackingLinkCard } from "@/components/recipient/recipient-tracking-link-card";
 import { RepeatDeliveryButton } from "@/components/delivery/repeat-delivery-button";
+import { PremiumTrackingWorkspace } from "@/components/delivery/premium-tracking-workspace";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
@@ -772,6 +773,18 @@ export function LiveMissionTrackingView({
     order.id,
   ]);
 
+  if (
+    order.fulfillmentStatus === "failed_mission" ||
+    order.fulfillmentStatus === "completed_mission"
+  ) {
+    return (
+      <PremiumTrackingWorkspace
+        order={order}
+        paymentStatus={paymentStatus}
+      />
+    );
+  }
+
   if (!isPaymentPaid) {
     const paymentCopy = getPaymentGateCopy(paymentStatus);
 
@@ -1079,7 +1092,7 @@ export function LiveMissionTrackingView({
     ? getFallbackReasonLabel(order, currentMission)
     : null;
 
-  if (isFallbackFinal) {
+  if (isFallbackFinal && currentMission?.sourceOrderId !== order.id) {
     return (
       <section className="app-container flex flex-col gap-6">
         <PageHeader
@@ -1180,6 +1193,15 @@ export function LiveMissionTrackingView({
 
   if (shouldShowMissionBrief && currentMission?.sourceOrderId === order.id) {
     return <MissionBrief mission={currentMission} etaLabel={etaLabel} />;
+  }
+
+  if (!currentMission || currentMission.sourceOrderId === order.id) {
+    return (
+      <PremiumTrackingWorkspace
+        order={order}
+        paymentStatus={paymentStatus}
+      />
+    );
   }
 
   return (

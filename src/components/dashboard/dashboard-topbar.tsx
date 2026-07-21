@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown, MapPin, Warehouse } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, MapPin, Warehouse } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { roleConfigs } from "@/constants/roles";
 import { useNotificări } from "@/hooks/use-notifications";
@@ -28,6 +28,8 @@ export function DashboardTopbar({
     role === "admin" ? "/admin/settings" : role === "operator" ? "/operator" : "/client/settings";
   const shouldShowCitySelector =
     isClientWorkspace && pathname === "/client/create-delivery";
+  const isClientTracking =
+    isClientWorkspace && Boolean(pathname?.match(/^\/client\/orders\/[^/]+$/));
   const { unreadCount } = useNotificări();
   const { selectedCity, setSelectedCity, serviceCities } = useServiceCity();
   const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
@@ -111,7 +113,10 @@ export function DashboardTopbar({
               <Link
                 href="/"
                 aria-label="Pagina principala SkySend"
-                className="pointer-events-auto hidden w-fit min-w-0 items-center gap-3 rounded-2xl text-foreground outline-none transition-opacity hover:opacity-85 focus-visible:ring-4 focus-visible:ring-ring compact-ui:flex expanded-ui:hidden"
+                className={cn(
+                  "pointer-events-auto hidden w-fit min-w-0 items-center gap-3 rounded-2xl text-foreground outline-none transition-opacity hover:opacity-85 focus-visible:ring-4 focus-visible:ring-ring compact-ui:flex expanded-ui:hidden",
+                  isClientTracking ? "compact-ui:hidden" : undefined,
+                )}
               >
                 <Image
                   src="/icons/icon-192.png"
@@ -140,7 +145,11 @@ export function DashboardTopbar({
                     floating ? "text-xl lg:text-3xl" : "text-3xl",
                   )}
                 >
-                  {floating ? "Creeaza livrare" : "Livrare client"}
+                  {isClientTracking
+                    ? "Livrare live"
+                    : floating
+                      ? "Creeaza livrare"
+                      : "Livrare client"}
                 </h1>
               </div>
             </>
@@ -181,6 +190,30 @@ export function DashboardTopbar({
         >
           {isClientWorkspace ? (
             <>
+              {isClientTracking ? (
+                <Link
+                  href="/client/orders"
+                  aria-label="Înapoi la comenzi"
+                  className={cn(
+                    iconControlClassName,
+                    "compact-ui:hidden expanded-ui:inline-flex",
+                  )}
+                >
+                  <ArrowLeft className="size-4" />
+                </Link>
+              ) : null}
+              {isClientTracking ? (
+                <Link
+                  href="/client/orders"
+                  aria-label="Înapoi la comenzi"
+                  className={cn(
+                    iconControlClassName,
+                    "fixed left-3 top-[calc(0.55rem_+_env(safe-area-inset-top))] z-[60] border-transparent bg-background/80 shadow-none compact-ui:inline-flex expanded-ui:hidden",
+                  )}
+                >
+                  <ArrowLeft className="size-4" />
+                </Link>
+              ) : null}
               {shouldShowCitySelector ? (
                 <div className="relative z-50 cd-chrome">
                 <button

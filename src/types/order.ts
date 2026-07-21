@@ -40,6 +40,8 @@ export const PAYMENT_STATUSES: readonly PaymentStatus[] = [
   "refund_pending",
 ] as const;
 
+export type PublicCodeAccessMode = "view" | "control";
+
 export interface PricingSnapshot {
 
   version: string;
@@ -84,6 +86,7 @@ export interface Order {
   localOrderId: string;
   publicTrackingCode: string;
   recipientTrackingToken: string;
+  publicCodeAccessMode: PublicCodeAccessMode;
   senderProfileId: string;
   recipientEmail: string | null;
   recipientName: string | null;
@@ -121,6 +124,7 @@ export interface CreateOrderInput {
   publicTrackingCode: string;
 
   recipientTrackingToken: string;
+  publicCodeAccessMode?: PublicCodeAccessMode;
   senderProfileId: string;
   recipientEmail?: string | null;
   recipientName?: string | null;
@@ -150,6 +154,7 @@ export interface CreateOrderInput {
 }
 
 export interface UpdateOrderInput {
+  publicCodeAccessMode?: PublicCodeAccessMode;
   recipientEmail?: string | null;
   recipientName?: string | null;
   recipientPhone?: string | null;
@@ -161,6 +166,7 @@ export interface UpdateOrderInput {
   deliveryConfigurationId?: string;
   etaMinMinutes?: number | null;
   etaMaxMinutes?: number | null;
+  handoffPointsSnapshot?: HandoffPointsSnapshot | null;
   selectedPickupHandoffPoint?: StoredHandoffPoint | null;
   selectedDropoffHandoffPoint?: StoredHandoffPoint | null;
   stripePaymentIntentId?: string | null;

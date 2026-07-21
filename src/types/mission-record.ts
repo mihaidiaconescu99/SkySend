@@ -1,6 +1,7 @@
 
 
 import type { MissionStatus } from "@/types/mission";
+import type { Json } from "@/types/database";
 
 export type { MissionStatus };
 
@@ -36,6 +37,12 @@ export interface MissionRecord {
   pickupPinVerifiedAt: string | null;
   dropoffPinVerifiedAt: string | null;
   fallbackReason: string | null;
+  stateVersion: number;
+  stepStartedAt: string | null;
+  stepExpiresAt: string | null;
+  failureCode: string | null;
+  failedAt: string | null;
+  runtimeState: Json;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +55,9 @@ export interface CreateMissionInput {
   currentStatus?: MissionStatus;
   pickupPin?: string | null;
   dropoffPin?: string | null;
+  stepStartedAt?: string | null;
+  stepExpiresAt?: string | null;
+  runtimeState?: Json;
 }
 
 export interface UpdateMissionInput {
@@ -62,6 +72,25 @@ export interface UpdateMissionInput {
   pickupPinVerifiedAt?: string | null;
   dropoffPinVerifiedAt?: string | null;
   fallbackReason?: string | null;
+  stateVersion?: number;
+  stepStartedAt?: string | null;
+  stepExpiresAt?: string | null;
+  failureCode?: string | null;
+  failedAt?: string | null;
+  runtimeState?: Json;
+}
+
+export type TrackingLinkScope = "full" | "pickup" | "dropoff";
+
+export interface OrderTrackingLink {
+  id: string;
+  orderId: string;
+  scope: TrackingLinkScope;
+  token: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const MISSION_STATUSES: readonly MissionStatus[] = [

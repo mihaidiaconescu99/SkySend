@@ -105,6 +105,20 @@ export function normalizePublicTrackingCode(code: string) {
   return `${publicTrackingCodePrefix}-${groups.join("-")}`;
 }
 
+export function normalizeTrackingIdentifier(value: string) {
+  const normalized = safeDecodeURIComponent(value)
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, "")
+    .replaceAll(/[^A-Z0-9_-]/g, "");
+
+  if (normalized.startsWith("SKY-PT-")) {
+    return normalized;
+  }
+
+  return normalizePublicTrackingCode(normalized);
+}
+
 export function isRecipientTrackingTokenExpired(
   expiresAt?: string | null,
   now = new Date(),

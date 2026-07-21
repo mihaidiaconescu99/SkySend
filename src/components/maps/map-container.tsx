@@ -50,6 +50,13 @@ type MapWithInternalStyle = MapLibreMap & {
   };
 };
 
+type MarkerInstanceEntry = {
+  instance: MapLibreMarker;
+  signature: string;
+  onClick?: MapMarkerDefinition["onClick"];
+  onConfirm?: MapMarkerDefinition["onConfirm"];
+};
+
 const initialDiagnostics: MapDiagnostics = {
   containerWidth: 0,
   containerHeight: 0,
@@ -187,24 +194,62 @@ function createSelectedPointElement() {
 function syncMarkers(
   map: MapLibreMap,
   markers: readonly MapMarkerDefinition[],
-  markerInstancesRef: MutableRefObject<MapLibreMarker[]>,
+  markerInstancesRef: MutableRefObject<Map<string, MarkerInstanceEntry>>,
+  maplibre: typeof import("maplibre-gl"),
 ) {
-  markerInstancesRef.current.forEach((marker) => marker.remove());
-  markerInstancesRef.current = markers.map((marker) => {
+  const activeIds = new Set(markers.map((marker) => marker.id));
+
+  markerInstancesRef.current.forEach((entry, id) => {
+    if (!activeIds.has(id)) {
+      entry.instance.remove();
+      markerInstancesRef.current.delete(id);
+    }
+  });
+
+  markers.forEach((marker) => {
+    const signature = JSON.stringify({
+      label: marker.label,
+      description: marker.description,
+      kind: marker.kind,
+      tone: marker.tone,
+      variant: marker.variant,
+      emphasized: marker.emphasized,
+      selected: marker.selected,
+      disabled: marker.disabled,
+      confirmationOpen: marker.confirmationOpen,
+      headingDegrees: marker.headingDegrees,
+    });
+    const existing = markerInstancesRef.current.get(marker.id);
+    const canReuse =
+      existing &&
+      existing.signature === signature &&
+      existing.onClick === marker.onClick &&
+      existing.onConfirm === marker.onConfirm;
+
+    if (canReuse) {
+      existing.instance.setLngLat([marker.point.longitude, marker.point.latitude]);
+      return;
+    }
+
+    existing?.instance.remove();
     const shouldCenterOnCoordinate =
       marker.kind === "meeting" ||
       marker.kind === "alternative" ||
       marker.variant === "candidate" ||
       marker.variant === "recommended" ||
       marker.variant === "drone";
-    const instance = new maplibregl.Marker({
+    const instance = new maplibre.Marker({
       element: createMarkerElement(marker),
       anchor: shouldCenterOnCoordinate ? "center" : "bottom",
     })
       .setLngLat([marker.point.longitude, marker.point.latitude])
       .addTo(map);
-
-    return instance;
+    markerInstancesRef.current.set(marker.id, {
+      instance,
+      signature,
+      onClick: marker.onClick,
+      onConfirm: marker.onConfirm,
+    });
   });
 }
 
@@ -212,6 +257,7 @@ function syncSelectedPoint(
   map: MapLibreMap,
   point: GeoPoint | null | undefined,
   selectedPointMarkerRef: MutableRefObject<MapLibreMarker | null>,
+  maplibre: typeof import("maplibre-gl"),
 ) {
   selectedPointMarkerRef.current?.remove();
   selectedPointMarkerRef.current = null;
@@ -220,7 +266,7 @@ function syncSelectedPoint(
     return;
   }
 
-  selectedPointMarkerRef.current = new maplibregl.Marker({
+  selectedPointMarkerRef.current = new maplibre.Marker({
     element: createSelectedPointElement(),
     anchor: "center",
   })
@@ -366,8 +412,6 @@ function syncLines(
   activeLineIdsRef.current = [...activeSourceIds];
 }
 
-let maplibregl: typeof import("maplibre-gl");
-
 export const MapContainer = memo(function MapContainer({
   className,
   ariaLabel = "SkySend map",
@@ -387,7 +431,8 @@ export const MapContainer = memo(function MapContainer({
 }: MapContainerProps) {
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const markerInstancesRef = useRef<MapLibreMarker[]>([]);
+  const maplibreRef = useRef<typeof import("maplibre-gl") | null>(null);
+  const markerInstancesRef = useRef<Map<string, MarkerInstanceEntry>>(new Map());
   const selectedPointMarkerRef = useRef<MapLibreMarker | null>(null);
   const activeOverlayIdsRef = useRef<string[]>([]);
   const activeLineIdsRef = useRef<string[]>([]);
@@ -428,6 +473,7 @@ export const MapContainer = memo(function MapContainer({
     let resizeObserver: ResizeObserver | null = null;
     let initializationTimeout: number | null = null;
     let fallbackStyleTimeout: number | null = null;
+    const markerInstances = markerInstancesRef.current;
 
     function readContainerSize() {
       if (!mapNodeRef.current) {
@@ -542,7 +588,7 @@ export const MapContainer = memo(function MapContainer({
           return;
         }
 
-        maplibregl = maplibre as typeof import("maplibre-gl");
+        maplibreRef.current = maplibre as typeof import("maplibre-gl");
 
         const initialTheme = document.documentElement.classList.contains("light")
           ? "light"
@@ -552,7 +598,7 @@ export const MapContainer = memo(function MapContainer({
             ? defaultMapStyle
             : getFallbackMapStyleForTheme(initialTheme);
 
-        const map = new maplibregl.Map({
+        const map = new maplibre.Map({
           container: mapNodeRef.current,
           style: initialStyle,
           center: [
@@ -601,7 +647,7 @@ export const MapContainer = memo(function MapContainer({
 
         if (showNavigation) {
           map.addControl(
-            new maplibregl.NavigationControl({
+            new maplibre.NavigationControl({
               showCompass: false,
               visualizePitch: false,
             }),
@@ -719,14 +765,15 @@ export const MapContainer = memo(function MapContainer({
       setIsReady(false);
       setIsInitializing(true);
       setStyleRevision(0);
-      markerInstancesRef.current.forEach((marker) => marker.remove());
-      markerInstancesRef.current = [];
+      markerInstances.forEach((entry) => entry.instance.remove());
+      markerInstances.clear();
       selectedPointMarkerRef.current?.remove();
       selectedPointMarkerRef.current = null;
       activeOverlayIdsRef.current = [];
       activeLineIdsRef.current = [];
       mapRef.current?.remove();
       mapRef.current = null;
+      maplibreRef.current = null;
       hasAppliedFallbackStyleRef.current = false;
       hasLoadedStyleRef.current = false;
       setDiagnostics(initialDiagnostics);
@@ -756,24 +803,24 @@ export const MapContainer = memo(function MapContainer({
   }, [center.latitude, center.longitude, isReady, mapPadding, zoom]);
 
   useEffect(() => {
-    if (!isReady || !mapRef.current) {
+    if (!isReady || !mapRef.current || !maplibreRef.current) {
       return;
     }
 
-    syncMarkers(mapRef.current, markers, markerInstancesRef);
-
-    return () => {
-      markerInstancesRef.current.forEach((marker) => marker.remove());
-      markerInstancesRef.current = [];
-    };
+    syncMarkers(mapRef.current, markers, markerInstancesRef, maplibreRef.current);
   }, [isReady, markers]);
 
   useEffect(() => {
-    if (!isReady || !mapRef.current) {
+    if (!isReady || !mapRef.current || !maplibreRef.current) {
       return;
     }
 
-    syncSelectedPoint(mapRef.current, selectedPoint, selectedPointMarkerRef);
+    syncSelectedPoint(
+      mapRef.current,
+      selectedPoint,
+      selectedPointMarkerRef,
+      maplibreRef.current,
+    );
 
     return () => {
       selectedPointMarkerRef.current?.remove();

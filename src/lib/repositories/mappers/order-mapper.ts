@@ -17,6 +17,7 @@ import {
   type PaymentStatus,
   type PricingSnapshot,
   type PricingSurcharge,
+  type PublicCodeAccessMode,
   type StoredHandoffPoint,
   type UpdateOrderInput,
 } from "@/types/order";
@@ -93,6 +94,10 @@ export function parseDispatchTiming(value: unknown): DispatchTiming {
 
 export function parsePaymentStatus(value: unknown): PaymentStatus {
   return parseEnum(value, PAYMENT_STATUSES, "payment_status");
+}
+
+export function parsePublicCodeAccessMode(value: unknown): PublicCodeAccessMode {
+  return parseEnum(value ?? "view", ["view", "control"] as const, "public_code_access_mode");
 }
 
 export function parsePricingSnapshot(value: unknown): PricingSnapshot {
@@ -237,6 +242,7 @@ export function rowToOrder(row: DBRow<"orders">): Order {
       row.recipient_tracking_token,
       "recipient_tracking_token",
     ),
+    publicCodeAccessMode: parsePublicCodeAccessMode(row.public_code_access_mode),
     senderProfileId: requireString(row.sender_profile_id, "sender_profile_id"),
     recipientEmail: row.recipient_email ?? null,
     recipientName: row.recipient_name ?? null,
@@ -346,6 +352,7 @@ export function createInputToRow(
     local_order_id: localOrderId,
     public_tracking_code: publicTrackingCode,
     recipient_tracking_token: recipientTrackingToken,
+    public_code_access_mode: input.publicCodeAccessMode ?? "view",
     sender_profile_id: senderProfileId,
     pickup_address_id: pickupAddressId,
     dropoff_address_id: dropoffAddressId,
@@ -431,6 +438,12 @@ export function updateInputToRow(
   input: UpdateOrderInput,
 ): DBUpdate<"orders"> {
   const payload: DBUpdate<"orders"> = {};
+
+  if (input.publicCodeAccessMode !== undefined) {
+    payload.public_code_access_mode = parsePublicCodeAccessMode(
+      input.publicCodeAccessMode,
+    );
+  }
 
   if (input.recipientEmail !== undefined) {
     payload.recipient_email = input.recipientEmail;

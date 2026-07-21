@@ -14,6 +14,14 @@ import type { CreatedDeliveryOrder } from "@/types/create-delivery";
 import type { CreatedDeliveryPaymentStatus } from "@/types/create-delivery";
 import type { DeliveryUrgency, DroneClass } from "@/types/domain";
 import type { ClientOrderDetail } from "@/types/client-orders";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { OrdersRepository } from "@/lib/repositories/orders-repository";
+import { MissionsRepository } from "@/lib/repositories/missions-repository";
+import {
+  completeOrderHandoffSnapshot,
+  storedPointToDeliveryPoint,
+} from "@/lib/meeting-point-snapshot";
+import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
 
 type PageProps = {
   params: Promise<{ orderId: string }>;
@@ -197,6 +205,70 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
   }
 
   const runtimeOrder = toRuntimeOrder(order);
+  const db = createAdminSupabaseClient();
+  const storedOrder = await new OrdersRepository(db).getByLocalOrderId(order.id);
+  let mission =
+    storedOrder.ok && storedOrder.data
+      ? await new MissionsRepository(db).getByOrderId(storedOrder.data.id)
+      : null;
+  if (
+    storedOrder.ok &&
+    storedOrder.data &&
+    storedOrder.data.paymentStatus === "paid" &&
+    storedOrder.data.status !== "completed" &&
+    storedOrder.data.status !== "failed" &&
+    (!mission?.ok || !mission.data)
+  ) {
+    const ensuredMission = await ensureOrderMission(db, storedOrder.data);
+    if (ensuredMission) {
+      mission = { ok: true, data: ensuredMission };
+    }
+  }
+  if (storedOrder.ok && storedOrder.data) {
+    const handoffSnapshot = completeOrderHandoffSnapshot(storedOrder.data);
+    const pickupOrigin =
+      storedOrder.data.selectedPickupHandoffPoint ?? handoffSnapshot.pickup[0];
+    const dropoffOrigin =
+      storedOrder.data.selectedDropoffHandoffPoint ?? handoffSnapshot.dropoff[0];
+    if (pickupOrigin && dropoffOrigin) {
+      runtimeOrder.payload.selectedPickupPoint = storedPointToDeliveryPoint(
+        pickupOrigin,
+        pickupOrigin,
+      );
+      runtimeOrder.payload.selectedDropoffPoint = storedPointToDeliveryPoint(
+        dropoffOrigin,
+        dropoffOrigin,
+      );
+      runtimeOrder.payload.pickupMeetingPoints = handoffSnapshot.pickup.map(
+        (point) => storedPointToDeliveryPoint(point, pickupOrigin),
+      );
+      runtimeOrder.payload.dropoffMeetingPoints = handoffSnapshot.dropoff.map(
+        (point) => storedPointToDeliveryPoint(point, dropoffOrigin),
+      );
+    }
+  }
+  if (mission?.ok && mission.data) {
+    runtimeOrder.missionId = mission.data.id;
+    runtimeOrder.missionStatus = mission.data.currentStatus;
+    runtimeOrder.missionStepStartedAt = mission.data.stepStartedAt;
+    runtimeOrder.missionStepExpiresAt = mission.data.stepExpiresAt;
+    runtimeOrder.missionFailureCode = mission.data.failureCode;
+    runtimeOrder.fallbackReason = mission.data.fallbackReason;
+    runtimeOrder.missionStateVersion = mission.data.stateVersion;
+    runtimeOrder.missionRuntimeState = mission.data.runtimeState;
+    runtimeOrder.missionDroneTelemetry = mission.data.droneTelemetrySnapshot;
+    runtimeOrder.missionPickupPin = mission.data.pickupPin;
+    runtimeOrder.missionDropoffPin = mission.data.dropoffPin;
+    runtimeOrder.missionStartedAt = mission.data.startedAt;
+    runtimeOrder.missionUpdatedAt = mission.data.updatedAt;
+  }
+  if (order.status === "failed") runtimeOrder.fulfillmentStatus = "failed_mission";
+  if (order.status === "delivered") runtimeOrder.fulfillmentStatus = "completed_mission";
+  runtimeOrder.completedAt = order.completedAt ?? null;
+  runtimeOrder.publicCodeAccessMode =
+    storedOrder.ok && storedOrder.data
+      ? storedOrder.data.publicCodeAccessMode
+      : "view";
   const etaLabel = `${runtimeOrder.payload.estimatedEta.minMinutes} to ${runtimeOrder.payload.estimatedEta.maxMinutes} min`;
   const paymentStatus = toTrackingPaymentStatus(order.payment.status);
 

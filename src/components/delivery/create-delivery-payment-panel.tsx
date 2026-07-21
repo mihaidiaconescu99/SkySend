@@ -264,7 +264,7 @@ export function CreateDeliveryPaymentPanel({
   }
 
   async function handlePayWithSavedMethod() {
-    if (!selectedSavedMethod || isSubmitting || disabled) {
+    if (!selectedSavedMethod || !paymentIntentId || isSubmitting || disabled) {
       return;
     }
 
@@ -279,6 +279,7 @@ export function CreateDeliveryPaymentPanel({
         },
         body: JSON.stringify({
           orderId,
+          paymentIntentId,
           paymentMethodId: selectedSavedMethod.id,
           pricingSnapshot,
         }),
@@ -452,7 +453,7 @@ export function CreateDeliveryPaymentPanel({
           isPreparing ||
           isSubmitting ||
           (paymentMode === "new" && (!isElementReady || !clientSecret)) ||
-          (paymentMode === "saved" && !selectedSavedMethod)
+          (paymentMode === "saved" && (!selectedSavedMethod || !paymentIntentId))
         }
         onClick={
           paymentMode === "saved" ? handlePayWithSavedMethod : handlePayWithNewMethod

@@ -231,6 +231,12 @@ export function rowToMission(row: DBRow<"missions">): MissionRecord {
     pickupPinVerifiedAt: row.pickup_pin_verified_at ?? null,
     dropoffPinVerifiedAt: row.dropoff_pin_verified_at ?? null,
     fallbackReason: row.fallback_reason ?? null,
+    stateVersion: row.state_version,
+    stepStartedAt: row.step_started_at ?? null,
+    stepExpiresAt: row.step_expires_at ?? null,
+    failureCode: row.failure_code ?? null,
+    failedAt: row.failed_at ?? null,
+    runtimeState: row.runtime_state,
     createdAt: requireString(row.created_at, "created_at"),
     updatedAt: requireString(row.updated_at, "updated_at"),
   };
@@ -250,6 +256,15 @@ export function createInputToRow(
   }
   if (input.dropoffPin !== undefined) {
     row.dropoff_pin = parseMissionPin(input.dropoffPin);
+  }
+  if (input.stepStartedAt !== undefined) {
+    row.step_started_at = input.stepStartedAt;
+  }
+  if (input.stepExpiresAt !== undefined) {
+    row.step_expires_at = input.stepExpiresAt;
+  }
+  if (input.runtimeState !== undefined) {
+    row.runtime_state = input.runtimeState;
   }
   return row;
 }
@@ -300,6 +315,24 @@ export function updateInputToRow(
   }
   if (input.fallbackReason !== undefined) {
     payload.fallback_reason = input.fallbackReason;
+  }
+  if (input.stateVersion !== undefined) {
+    payload.state_version = input.stateVersion;
+  }
+  if (input.stepStartedAt !== undefined) {
+    payload.step_started_at = input.stepStartedAt;
+  }
+  if (input.stepExpiresAt !== undefined) {
+    payload.step_expires_at = input.stepExpiresAt;
+  }
+  if (input.failureCode !== undefined) {
+    payload.failure_code = input.failureCode;
+  }
+  if (input.failedAt !== undefined) {
+    payload.failed_at = input.failedAt;
+  }
+  if (input.runtimeState !== undefined) {
+    payload.runtime_state = input.runtimeState;
   }
 
   if (Object.keys(payload).length === 0) {

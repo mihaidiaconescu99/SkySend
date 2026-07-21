@@ -35,6 +35,8 @@ import {
   readCreatedDeliveryOrder,
   updateCreatedDeliveryOrderFulfillment,
 } from "@/lib/create-delivery-submit";
+import { getFailureCodeForTimerKind } from "@/lib/mission-progress";
+import type { PremiumFailureCode } from "@/lib/mission-progress";
 import { showToast } from "@/lib/toast-store";
 import type {
   CreatedDeliveryOrder,
@@ -171,6 +173,7 @@ const timers: RuntimeTimers = {
 };
 
 const pendingDBRehydrationOrders = new Set<string>();
+const syncedMissionVersions = new Map<string, number>();
 
 export const missionDispatchDelaySeconds = 10;
 const missionDispatchDelayMs = missionDispatchDelaySeconds * 1000;
@@ -403,7 +406,7 @@ function getUserActionTimerConfig(status: MissionStatus):
       return {
         kind: "pickup_meeting_point",
         status,
-        title: "Confirmare punct de intalnire",
+        title: "Confirmare punct de întâlnire",
         actionLabel: "Confirma inainte ca timerul sa expire.",
         helperText:
           `Ai la dispozitie ${getOperationalTimeoutLabel("pickup_meeting_point")} sa confirmi punctul de intalnire.`,
@@ -419,7 +422,7 @@ function getUserActionTimerConfig(status: MissionStatus):
       return {
         kind: "dropoff_meeting_point",
         status,
-        title: "Confirmare punct de intalnire",
+        title: "Confirmare punct de întâlnire",
         actionLabel: "Confirma inainte ca timerul sa expire.",
         helperText:
           `Ai la dispozitie ${getOperationalTimeoutLabel("dropoff_meeting_point")} sa confirmi punctul de predare.`,
@@ -778,8 +781,19 @@ function getDronePosition(
   mission: Mission,
   activeSegment: MissionSegment | null,
   progress: number,
+  status: MissionStatus,
 ): GeoPoint {
   if (!activeSegment) {
+    const phase = getMissionPhaseForStatus(status);
+
+    if (phase === "pickup" || phase === "linehaul") {
+      return mission.pickup.location;
+    }
+
+    if (phase === "dropoff" || phase === "proof" || phase === "closed") {
+      return mission.dropoff.location;
+    }
+
     return snapshot.currentMission?.sourceOrderId === mission.sourceOrderId
       ? snapshot.dronePosition ?? mission.hub.address.location
       : mission.hub.address.location;
@@ -971,6 +985,7 @@ function applyMissionStatus(
     nextMission,
     activeSegment,
     segmentProgress,
+    status,
   );
   const droneTelemetry = createTelemetry({
     mission: nextMission,
@@ -1099,7 +1114,7 @@ function scheduleAutomaticProgress() {
         lastUpdatedAt: new Date().toISOString(),
       };
       maybeWriteTelemetryFromRuntime(currentMission.sourceOrderId, dbTelemetry);
-    }, 250);
+    }, 100);
   }
 
   timers.stepTimeout = setTimeout(() => {
@@ -1376,7 +1391,29 @@ function transitionToStatus(
   scheduleAutomaticProgress();
 
   const orderId = mission.sourceOrderId;
-  persistStatusChange(orderId, status).catch(() => {});
+  persistStatusChange(orderId, status, {
+    stepStartedAt: snapshot.userActionTimer?.startedAt ?? getCurrentTimestamp(),
+    stepExpiresAt: snapshot.userActionTimer?.expiresAt ?? null,
+    failureCode:
+      status === "mission_failed" ? mission.failureReason ?? "unknown" : null,
+    failedAt: status === "mission_failed" ? getCurrentTimestamp() : null,
+    runtimeState: {
+      meetingPointAttempts: mission.meetingPointAttempts as never,
+      pickup: mission.pickup as never,
+      dropoff: mission.dropoff as never,
+      startedAt: mission.startedAt ?? null,
+      completedAt: mission.completedAt ?? null,
+      parcelLoaded: [
+        "en_route_to_dropoff",
+        "arrived_at_dropoff",
+        "awaiting_recipient_position_confirmation",
+        "awaiting_parcel_collection",
+        "delivery_completed",
+        "proof_generated",
+        "mission_closed",
+      ].includes(status),
+    },
+  }).catch(() => {});
   for (const newEvent of [...extraEvents, event]) {
     persistMissionEvent(orderId, newEvent).catch(() => {});
   }
@@ -1606,6 +1643,8 @@ function activeateFallback({
   fallbackDescription,
   fallbackEventTitle,
   fallbackEventDescription,
+  failureCode,
+  refundEligible = false,
 }: {
   mission: Mission;
   phase: "pickup" | "dropoff";
@@ -1613,6 +1652,8 @@ function activeateFallback({
   fallbackDescription?: string;
   fallbackEventTitle?: string;
   fallbackEventDescription?: string;
+  failureCode?: PremiumFailureCode;
+  refundEligible?: boolean;
 }) {
   const isPickup = phase === "pickup";
   const title = fallbackTitle ?? (isPickup
@@ -1621,12 +1662,14 @@ function activeateFallback({
   const description = fallbackDescription ?? (isPickup
     ? "Drona nu a putut cobori lockerul in siguranta la punctele disponibile. Comanda a fost anulata, iar suma platita va fi rambursata pe cardul folosit la plata."
     : "Drona nu a gasit un punct potrivit pentru coborarea lockerului la destinatie. Coletul se intoarce in siguranta la hub-ul SkySend si va putea fi ridicat de acolo.");
-  const failureReason = isPickup
+  const failureReason = failureCode ?? (isPickup
     ? "no_suitable_pickup_meeting_point"
-    : "no_suitable_dropoff_meeting_point";
-  const fallbackOutcome = isPickup
+    : "no_suitable_dropoff_meeting_point");
+  const fallbackOutcome = failureReason === "no_suitable_pickup_meeting_point"
     ? "no_suitable_pickup_meeting_point"
-    : "delivery_failed_return_required";
+    : failureReason === "no_suitable_dropoff_meeting_point"
+      ? "delivery_failed_return_required"
+      : failureReason;
   const noPointsEvent = createSystemEvent({
     missionId: mission.id,
     status: mission.status,
@@ -1641,22 +1684,19 @@ function activeateFallback({
         ? "Toate punctele de pickup disponibile au fost respinse."
         : "Toate punctele de livrare disponibile au fost respinse."),
   });
-  const returnEvent = createSystemEvent({
+  const failureEvent = createSystemEvent({
     missionId: mission.id,
-    status: "returning_to_hub",
-    title: isPickup
-      ? "Drona se intoarce la hub."
-      : "Drona se intoarce la hub cu coletul.",
+    status: "mission_failed",
+    title,
     description,
   });
-  const refundEvent = createSystemEvent({
+  const refundEvent = refundEligible ? createSystemEvent({
     missionId: mission.id,
-    status: "returning_to_hub",
+    status: "mission_failed",
     title: "Rambursarea este in curs.",
     description:
-      "Nu exista confirmare de refund de la Stripe in acest runtime; comanda este marcata cu rambursare in curs.",
-  });
-  const returnSegment = buildReturnToHubSegment(mission);
+      "Rambursarea integrala a fost solicitata catre metoda de plata folosita.",
+  }) : null;
   const missionWithFallback: Mission = {
     ...mission,
     failureReason,
@@ -1667,28 +1707,170 @@ function activeateFallback({
       dropoffFallbackActiveated:
         mission.meetingPointAttempts.dropoffFallbackActiveated || !isPickup,
     },
-    segments: [
-      ...mission.segments.filter(
-        (segment) => segment.type !== "dropoff_to_warehouse",
-      ),
-      returnSegment,
-    ],
   };
 
   markCreatedDeliveryOrderFallback({
     orderId: mission.sourceOrderId,
     missionId: mission.id,
-    missionStatus: "returning_to_hub",
+    missionStatus: "mission_failed",
     fallbackOutcome,
     fallbackReason: title,
     warehousePickupRequired: !isPickup,
   });
 
-  return transitionToStatus(missionWithFallback, "returning_to_hub", [
+  if (refundEligible && typeof window !== "undefined") {
+    void fetch("/api/stripe/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: mission.sourceOrderId,
+        reason: failureReason,
+      }),
+    });
+  }
+
+  return transitionToStatus(missionWithFallback, "mission_failed", [
     noPointsEvent,
-    returnEvent,
-    refundEvent,
+    failureEvent,
+    ...(refundEvent ? [refundEvent] : []),
   ]);
+}
+
+type PersistedActiveFlight = {
+  phase: "pickup" | "dropoff";
+  from: GeoPoint;
+  to: GeoPoint;
+  startedAt: string;
+  dueAt: string;
+};
+
+function isGeoPoint(value: unknown): value is GeoPoint {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const point = value as Record<string, unknown>;
+  return (
+    typeof point.latitude === "number" &&
+    Number.isFinite(point.latitude) &&
+    typeof point.longitude === "number" &&
+    Number.isFinite(point.longitude)
+  );
+}
+
+function readPersistedActiveFlight(value: unknown): PersistedActiveFlight | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const flight = value as Record<string, unknown>;
+  if (
+    (flight.phase !== "pickup" && flight.phase !== "dropoff") ||
+    !isGeoPoint(flight.from) ||
+    !isGeoPoint(flight.to) ||
+    typeof flight.startedAt !== "string" ||
+    typeof flight.dueAt !== "string" ||
+    !Number.isFinite(Date.parse(flight.startedAt)) ||
+    !Number.isFinite(Date.parse(flight.dueAt))
+  ) {
+    return null;
+  }
+  return flight as PersistedActiveFlight;
+}
+
+function hydrateMissionFromRecord(
+  mission: Mission,
+  dbMission: MissionRecord,
+) {
+  const runtime =
+    dbMission.runtimeState &&
+    typeof dbMission.runtimeState === "object" &&
+    !Array.isArray(dbMission.runtimeState)
+      ? (dbMission.runtimeState as Record<string, unknown>)
+      : {};
+  const persistedAttempts = runtime.meetingPointAttempts;
+  const meetingPointAttempts =
+    persistedAttempts &&
+    typeof persistedAttempts === "object" &&
+    !Array.isArray(persistedAttempts)
+      ? {
+          ...mission.meetingPointAttempts,
+          ...(persistedAttempts as Partial<Mission["meetingPointAttempts"]>),
+        }
+      : mission.meetingPointAttempts;
+  const pickupPoint =
+    meetingPointAttempts.pickupMeetingPoints[
+      meetingPointAttempts.currentPickupMeetingPointIndex
+    ];
+  const dropoffPoint =
+    meetingPointAttempts.dropoffMeetingPoints[
+      meetingPointAttempts.currentDropoffMeetingPointIndex
+    ];
+  const pickup = pickupPoint
+    ? { ...mission.pickup, label: pickupPoint.label, location: pickupPoint.coordinates }
+    : mission.pickup;
+  const dropoff = dropoffPoint
+    ? { ...mission.dropoff, label: dropoffPoint.label, location: dropoffPoint.coordinates }
+    : mission.dropoff;
+  const activeFlight = readPersistedActiveFlight(runtime.activeFlight);
+  let segments = buildMissionSegments({
+    missionId: mission.id,
+    pickup,
+    dropoff,
+    warehouse: mission.hub,
+  });
+
+  if (activeFlight) {
+    const segmentType =
+      activeFlight.phase === "pickup"
+        ? "warehouse_to_pickup"
+        : "pickup_to_dropoff";
+    const durationSeconds = Math.max(
+      1,
+      (Date.parse(activeFlight.dueAt) - Date.parse(activeFlight.startedAt)) / 1000,
+    );
+    segments = segments.map((segment) =>
+      segment.type === segmentType
+        ? {
+            ...segment,
+            from: { label: "Poziție de plecare", location: activeFlight.from },
+            to: {
+              label: activeFlight.phase === "pickup" ? pickup.label : dropoff.label,
+              location: activeFlight.to,
+            },
+            distanceKm: calculateDistanceKm(activeFlight.from, activeFlight.to),
+            plannedDurationSeconds: durationSeconds,
+          }
+        : segment,
+    );
+  }
+
+  const pins = mission.pins.map((pin) => {
+    const code =
+      pin.purpose === "pickup_verification"
+        ? dbMission.pickupPin
+        : dbMission.dropoffPin;
+    return code ? { ...pin, code } : pin;
+  });
+
+  return {
+    mission: {
+      ...mission,
+      meetingPointAttempts,
+      pickup,
+      dropoff,
+      segments,
+      pins,
+      startedAt: dbMission.startedAt ?? mission.startedAt,
+      completedAt: dbMission.completedAt ?? mission.completedAt,
+      failureReason:
+        (dbMission.failureCode as Mission["failureReason"]) ??
+        mission.failureReason,
+    },
+    activeFlight,
+  };
+}
+
+function getPersistedFlightProgress(flight: PersistedActiveFlight | null) {
+  if (!flight) return null;
+  const startedAt = Date.parse(flight.startedAt);
+  const dueAt = Date.parse(flight.dueAt);
+  if (dueAt <= startedAt) return 1;
+  return Math.min(1, Math.max(0, (Date.now() - startedAt) / (dueAt - startedAt)));
 }
 
 function expireUserActionTimer(timer: MissionUserActionTimer) {
@@ -1731,6 +1913,8 @@ function expireUserActionTimer(timer: MissionUserActionTimer) {
     fallbackDescription: timer.fallbackDescription,
     fallbackEventTitle: `Timerul de ${formatTimerDuration(timer.timeoutMs)} a expirat.`,
     fallbackEventDescription: timer.fallbackDescription,
+    failureCode: getFailureCodeForTimerKind(timer.kind),
+    refundEligible: false,
   });
 }
 
@@ -1782,7 +1966,10 @@ export function clearOrderPendingDBRehydration(orderId: string): void {
   notifyListeners();
 }
 
-export function createMissionFromOrder(order: CreatedDeliveryOrder): Mission {
+export function createMissionFromOrder(
+  order: CreatedDeliveryOrder,
+  options: { persist?: boolean } = {},
+): Mission {
   clearRuntimeTimers();
 
   const missionId = order.missionId ?? createRuntimeId("mission", order.id);
@@ -1906,7 +2093,8 @@ export function createMissionFromOrder(order: CreatedDeliveryOrder): Mission {
     latestTelemetry: null,
     telemetryLog: [],
     proofs: [],
-    failureReason: null,
+    failureReason:
+      (order.missionFailureCode as Mission["failureReason"]) ?? null,
     fallbackMissionId: null,
     startedAt: isRestoredCompletedMission ? order.paidAt ?? createdAt : null,
     completedAt,
@@ -1916,13 +2104,23 @@ export function createMissionFromOrder(order: CreatedDeliveryOrder): Mission {
   };
 
   setSnapshot({
-    ...applyMissionStatus(mission, initialStatus, mission.events, 0),
+    ...applyMissionStatus(
+      mission,
+      initialStatus,
+      mission.events,
+      0,
+      order.missionStepStartedAt
+        ? Date.parse(order.missionStepStartedAt)
+        : undefined,
+    ),
     isMissionRunning: false,
   });
 
-  persistMissionCreated(order.id, pickupPinCode, dropoffPinCode).catch(
-    () => {},
-  );
+  if (options.persist !== false) {
+    persistMissionCreated(order.id, pickupPinCode, dropoffPinCode).catch(
+      () => {},
+    );
+  }
 
   return snapshot.currentMission ?? mission;
 }
@@ -1952,6 +2150,7 @@ export function syncPaidCreatedDeliveryOrderMission(
   options: {
     notify?: boolean;
     isLiveTrackingVisible?: boolean;
+    readOnly?: boolean;
   } = {},
 ) {
   const nowMs = Date.now();
@@ -1964,6 +2163,23 @@ export function syncPaidCreatedDeliveryOrderMission(
 
   if (dispatchStartMs === null || dispatchStartMs > nowMs) {
     return snapshot;
+  }
+
+  if (
+    order.missionId &&
+    isKnownMissionStatus(order.missionStatus) &&
+    order.missionStatus !== "mission_created" &&
+    typeof order.missionStateVersion === "number" &&
+    order.missionRuntimeState !== undefined
+  ) {
+    const syncedSnapshot = syncMissionStatusFromOrder(order);
+    if (options.notify) {
+      maybeNotifyFirstUserAction({
+        orderId: order.id,
+        isLiveTrackingVisible: options.isLiveTrackingVisible,
+      });
+    }
+    return syncedSnapshot;
   }
 
   if (snapshot.currentMission?.sourceOrderId === order.id) {
@@ -1988,6 +2204,32 @@ export function syncPaidCreatedDeliveryOrderMission(
     }
     persistCreatedDeliveryOrderMissionState();
 
+    return snapshot;
+  }
+
+  if (
+    isKnownMissionStatus(order.missionStatus) &&
+    order.missionStatus !== "mission_created"
+  ) {
+    const mission = createMissionFromOrder(order, {
+      persist: !options.readOnly,
+    });
+    const isTerminal =
+      getMissionStepConfig(order.missionStatus).advanceMode === "terminal";
+
+    setSnapshot({
+      ...applyMissionStatus(
+        mission,
+        order.missionStatus,
+        mission.events,
+        0,
+        order.missionStepStartedAt
+          ? Date.parse(order.missionStepStartedAt)
+          : undefined,
+      ),
+      isMissionRunning: !isTerminal,
+    });
+    scheduleAutomaticProgress();
     return snapshot;
   }
 
@@ -2021,7 +2263,9 @@ export function syncPaidCreatedDeliveryOrderMission(
     return snapshot;
   }
 
-  const mission = createMissionFromOrder(order);
+  const mission = createMissionFromOrder(order, {
+    persist: !options.readOnly,
+  });
 
   setSnapshot({
     ...snapshot,
@@ -2105,6 +2349,7 @@ export function confirmPickupMeetingPoint() {
       "Expeditorul a confirmat ca vede drona si ca locul este potrivit pentru coborarea lockerului.",
   });
   const missionWithEtaDelay = consumeCurrentEtaDelay(mission);
+  const now = getCurrentTimestamp();
   const missionWithAcceptedPoint: Mission = {
     ...missionWithEtaDelay,
     meetingPointAttempts: {
@@ -2117,15 +2362,14 @@ export function confirmPickupMeetingPoint() {
             : point,
         ),
     },
+    pins: missionWithEtaDelay.pins.map((pin) =>
+      pin.purpose === "pickup_verification"
+        ? { ...pin, status: "verified", verifiedAt: now }
+        : pin,
+    ),
     events: [...missionWithEtaDelay.events, actionEvent, acceptedEvent],
   };
-  const nextStatus = getMissionStepConfig(status).nextStatus;
-
-  if (!nextStatus) {
-    return snapshot;
-  }
-
-  return transitionToStatus(missionWithAcceptedPoint, nextStatus);
+  return transitionToStatus(missionWithAcceptedPoint, "awaiting_parcel_load");
 }
 
 export function rejectPickupMeetingPointAndTryNext() {
@@ -2177,6 +2421,8 @@ export function rejectPickupMeetingPointAndTryNext() {
     return activeateFallback({
       mission: missionWithRejectedPoint,
       phase: "pickup",
+      failureCode: "no_suitable_pickup_meeting_point",
+      refundEligible: true,
     });
   }
 
@@ -2289,7 +2535,18 @@ export function verifyPickupPin(code?: string) {
 }
 
 export function confirmParcelLoaded() {
-  return runRequiredAction("confirm_parcel_loaded", "sender");
+  const mission = getCurrentMission();
+  if (!mission || snapshot.currentStatus !== "awaiting_parcel_load") return snapshot;
+  const actionEvent = createActionEvent({
+    missionId: mission.id,
+    status: "awaiting_parcel_load",
+    action: "confirm_parcel_loaded",
+    actor: "sender",
+  });
+  return transitionToStatus(
+    consumeCurrentEtaDelay(appendMissionEvent(mission, actionEvent)),
+    "en_route_to_dropoff",
+  );
 }
 
 export function confirmDropoffMeetingPoint() {
@@ -2314,6 +2571,7 @@ export function confirmDropoffMeetingPoint() {
     description:
       "Destinatarul a confirmat ca vede drona si ca locul este potrivit pentru coborarea lockerului.",
   });
+  const now = getCurrentTimestamp();
   const missionWithAcceptedPoint: Mission = {
     ...mission,
     meetingPointAttempts: {
@@ -2326,15 +2584,14 @@ export function confirmDropoffMeetingPoint() {
             : point,
         ),
     },
+    pins: mission.pins.map((pin) =>
+      pin.purpose === "dropoff_verification"
+        ? { ...pin, status: "verified", verifiedAt: now }
+        : pin,
+    ),
     events: [...mission.events, actionEvent, acceptedEvent],
   };
-  const nextStatus = getMissionStepConfig(status).nextStatus;
-
-  if (!nextStatus) {
-    return snapshot;
-  }
-
-  return transitionToStatus(missionWithAcceptedPoint, nextStatus);
+  return transitionToStatus(missionWithAcceptedPoint, "awaiting_parcel_collection");
 }
 
 export function rejectDropoffMeetingPointAndTryNext() {
@@ -2383,6 +2640,8 @@ export function rejectDropoffMeetingPointAndTryNext() {
     return activeateFallback({
       mission: missionWithRejectedPoint,
       phase: "dropoff",
+      failureCode: "no_suitable_dropoff_meeting_point",
+      refundEligible: true,
     });
   }
 
@@ -2495,13 +2754,158 @@ export function verifyRecipientPin(code?: string) {
 }
 
 export function confirmParcelCollected() {
-  return runRequiredAction("confirm_parcel_collected", "recipient");
+  const mission = getCurrentMission();
+  if (!mission || snapshot.currentStatus !== "awaiting_parcel_collection") return snapshot;
+  const actionEvent = createActionEvent({
+    missionId: mission.id,
+    status: "awaiting_parcel_collection",
+    action: "confirm_parcel_collected",
+    actor: "recipient",
+  });
+  return transitionToStatus(appendMissionEvent(mission, actionEvent), "delivery_completed");
 }
 
 export function resetMission() {
   clearRuntimeTimers();
   setSnapshot(initialSnapshot);
 
+  return snapshot;
+}
+
+export function syncMissionStatusFromOrder(order: CreatedDeliveryOrder) {
+  if (
+    order.missionId &&
+    isKnownMissionStatus(order.missionStatus) &&
+    typeof order.missionStateVersion === "number" &&
+    order.missionRuntimeState !== undefined
+  ) {
+    return syncMissionFromRecord(
+      {
+        id: order.missionId,
+        orderId: order.id,
+        currentStatus: order.missionStatus,
+        startedAt: order.missionStartedAt ?? null,
+        completedAt: order.completedAt ?? null,
+        droneTelemetrySnapshot:
+          order.missionDroneTelemetry ?? {
+            position: activeHub.address.location,
+            heading: 0,
+            speed: 0,
+            segmentProgress: 0,
+            segmentId: null,
+            lastUpdatedAt: order.missionUpdatedAt ?? getCurrentTimestamp(),
+          },
+        pickupPin: order.missionPickupPin ?? null,
+        dropoffPin: order.missionDropoffPin ?? null,
+        pickupPinAttempts: 0,
+        dropoffPinAttempts: 0,
+        pickupPinVerifiedAt: null,
+        dropoffPinVerifiedAt: null,
+        fallbackReason: order.fallbackReason ?? null,
+        stateVersion: order.missionStateVersion,
+        stepStartedAt: order.missionStepStartedAt ?? null,
+        stepExpiresAt: order.missionStepExpiresAt ?? null,
+        failureCode: order.missionFailureCode ?? null,
+        failedAt:
+          order.missionStatus === "mission_failed"
+            ? order.missionUpdatedAt ?? getCurrentTimestamp()
+            : null,
+        runtimeState: order.missionRuntimeState,
+        createdAt: order.paidAt ?? order.payload.createdAt,
+        updatedAt: order.missionUpdatedAt ?? getCurrentTimestamp(),
+      },
+      order,
+    );
+  }
+
+  const mission = getCurrentMission();
+  if (
+    !mission ||
+    mission.sourceOrderId !== order.id ||
+    !isKnownMissionStatus(order.missionStatus) ||
+    snapshot.currentStatus === order.missionStatus
+  ) {
+    return snapshot;
+  }
+
+  const nextMission: Mission = {
+    ...mission,
+    failureReason:
+      (order.missionFailureCode as Mission["failureReason"]) ??
+      mission.failureReason,
+  };
+  clearRuntimeTimers();
+  setSnapshot({
+    ...applyMissionStatus(
+      nextMission,
+      order.missionStatus,
+      nextMission.events,
+      snapshot.segmentProgress,
+      order.missionStepStartedAt
+        ? Date.parse(order.missionStepStartedAt)
+        : undefined,
+    ),
+  });
+  scheduleAutomaticProgress();
+  return snapshot;
+}
+
+export function syncMissionFromRecord(
+  dbMission: MissionRecord,
+  order: CreatedDeliveryOrder,
+) {
+  if (
+    snapshot.currentMission?.sourceOrderId === order.id &&
+    syncedMissionVersions.get(order.id) === dbMission.stateVersion
+  ) {
+    return snapshot;
+  }
+
+  return applyMissionRecord(dbMission, order);
+}
+
+function applyMissionRecord(
+  dbMission: MissionRecord,
+  order: CreatedDeliveryOrder,
+): MissionRuntimeSnapshot {
+  if (snapshot.currentMission?.sourceOrderId !== order.id) {
+    createMissionFromOrder(order, { persist: false });
+  }
+
+  const currentMission = snapshot.currentMission;
+  if (!currentMission) return snapshot;
+
+  const hydrated = hydrateMissionFromRecord(currentMission, dbMission);
+  const persistedFlightProgress = getPersistedFlightProgress(
+    hydrated.activeFlight,
+  );
+  const telemetryTimestamp = Date.parse(
+    dbMission.droneTelemetrySnapshot?.lastUpdatedAt ?? "",
+  );
+  const telemetryProgress =
+    Number.isFinite(telemetryTimestamp) && telemetryTimestamp > 946_684_800_000
+      ? dbMission.droneTelemetrySnapshot.segmentProgress
+      : 0;
+  const dbProgress = persistedFlightProgress ?? telemetryProgress;
+  const appliedSnapshot = applyMissionStatus(
+    hydrated.mission,
+    dbMission.currentStatus,
+    hydrated.mission.events,
+    dbProgress,
+    dbMission.stepStartedAt
+      ? Date.parse(dbMission.stepStartedAt)
+      : undefined,
+  );
+
+  clearRuntimeTimers();
+  setSnapshot({
+    ...appliedSnapshot,
+    isMissionRunning:
+      getMissionStepConfig(dbMission.currentStatus).advanceMode !== "terminal",
+  });
+  syncedMissionVersions.set(order.id, dbMission.stateVersion);
+  scheduleAutomaticProgress();
+  persistCreatedDeliveryOrderMissionState();
   return snapshot;
 }
 
@@ -2512,52 +2916,10 @@ export function rehydrateMissionFromDB(
 
   clearOrderPendingDBRehydration(order.id);
 
-  if (snapshot.currentMission?.sourceOrderId === order.id) {
-    return snapshot;
-  }
-
   markOrderAsRehydrating(order.id);
 
   try {
-    createMissionFromOrder(order);
-
-    const currentMission = snapshot.currentMission;
-
-    if (!currentMission) {
-      return snapshot;
-    }
-
-    const dbStatus = dbMission.currentStatus;
-    const dbProgress =
-      dbMission.droneTelemetrySnapshot?.segmentProgress ?? 0;
-    const lastUpdatedAt =
-      dbMission.droneTelemetrySnapshot?.lastUpdatedAt ?? dbMission.updatedAt;
-    const elapsedMs = Math.max(0, Date.now() - Date.parse(lastUpdatedAt));
-    const dispatchStartMs = getPaidOrderMissionDispatchStartMs(order);
-
-    const appliedSnapshot = applyMissionStatus(
-      currentMission,
-      dbStatus,
-      currentMission.events,
-      dbProgress,
-    );
-
-    setSnapshot({
-      ...appliedSnapshot,
-      currentMission: appliedSnapshot.currentMission
-        ? {
-            ...appliedSnapshot.currentMission,
-            startedAt: dispatchStartMs
-              ? new Date(dispatchStartMs).toISOString()
-              : appliedSnapshot.currentMission.startedAt,
-          }
-        : appliedSnapshot.currentMission,
-      isMissionRunning:
-        getMissionStepConfig(dbStatus).advanceMode !== "terminal",
-    });
-
-    fastForwardAutomaticMission({ elapsedMs, orderId: order.id });
-    persistCreatedDeliveryOrderMissionState();
+    applyMissionRecord(dbMission, order);
   } finally {
     clearOrderAsRehydrating(order.id);
   }
@@ -2586,4 +2948,6 @@ export const missionRuntimeStore = {
   verifyRecipientPin,
   confirmParcelCollected,
   resetMission,
+  syncMissionStatusFromOrder,
+  syncMissionFromRecord,
 };

@@ -539,7 +539,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
   };
 
   const handlePayWithSavedMethod = async () => {
-    if (!order || !pricing || !selectedSavedMethod || isSubmitting) {
+    if (!order || !pricing || !selectedSavedMethod || !paymentIntentId || isSubmitting) {
       return;
     }
 
@@ -562,6 +562,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
         },
         body: JSON.stringify({
           orderId: order.id,
+          paymentIntentId,
           paymentMethodId: selectedSavedMethod.id,
           pricingSnapshot: pricing,
         }),
@@ -856,7 +857,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
                       type="button"
                       size="lg"
                       onClick={handlePayWithSavedMethod}
-                      disabled={!selectedSavedMethod || isSubmitting}
+                      disabled={!selectedSavedMethod || !paymentIntentId || isSubmitting}
                       className="w-full"
                     >
                       {isSubmitting && paymentMode === "saved" ? (

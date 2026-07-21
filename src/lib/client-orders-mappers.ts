@@ -29,6 +29,10 @@ import type {
   CreatedDeliveryPaymentStatus,
   CreateDeliveryPayload,
 } from "@/types/create-delivery";
+import {
+  completeOrderHandoffSnapshot,
+  storedPointToDeliveryPoint,
+} from "@/lib/meeting-point-snapshot";
 
 const ROAD_PREFIX_PATTERN =
   /^(strada|bulevardul|piata|piaÈ›a|calea|bd\.|blvd\.|b-dul)\s+/i;
@@ -229,6 +233,9 @@ export function mapOrderToCreatedDelivery(
   const fallback = activeHub.address.location;
   const pickupLocation = pickup?.location ?? fallback;
   const dropoffLocation = dropoff?.location ?? fallback;
+  const handoffSnapshot = completeOrderHandoffSnapshot(order);
+  const pickupOrigin = pickup ?? handoffSnapshot.pickup[0];
+  const dropoffOrigin = dropoff ?? handoffSnapshot.dropoff[0];
 
   const payload = {
     userId: order.senderProfileId,
@@ -274,6 +281,16 @@ export function mapOrderToCreatedDelivery(
       smartScore: dropoff?.smartScore ?? 0,
       distanceFromOriginMeters: 0,
     },
+    pickupMeetingPoints: pickupOrigin
+      ? handoffSnapshot.pickup.map((point) =>
+          storedPointToDeliveryPoint(point, pickupOrigin),
+        )
+      : [],
+    dropoffMeetingPoints: dropoffOrigin
+      ? handoffSnapshot.dropoff.map((point) =>
+          storedPointToDeliveryPoint(point, dropoffOrigin),
+        )
+      : [],
     parcel: {} as unknown,
     urgency:
       order.dispatchTiming === "scheduled"

@@ -4,6 +4,7 @@ import { MissionEventsRepository } from "@/lib/repositories/mission-events-repos
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
 import { getBrowserSupabaseClient } from "@/lib/supabase/client";
 import type { MissionEvent as RuntimeMissionEvent } from "@/types/mission";
+import type { Json } from "@/types/database";
 import type {
   DroneTelemetrySnapshot,
   MissionRecord,
@@ -88,6 +89,13 @@ export async function persistMissionCreated(
 export async function persistStatusChange(
   orderId: string,
   status: MissionStatus,
+  state?: {
+    stepStartedAt?: string | null;
+    stepExpiresAt?: string | null;
+    failureCode?: string | null;
+    failedAt?: string | null;
+    runtimeState?: Json;
+  },
 ): Promise<void> {
   if (!canPersist()) return;
 
@@ -108,6 +116,15 @@ export async function persistStatusChange(
       currentStatus: status,
       ...(isDispatch ? { startedAt: now } : {}),
       ...(isTerminal ? { completedAt: now } : {}),
+      stepStartedAt: state?.stepStartedAt ?? now,
+      stepExpiresAt: state?.stepExpiresAt ?? null,
+      ...(state?.failureCode !== undefined
+        ? { failureCode: state.failureCode }
+        : {}),
+      ...(state?.failedAt !== undefined ? { failedAt: state.failedAt } : {}),
+      ...(state?.runtimeState !== undefined
+        ? { runtimeState: state.runtimeState }
+        : {}),
     });
 
     if (!result.ok) {

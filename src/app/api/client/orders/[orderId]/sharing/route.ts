@@ -1,0 +1,109 @@
+import "server-only";
+
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { OrdersRepository } from "@/lib/repositories/orders-repository";
+import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import {
+  ensureTrackingLinks,
+  isOrderTerminal,
+  rotateTrackingLink,
+} from "@/lib/tracking-access-server";
+import type { Order } from "@/types/order";
+
+type RouteContext = { params: Promise<{ orderId: string }> };
+
+const patchSchema = z.object({
+  publicCodeAccessMode: z.enum(["view", "control"]).optional(),
+  rotateScope: z.enum(["full", "pickup", "dropoff"]).optional(),
+});
+
+async function getOwnedOrder(orderId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Authentication required.", status: 401 } as const;
+
+  const db = createAdminSupabaseClient();
+  const profile = await new ProfilesRepository(db).getByClerkUserId(userId);
+  if (!profile.ok || !profile.data) {
+    return { error: "Profile not found.", status: 404 } as const;
+  }
+
+  const orders = new OrdersRepository(db);
+  let result = await orders.getByLocalOrderId(orderId);
+  if (result.ok && !result.data) result = await orders.getById(orderId);
+  if (!result.ok || !result.data) {
+    return { error: "Order not found.", status: 404 } as const;
+  }
+  if (result.data.senderProfileId !== profile.data.id) {
+    return { error: "Forbidden.", status: 403 } as const;
+  }
+
+  return { db, orders, order: result.data } as const;
+}
+
+function toResponse(
+  request: Request,
+  order: Order,
+  links: Array<{ scope: string; token: string }>,
+) {
+  const requestOrigin = new URL(request.url).origin;
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/u, "");
+  const origin =
+    process.env.NODE_ENV === "production" && configuredOrigin
+      ? configuredOrigin
+      : requestOrigin;
+  return {
+    publicCodeAccessMode: order.publicCodeAccessMode,
+    terminal: isOrderTerminal(order),
+    links: Object.fromEntries(
+      links.map((link) => [link.scope, `${origin}/track/${encodeURIComponent(link.token)}`]),
+    ),
+  };
+}
+
+export async function GET(request: Request, { params }: RouteContext) {
+  const { orderId } = await params;
+  const owned = await getOwnedOrder(orderId);
+  if ("error" in owned) {
+    return NextResponse.json({ error: owned.error }, { status: owned.status });
+  }
+
+  const links = await ensureTrackingLinks(owned.db, owned.order);
+  return NextResponse.json(toResponse(request, owned.order, links));
+}
+
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const { orderId } = await params;
+  const owned = await getOwnedOrder(orderId);
+  if ("error" in owned) {
+    return NextResponse.json({ error: owned.error }, { status: owned.status });
+  }
+  if (isOrderTerminal(owned.order)) {
+    return NextResponse.json({ error: "Terminal orders are read-only." }, { status: 409 });
+  }
+
+  const parsed = patchSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  let order = owned.order;
+  if (parsed.data.publicCodeAccessMode) {
+    const updated = await owned.orders.updateById(order.id, {
+      publicCodeAccessMode: parsed.data.publicCodeAccessMode,
+    });
+    if (!updated.ok) {
+      return NextResponse.json({ error: updated.error.message }, { status: 502 });
+    }
+    order = updated.data;
+  }
+
+  if (parsed.data.rotateScope) {
+    await rotateTrackingLink(owned.db, order.id, parsed.data.rotateScope);
+  }
+
+  const links = await ensureTrackingLinks(owned.db, order);
+  return NextResponse.json(toResponse(request, order, links));
+}

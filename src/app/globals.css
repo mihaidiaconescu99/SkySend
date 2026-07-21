@@ -595,7 +595,6 @@
       0 10px 20px -13px rgba(0, 0, 0, 0.95),
       0 1px 0 rgba(255, 255, 255, 0.08) inset;
     transition:
-      transform 140ms ease,
       border-color 140ms ease,
       box-shadow 140ms ease,
       opacity 140ms ease;
@@ -626,7 +625,6 @@
   }
 
   .map-marker:hover {
-    transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--marker-accent) 76%, white);
   }
 
@@ -676,10 +674,14 @@
     --marker-accent-muted: rgba(78, 232, 125, 0.28);
   }
 
-  .map-marker--kind-meeting,
-  .map-marker--kind-drone {
+  .map-marker--kind-meeting {
     --marker-accent: #ffb340;
     --marker-accent-muted: rgba(255, 179, 64, 0.32);
+  }
+
+  .map-marker--kind-drone {
+    --marker-accent: #22d3ee;
+    --marker-accent-muted: rgba(34, 211, 238, 0.38);
   }
 
   .map-marker--kind-alternative {
@@ -756,13 +758,22 @@
   }
 
   .map-marker--kind-drone.map-marker--drone {
+    --marker-body: #087d91;
+    --marker-body-top: #24d9ef;
+    --marker-border: #8af2ff;
     width: 2.18rem;
     height: 2.18rem;
+    box-shadow:
+      0 0 0 2px rgba(34, 211, 238, 0.2),
+      0 0 16px -3px rgba(34, 211, 238, 0.72),
+      0 12px 24px -15px rgba(0, 0, 0, 0.98);
   }
 
   .map-marker--kind-drone.map-marker--drone .map-marker__icon {
     width: 1.32rem;
     height: 1.32rem;
+    color: #03272e;
+    filter: none;
     transform: rotate(var(--marker-heading, 0deg));
     transform-origin: 50% 50%;
     transition: transform 220ms ease;
@@ -781,6 +792,42 @@
 
   .map-marker--selected::after {
     display: none;
+  }
+
+  @keyframes mission-progress-sweep {
+    0% {
+      transform: translateX(-140%);
+    }
+    100% {
+      transform: translateX(260%);
+    }
+  }
+
+  .mission-progress-fill {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mission-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 42%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.72),
+      transparent
+    );
+    animation: mission-progress-sweep 1.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mission-progress-fill::after {
+      animation: none;
+      display: none;
+    }
   }
 
   .map-marker__tooltip {

@@ -1,27 +1,26 @@
 import { NextResponse } from "next/server";
 import {
   assertStripePaymentMethodBelongsToCustomer,
-  createStripePaymentIntentParams,
   getAuthenticatedStripeCustomer,
   StripeAuthenticationError,
 } from "@/lib/stripe/server";
 import { isValidPricingSnapshot } from "@/lib/pricing";
 import type { SkySendPricingResult } from "@/types/pricing";
-import type { StripePaymentIntentDraft } from "@/types/stripe";
 
 type SavedMethodPaymentRequestBody = {
   orderId?: string;
+  paymentIntentId?: string;
   paymentMethodId?: string;
   pricingSnapshot?: SkySendPricingResult;
 };
 
-function createSavedPaymentIdempotencyKey(
+function createSavedPaymentConfirmationIdempotencyKey(
   orderId: string,
   paymentMethodId: string,
   amountMinor: number,
   currency: string,
 ) {
-  return `skysend-saved-${orderId}-${paymentMethodId}-${amountMinor}-${currency.toLowerCase()}`.slice(
+  return `skysend-confirm-saved-${orderId}-${paymentMethodId}-${amountMinor}-${currency.toLowerCase()}`.slice(
     0,
     255,
   );
@@ -41,6 +40,7 @@ export async function POST(request: Request) {
 
   if (
     !body.orderId ||
+    !body.paymentIntentId ||
     !body.paymentMethodId ||
     !isValidPricingSnapshot(body.pricingSnapshot)
   ) {
@@ -54,45 +54,52 @@ export async function POST(request: Request) {
   const currency = body.pricingSnapshot.total.currency;
 
   try {
-    const { stripe, customer, clerkUserId } = await getAuthenticatedStripeCustomer();
+    const { stripe, customer } = await getAuthenticatedStripeCustomer();
     await assertStripePaymentMethodBelongsToCustomer(
       stripe,
       customer.id,
       body.paymentMethodId,
     );
 
-    const draft: StripePaymentIntentDraft = {
-      amountMinor,
-      currency,
-      customerProfileId: clerkUserId,
-      stripeCustomerId: customer.id,
-      orderId: body.orderId,
-      metadata: {
-        orderId: body.orderId,
-        product: "skysend_delivery",
-        environment: "test",
-        paymentSurface: "saved_method",
-      },
-      statementDescriptorSuffix: "SKYSEND",
-    };
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        ...createStripePaymentIntentParams(draft),
-        confirm: true,
-        description: `SkySend delivery ${body.orderId}`,
-        payment_method: body.paymentMethodId,
-        return_url: `${new URL(request.url).origin}/client/checkout/${body.orderId}?payment=return`,
-        use_stripe_sdk: true,
-      },
-      {
-        idempotencyKey: createSavedPaymentIdempotencyKey(
-          body.orderId,
-          body.paymentMethodId,
-          amountMinor,
-          currency,
-        ),
-      },
-    );
+    let paymentIntent = await stripe.paymentIntents.retrieve(body.paymentIntentId);
+    const paymentCustomerId =
+      typeof paymentIntent.customer === "string"
+        ? paymentIntent.customer
+        : paymentIntent.customer?.id ?? null;
+
+    if (
+      paymentCustomerId !== customer.id ||
+      paymentIntent.metadata.orderId !== body.orderId ||
+      paymentIntent.amount !== amountMinor ||
+      paymentIntent.currency.toLowerCase() !== currency.toLowerCase()
+    ) {
+      return NextResponse.json(
+        { error: "Payment intent does not match this order." },
+        { status: 409 },
+      );
+    }
+
+    if (
+      paymentIntent.status === "requires_payment_method" ||
+      paymentIntent.status === "requires_confirmation"
+    ) {
+      paymentIntent = await stripe.paymentIntents.confirm(
+        paymentIntent.id,
+        {
+          payment_method: body.paymentMethodId,
+          return_url: `${new URL(request.url).origin}/client/checkout/${body.orderId}?payment=return`,
+          use_stripe_sdk: true,
+        },
+        {
+            idempotencyKey: createSavedPaymentConfirmationIdempotencyKey(
+            body.orderId,
+            body.paymentMethodId,
+            amountMinor,
+            currency,
+          ),
+        },
+      );
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,

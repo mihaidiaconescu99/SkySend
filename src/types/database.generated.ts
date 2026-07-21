@@ -712,11 +712,17 @@ export type Database = {
           dropoff_pin_attempts: number
           dropoff_pin_verified_at: string | null
           fallback_reason: string | null
+          failed_at: string | null
+          failure_code: string | null
           id: string
           order_id: string
           pickup_pin: string | null
           pickup_pin_attempts: number
           pickup_pin_verified_at: string | null
+          runtime_state: Json
+          state_version: number
+          step_expires_at: string | null
+          step_started_at: string | null
           started_at: string | null
           updated_at: string
         }
@@ -729,11 +735,17 @@ export type Database = {
           dropoff_pin_attempts?: number
           dropoff_pin_verified_at?: string | null
           fallback_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
           id?: string
           order_id: string
           pickup_pin?: string | null
           pickup_pin_attempts?: number
           pickup_pin_verified_at?: string | null
+          runtime_state?: Json
+          state_version?: number
+          step_expires_at?: string | null
+          step_started_at?: string | null
           started_at?: string | null
           updated_at?: string
         }
@@ -746,11 +758,17 @@ export type Database = {
           dropoff_pin_attempts?: number
           dropoff_pin_verified_at?: string | null
           fallback_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
           id?: string
           order_id?: string
           pickup_pin?: string | null
           pickup_pin_attempts?: number
           pickup_pin_verified_at?: string | null
+          runtime_state?: Json
+          state_version?: number
+          step_expires_at?: string | null
+          step_started_at?: string | null
           started_at?: string | null
           updated_at?: string
         }
@@ -759,6 +777,47 @@ export type Database = {
             foreignKeyName: "missions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_tracking_links: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          order_id: string
+          revoked_at: string | null
+          scope: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          order_id: string
+          revoked_at?: string | null
+          scope: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          order_id?: string
+          revoked_at?: string | null
+          scope?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_tracking_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -896,6 +955,7 @@ export type Database = {
           pickup_address_id: string
           pricing_snapshot: Json
           public_tracking_code: string
+          public_code_access_mode: string
           recipient_email: string | null
           recipient_name: string | null
           recipient_phone: string | null
@@ -930,6 +990,7 @@ export type Database = {
           pickup_address_id: string
           pricing_snapshot: Json
           public_tracking_code: string
+          public_code_access_mode?: string
           recipient_email?: string | null
           recipient_name?: string | null
           recipient_phone?: string | null
@@ -964,6 +1025,7 @@ export type Database = {
           pickup_address_id?: string
           pricing_snapshot?: Json
           public_tracking_code?: string
+          public_code_access_mode?: string
           recipient_email?: string | null
           recipient_name?: string | null
           recipient_phone?: string | null

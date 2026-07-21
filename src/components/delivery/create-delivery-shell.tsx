@@ -2111,7 +2111,7 @@ export function CreateDeliveryShell() {
         });
       }
 
-      router.push("/client/active-delivery");
+      router.push(createdOrder.href);
     } catch {
       setSubmitError(
         "Plata a reușit, dar SkySend nu a putut salva comanda local. Verifică livrările active înainte să reîncerci.",

@@ -23,12 +23,15 @@ export function DashboardShell({
   const isClientWorkspace = activeRole === "client";
   const pathname = usePathname();
   const isCreateDeliveryMap = isClientWorkspace && pathname === "/client/create-delivery";
+  const isClientTracking =
+    isClientWorkspace && Boolean(pathname?.match(/^\/client\/orders\/[^/]+$/));
+  const isImmersiveClientRoute = isCreateDeliveryMap || isClientTracking;
 
   return (
     <div
       className={cn(
         "min-w-0 bg-background",
-        isCreateDeliveryMap
+        isImmersiveClientRoute
           ? "h-dvh min-h-0 overflow-hidden"
           : isClientWorkspace
             ? "min-h-screen overflow-x-clip expanded-ui:h-dvh expanded-ui:min-h-0 expanded-ui:overflow-hidden"
@@ -39,7 +42,7 @@ export function DashboardShell({
       <div
         className={cn(
           "grid min-w-0",
-          isCreateDeliveryMap
+          isImmersiveClientRoute
             ? "h-full min-h-0"
             : isClientWorkspace
               ? "min-h-screen expanded-ui:h-full expanded-ui:min-h-0"
@@ -57,12 +60,12 @@ export function DashboardShell({
             isClientWorkspace
               ? "expanded-ui:h-dvh expanded-ui:min-h-0"
               : "lg:h-dvh lg:min-h-0",
-            isCreateDeliveryMap
+            isImmersiveClientRoute
               ? "h-dvh min-h-0 overflow-hidden"
               : isClientWorkspace
                 ? "expanded-ui:overflow-y-auto"
                 : "lg:overflow-y-auto",
-            isClientWorkspace && !isCreateDeliveryMap
+            isClientWorkspace && !isImmersiveClientRoute
               ? "compact-ui:pb-bottom-nav expanded-ui:pb-0"
               : undefined,
           )}
@@ -71,7 +74,7 @@ export function DashboardShell({
             id="main-content"
             className={cn(
             "min-w-0",
-            isCreateDeliveryMap
+            isImmersiveClientRoute
                 ? "relative h-dvh min-h-0 overflow-hidden p-0"
                 : isClientWorkspace
                   ? "px-4 py-4 expanded-ui:px-8 expanded-ui:py-6"
@@ -80,20 +83,20 @@ export function DashboardShell({
           >
             <div
               className={cn(
-                isCreateDeliveryMap
+                isImmersiveClientRoute
                   ? "pointer-events-none absolute inset-x-0 top-0 z-50"
                   : undefined,
               )}
             >
-              <DashboardTopbar role={activeRole} floating={isCreateDeliveryMap} />
+              <DashboardTopbar role={activeRole} floating={isImmersiveClientRoute} />
             </div>
-            <div className={isCreateDeliveryMap ? "h-dvh min-h-0 overflow-hidden" : "pt-6"}>
+            <div className={isImmersiveClientRoute ? "h-dvh min-h-0 overflow-hidden" : "pt-6"}>
               <motion.div
                 key={pathname}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className={isCreateDeliveryMap ? "h-full min-h-0" : undefined}
+                className={isImmersiveClientRoute ? "h-full min-h-0" : undefined}
               >
                 {children}
               </motion.div>
@@ -102,7 +105,7 @@ export function DashboardShell({
         </div>
       </div>
 
-      {isClientWorkspace ? (
+      {isClientWorkspace && !isImmersiveClientRoute ? (
         <div className="compact-ui:block expanded-ui:hidden">
           <DashboardBottomNav />
         </div>
