@@ -1196,6 +1196,11 @@
   will-change: opacity;
 }
 
+.editorialHeadline h2 > span:last-child {
+  font-size: clamp(3.4rem, 6.8vw, 8rem);
+  text-wrap: balance;
+}
+
 .finalCtaFadeIn {
   position: absolute;
   inset: 0;
@@ -2225,9 +2230,16 @@
   }
 
   .editorialHeadline h2 > span {
-    width: max-content;
+    width: 100%;
     justify-self: center;
     transform: none;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .editorialHeadline h2 > span:last-child {
+    max-width: 22ch;
+    font-size: clamp(1.55rem, 8vw, 2.5rem);
   }
 
   .editorialVideoLayer {

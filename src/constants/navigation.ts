@@ -79,14 +79,7 @@ export const clientDashboardNavigation = {
   ],
   secondary: [
     {
-      label: "Notificări",
-      shortLabel: "Alerte",
-      href: "/client/notifications",
-      description: "Actualizări despre livrări și cont.",
-      icon: Bell,
-    },
-    {
-      label: "Setări",
+      label: "Cont",
       shortLabel: "Cont",
       href: "/client/settings",
       description: "Profil și preferințe.",
@@ -128,8 +121,8 @@ export const clientDashboardNavigation = {
       icon: MapPinned,
     },
     {
-      label: "Setări",
-      shortLabel: "Setări",
+      label: "Cont",
+      shortLabel: "Cont",
       href: "/client/settings",
       description: "Setările contului.",
       icon: UserRound,

@@ -126,6 +126,7 @@ export async function submitCreateDelivery(
       recipientTrackingToken,
       paymentStatus: options?.paymentStatus ?? "unpaid",
       stripePaymentIntentId: options?.stripePaymentIntentId ?? null,
+      locale: document.documentElement.lang === "en" ? "en" : "ro",
     }),
   });
 
@@ -188,7 +189,10 @@ function postOrderStatusUpdate(body: Record<string, unknown>) {
   void fetch("/api/orders/update-status", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      locale: document.documentElement.lang === "en" ? "en" : "ro",
+    }),
   }).then(() => {
     window.dispatchEvent(new Event(createdDeliveryOrdersChangedEvent));
   });

@@ -255,7 +255,10 @@ const ro: PublicCopy = {
       editorial: {
         label: "Timpul tău, livrat",
         headline: "Livrăm mai mult decât colete. Îți redăm timpul.",
-        lines: ["LIVRĂM MAI MULT DECÂT COLETE", "ÎȚI REDĂM TIMPUL"],
+        lines: [
+          "LIVRĂM MAI MULT DECÂT COLETE",
+          "ÎȚI REDĂM TIMPUL PIERDUT ÎNAPOI",
+        ],
       },
       resilience: {
         chapterLabel: "Construit pentru orice vreme",

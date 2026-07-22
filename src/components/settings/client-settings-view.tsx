@@ -17,7 +17,6 @@ import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { PreferencesControls } from "@/components/shared/preferences/preferences-controls";
 import { SectionCard } from "@/components/shared/section-card";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { useCurrentProfile } from "@/lib/profile-context/profile-context";
 import { useSettings } from "@/lib/settings/settings-context";
 import { showToast } from "@/lib/toast-store";
@@ -108,7 +107,7 @@ function PreferenceToggle({
 
 export function ClientSettingsView() {
   const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, setActive } = useClerk();
   const { isLoaded: isSignInLoaded, signIn } = useSignIn();
   const { state: profileState, refresh: refreshProfile } = useCurrentProfile();
   const { t } = useSettings();
@@ -123,6 +122,13 @@ export function ClientSettingsView() {
   const [lastNameDraft, setLastNameDraft] = useState("");
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   const [isSendingPasswordCode, setIsSendingPasswordCode] = useState(false);
+  const [passwordStage, setPasswordStage] = useState<"idle" | "code" | "password">("idle");
+  const [passwordCode, setPasswordCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const displayName = useMemo(
     () =>
       getDisplayName({
@@ -235,23 +241,23 @@ export function ClientSettingsView() {
   }
 
   async function handleDeleteAccount() {
-    if (!user) {
+    if (!user || deleteConfirmation !== "ȘTERGE" || isDeletingAccount) {
       return;
     }
-
-    const confirmed = window.confirm(
-      "Stergi definitiv contul SkySend? Aceasta actiune nu poate fi anulata.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
+    setIsDeletingAccount(true);
+    setAccountMessage(null);
     try {
-      await user.delete();
+      const response = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Contul nu a putut fi șters.");
       await signOut({ redirectUrl: "/" });
-    } catch {
-      setAccountMessage("Contul nu a putut fi sters.");
+    } catch (error) {
+      setAccountMessage(error instanceof Error ? error.message : "Contul nu a putut fi șters.");
+      setIsDeletingAccount(false);
     }
   }
 
@@ -267,14 +273,6 @@ export function ClientSettingsView() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Trimitem un cod de resetare a parolei la ${email}?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setIsSendingPasswordCode(true);
     setAccountMessage(null);
 
@@ -283,6 +281,7 @@ export function ClientSettingsView() {
         strategy: "reset_password_email_code",
         identifier: email,
       });
+      setPasswordStage("code");
       setAccountMessage(`Codul de resetare a fost trimis la ${email}.`);
     } catch {
       setAccountMessage("Codul de resetare nu a putut fi trimis.");
@@ -291,12 +290,60 @@ export function ClientSettingsView() {
     }
   }
 
+  async function handleVerifyPasswordCode() {
+    if (!signIn || !passwordCode.trim() || isUpdatingPassword) return;
+    setIsUpdatingPassword(true);
+    setAccountMessage(null);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code: passwordCode.trim(),
+      });
+      if (result.status !== "needs_new_password") {
+        throw new Error("Codul nu a putut fi confirmat.");
+      }
+      setPasswordStage("password");
+    } catch (error) {
+      setAccountMessage(error instanceof Error ? error.message : "Codul este invalid sau expirat.");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!signIn || isUpdatingPassword) return;
+    if (newPassword.length < 8 || newPassword !== confirmPassword) {
+      setAccountMessage("Parolele trebuie să coincidă și să aibă minimum 8 caractere.");
+      return;
+    }
+    setIsUpdatingPassword(true);
+    setAccountMessage(null);
+    try {
+      const result = await signIn.resetPassword({
+        password: newPassword,
+        signOutOfOtherSessions: true,
+      });
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+      }
+      setPasswordStage("idle");
+      setPasswordCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setAccountMessage("Parola a fost schimbată.");
+    } catch (error) {
+      setAccountMessage(error instanceof Error ? error.message : "Parola nu a putut fi schimbată.");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  }
+
   return (
     <section className="grid gap-6">
       <PageHeader
-        eyebrow="Setări"
-        title="Setări"
-        description="Gestionează contul și preferințele aplicației."
+        eyebrow="Cont"
+        title="Cont"
+        description="Profil, securitate și preferințe."
       />
 
       <div className="grid gap-5">
@@ -425,10 +472,6 @@ export function ClientSettingsView() {
                       <h3 className="font-heading text-lg tracking-tight text-foreground">
                         {option.title}
                       </h3>
-                      <StatusBadge
-                        label={checked ? "Pornit" : "Oprit"}
-                        tone={checked ? "success" : "neutral"}
-                      />
                     </div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       {option.description}
@@ -519,12 +562,45 @@ export function ClientSettingsView() {
                   type="button"
                   variant="outline"
                   onClick={handleDeleteAccount}
+                  disabled={deleteConfirmation !== "ȘTERGE" || isDeletingAccount}
                   className="w-full border-destructive/45 text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 className="size-4" />
-                  Sterge contul
+                  {isDeletingAccount ? "Se șterge" : "Șterge contul"}
                 </AppButton>
               </div>
+
+              {passwordStage === "code" ? (
+                <div className="grid gap-3 border-t border-border/70 pt-4">
+                  <label className="grid gap-2 text-sm">
+                    <span className="text-muted-foreground">Codul primit pe email</span>
+                    <input value={passwordCode} onChange={(event) => setPasswordCode(event.target.value)} inputMode="numeric"
+                      className="h-11 rounded-2xl border border-input bg-card px-4 outline-none focus-visible:ring-4 focus-visible:ring-ring" />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <AppButton type="button" onClick={handleVerifyPasswordCode} disabled={isUpdatingPassword}>Confirmă codul</AppButton>
+                    <AppButton type="button" variant="ghost" onClick={handleSendPasswordResetCode} disabled={isSendingPasswordCode}>Retrimite codul</AppButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {passwordStage === "password" ? (
+                <div className="grid gap-3 border-t border-border/70 pt-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm"><span className="text-muted-foreground">Parola nouă</span>
+                    <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)}
+                      className="h-11 rounded-2xl border border-input bg-card px-4 outline-none focus-visible:ring-4 focus-visible:ring-ring" /></label>
+                  <label className="grid gap-2 text-sm"><span className="text-muted-foreground">Confirmă parola</span>
+                    <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}
+                      className="h-11 rounded-2xl border border-input bg-card px-4 outline-none focus-visible:ring-4 focus-visible:ring-ring" /></label>
+                  <AppButton type="button" onClick={handleResetPassword} disabled={isUpdatingPassword} className="sm:col-span-2">Salvează parola</AppButton>
+                </div>
+              ) : null}
+
+              <label className="grid gap-2 border-t border-border/70 pt-4 text-sm">
+                <span className="text-muted-foreground">Pentru ștergere, scrie ȘTERGE</span>
+                <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  className="h-11 rounded-2xl border border-destructive/35 bg-card px-4 outline-none focus-visible:ring-4 focus-visible:ring-ring" />
+              </label>
             </div>
           </div>
         </div>

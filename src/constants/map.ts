@@ -1,6 +1,6 @@
 import type { StyleSpecification } from "maplibre-gl";
 import { serviceAreaConfig } from "@/constants/service-area";
-import { geoapifyConfig } from "@/lib/geoapify";
+import { createGeoapifyStyleUrlForTheme, geoapifyConfig } from "@/lib/geoapify";
 import type { MapProvider } from "@/types/map";
 
 const defaultDarkTileUrl =
@@ -128,4 +128,10 @@ export function getFallbackMapStyleForTheme(
   theme: "dark" | "light",
 ): StyleSpecification {
   return buildFallbackMapStyle(theme);
+}
+
+export function getPrimaryMapStyleForTheme(
+  theme: "dark" | "light",
+): StyleSpecification | string {
+  return createGeoapifyStyleUrlForTheme(theme) ?? buildFallbackMapStyle(theme);
 }

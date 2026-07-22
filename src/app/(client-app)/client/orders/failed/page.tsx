@@ -179,7 +179,7 @@ export default async function ClientFailedOrdersPage() {
                         <Link href={order.href}>Vezi detalii</Link>
                       </AppButton>
                       <AppButton asChild variant="ghost">
-                        <Link href="/contact">
+                        <Link href={`/client/support?new=1&order=${encodeURIComponent(order.id)}`}>
                           <LifeBuoy className="size-4" />
                           Contactează suportul
                         </Link>

@@ -9,26 +9,17 @@ import { BrandMark } from "@/components/shared/brand-mark";
 import { cn } from "@/lib/utils";
 
 function SidebarGroup({
-  title,
   items,
   currentRoute,
+  label,
 }: {
-  title: string;
   items: readonly DashboardNavItem[];
   currentRoute: string;
+  label: string;
 }) {
   return (
-    <section
-      className="min-w-0 space-y-2.5"
-      aria-labelledby={`sidebar-group-${title.toLowerCase()}`}
-    >
-      <p
-        id={`sidebar-group-${title.toLowerCase()}`}
-        className="px-2 text-[0.8rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
-      >
-        {title}
-      </p>
-      <nav className="grid gap-2" aria-label={title}>
+    <section className="min-w-0">
+      <nav className="grid gap-1.5" aria-label={label}>
         {items.map((item) => {
           const Icon = item.icon;
           const itemBasePath = item.href.split("#")[0];
@@ -52,7 +43,7 @@ function SidebarGroup({
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "block min-w-0 rounded-[calc(var(--radius)+0.35rem)] border px-3.5 py-3 transition-colors",
+                "block min-w-0 rounded-xl border px-3 py-2.5 transition-colors",
                 isActive
                   ? "border-primary/40 bg-primary/10 text-foreground"
                   : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-secondary/70 hover:text-foreground",
@@ -61,7 +52,7 @@ function SidebarGroup({
               <span className="flex min-w-0 items-center gap-3.5">
                 <span
                   className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-xl",
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg",
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-foreground",
@@ -69,14 +60,7 @@ function SidebarGroup({
                 >
                   <Icon className="size-[1.08rem]" />
                 </span>
-                <span className="block min-w-0">
-                  <span className="block text-[0.98rem] font-medium leading-tight">
-                    {item.label}
-                  </span>
-                  <small className="mt-1 block text-[0.82rem] leading-5 text-muted-foreground">
-                    {item.description}
-                  </small>
-                </span>
+                <span className="truncate text-[0.95rem] font-medium">{item.label}</span>
               </span>
             </Link>
           );
@@ -107,17 +91,17 @@ export function DashboardSidebar({ role }: { role: DashboardRole }) {
           <BrandMark compact />
         </Link>
 
-        <SidebarGroup
-          title="Navigație"
-          items={navigation.primary}
-          currentRoute={currentRoute}
-        />
+        <SidebarGroup items={navigation.primary} currentRoute={currentRoute} label="Navigație" />
 
-        <SidebarGroup
-          title="Cont"
-          items={navigation.secondary}
-          currentRoute={currentRoute}
-        />
+        {!isClientWorkspace ? (
+          <SidebarGroup items={navigation.secondary} currentRoute={currentRoute} label="Instrumente" />
+        ) : null}
+
+        {isClientWorkspace ? (
+          <div className="mt-auto border-t border-border/70 pt-4">
+            <SidebarGroup items={navigation.secondary} currentRoute={currentRoute} label="Cont" />
+          </div>
+        ) : null}
 
         {!isClientWorkspace ? (
           <div className="mt-auto space-y-2">

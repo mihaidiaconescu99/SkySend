@@ -8,6 +8,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { ensureOrderCommunication } from "@/lib/order-communications-server";
 import type { OrderStatus, PaymentStatus, UpdateOrderInput } from "@/types/order";
 
 const updateOrderStatusBodySchema = z.object({
@@ -19,6 +20,7 @@ const updateOrderStatusBodySchema = z.object({
   fulfillmentStatus: z.string().nullable().optional(),
   refundStatus: z.string().nullable().optional(),
   fallbackReason: z.string().nullable().optional(),
+  locale: z.enum(["ro", "en"]).default("ro"),
 });
 
 function mapPaymentStatus(status: string): PaymentStatus {
@@ -155,6 +157,17 @@ export async function POST(request: Request) {
         type: "payment",
         status: "succeeded",
       });
+    }
+    try {
+      await ensureOrderCommunication({
+        supabase,
+        order: updated.data,
+        profile: profileResult.data,
+        locale: body.locale,
+        origin: new URL(request.url).origin,
+      });
+    } catch (error) {
+      console.error("[orders/update-status] communication scheduling failed", error);
     }
   }
 

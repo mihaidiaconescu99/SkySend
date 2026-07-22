@@ -192,6 +192,94 @@ export async function handoffConversation(identity: SupportIdentity, conversatio
   return ticket;
 }
 
+export const directSupportTicketSchema = z.object({
+  subject: z.string().trim().min(3).max(160),
+  category: z.enum(supportCategories),
+  message: z.string().trim().min(10).max(5000),
+  orderId: z.string().trim().max(120).optional(),
+});
+
+export async function createDirectSupportTicket(
+  identity: SupportIdentity,
+  input: z.infer<typeof directSupportTicketSchema>,
+) {
+  const parsed = directSupportTicketSchema.parse(input);
+  let linkedOrderId: string | null = null;
+  if (parsed.orderId) {
+    const { data: order, error } = await db().from("orders")
+      .select("id")
+      .eq("local_order_id", parsed.orderId)
+      .eq("sender_profile_id", identity.profileId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!order) throw new Error("order_not_found");
+    linkedOrderId = order.id;
+  }
+
+  const { data: conversation, error: conversationError } = await db()
+    .from("assistant_conversations")
+    .insert({
+      profile_id: identity.profileId,
+      title: parsed.subject,
+      mode: "human_requested",
+      last_message_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (conversationError) throw new Error(conversationError.message);
+
+  try {
+    const { data: message, error: messageError } = await db()
+      .from("assistant_messages")
+      .insert({
+        conversation_id: conversation.id,
+        author_type: "client",
+        author_profile_id: identity.profileId,
+        body: parsed.message,
+      })
+      .select("id")
+      .single();
+    if (messageError) throw new Error(messageError.message);
+
+    const { data: ticket, error: ticketError } = await db()
+      .from("support_tickets")
+      .insert({
+        conversation_id: conversation.id,
+        source: "direct",
+        client_profile_id: identity.profileId,
+        linked_order_id: linkedOrderId,
+        subject: parsed.subject,
+        category: parsed.category,
+        priority: priorityForSupportText(`${parsed.subject}\n${parsed.message}`),
+        status: "open",
+      })
+      .select("*")
+      .single();
+    if (ticketError) throw new Error(ticketError.message);
+
+    await db().from("assistant_messages").insert({
+      conversation_id: conversation.id,
+      author_type: "system",
+      body: "Solicitarea a fost trimisă direct către un operator SkySend.",
+    });
+    await audit(identity, "support_ticket_created_directly", ticket.id, {
+      conversationId: conversation.id,
+      linkedOrderId,
+    });
+    await notifyClient(
+      identity.profileId,
+      identity.email,
+      "Solicitarea ta a ajuns la suport",
+      "Un operator SkySend va prelua conversația. Poți reveni aici pentru răspuns.",
+      ticket.id,
+    );
+    return { ticket, conversationId: conversation.id as string, messageId: message.id as string };
+  } catch (error) {
+    await db().from("assistant_conversations").delete().eq("id", conversation.id);
+    throw error;
+  }
+}
+
 export const publicContactSchema = z.object({
   email: z.string().trim().email().max(254),
   subject: z.string().trim().min(1).max(200),

@@ -10,6 +10,25 @@ type NotificationContext = {
   email?: string | null;
 };
 
+export function notifyOrderConfirmation(order: CreatedDeliveryOrder) {
+  const scheduled = order.payload.urgency === "scheduled" && Boolean(order.payload.scheduledAt);
+  const ro = typeof document === "undefined" || document.documentElement.lang !== "en";
+  showToast({
+    title: ro ? "Comandă plasată" : "Order placed",
+    message: ro ? "Plata a fost confirmată. Pregătim livrarea." : "Payment is confirmed. We are preparing your delivery.",
+    tone: "success",
+  });
+  showToast({
+    title: scheduled
+      ? (ro ? "Livrare programată" : "Delivery scheduled")
+      : (ro ? "Livrarea este pregătită" : "Delivery is ready"),
+    message: scheduled
+      ? (ro ? "Am rezervat data și ora alese." : "We reserved your chosen date and time.")
+      : (ro ? "Urmărirea este disponibilă în Livrare activă." : "Tracking is available in Active delivery."),
+    tone: "info",
+  });
+}
+
 function getAbsoluteUrl(path: string) {
   if (typeof window !== "undefined") {
     return new URL(path, window.location.origin).toString();

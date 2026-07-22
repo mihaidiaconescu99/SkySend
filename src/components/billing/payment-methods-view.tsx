@@ -14,8 +14,6 @@ import {
 import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
-import { StatusBadge } from "@/components/shared/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getStripeJs } from "@/lib/stripe/client";
 import { skySendStripeElementsAppearance } from "@/lib/stripe/elements";
@@ -296,9 +294,6 @@ function AddStripePaymentMethodPanel({
 
         <div className="flex items-start justify-between gap-4 border-b border-border/80 px-5 py-5 expanded-ui:md:px-6">
           <div className="space-y-3">
-            <Badge variant="outline" className="w-fit">
-              Stripe Setup
-            </Badge>
             <div className="space-y-2">
               <h2 id={titleId} className="type-h3">
                 Adaugă metodă de plată
@@ -403,6 +398,7 @@ export function PaymentMethodsView() {
   async function mutatePaymentMethod(
     paymentMethodId: string,
     method: "PATCH" | "DELETE",
+    action?: "set_default" | "clear_default",
   ) {
     setIsMutating(paymentMethodId);
     setMessage(null);
@@ -413,7 +409,7 @@ export function PaymentMethodsView() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ paymentMethodId }),
+        body: JSON.stringify({ paymentMethodId, action }),
       });
       const result = await readStripeJson<PaymentMethodsResponse>(
         response,
@@ -441,20 +437,6 @@ export function PaymentMethodsView() {
       <PageHeader
         eyebrow="Metode de plată"
         title="Carduri Stripe salvate"
-        description="Vezi și gestionează cardurile atașate clientului Stripe. SkySend nu stochează niciodată numerele cardurilor sau codurile CVC."
-        actions={[
-          {
-            label: "Istoric plăți",
-            href: "/client/billing-history",
-            variant: "outline",
-          },
-          {
-            label: "Adaugă metodă",
-            onClick: () => setAddPanelOpen(true),
-            variant: "default",
-            icon: <Plus className="size-4" />,
-          },
-        ]}
       />
 
       <Card className="rounded-[var(--ui-radius-panel)] shadow-[var(--elevation-panel)]">
@@ -472,7 +454,14 @@ export function PaymentMethodsView() {
               </p>
             </div>
           </div>
-          <StatusBadge label="Element de plată" tone="info" />
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <AppButton asChild variant="outline" size="sm">
+              <a href="/client/billing-history">Istoric plăți</a>
+            </AppButton>
+            <AppButton type="button" size="sm" onClick={() => setAddPanelOpen(true)}>
+              <Plus className="size-4" />Adaugă metodă
+            </AppButton>
+          </div>
         </CardContent>
       </Card>
 
@@ -547,12 +536,6 @@ export function PaymentMethodsView() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <StatusBadge label="Activ" tone="success" />
-                    {paymentMethod.isDefault ? (
-                      <StatusBadge label="Principal" tone="info" />
-                    ) : null}
-                  </div>
                 </div>
 
                 <div className="grid gap-3 expanded-ui:sm:grid-cols-2 expanded-ui:xl:grid-cols-4">
@@ -582,34 +565,30 @@ export function PaymentMethodsView() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge
-                    label={paymentMethod.isDefault ? "Principal" : "Rezervă"}
-                    tone={paymentMethod.isDefault ? "success" : "neutral"}
-                  />
-                  <StatusBadge label="Stripe Customer" tone="info" />
-                  {paymentMethod.country ? (
-                    <StatusBadge label={paymentMethod.country} tone="neutral" />
-                  ) : null}
-                </div>
-
                 <div className="grid gap-2 sm:flex sm:flex-wrap">
                   <AppButton
                     type="button"
                     size="sm"
                     variant={paymentMethod.isDefault ? "secondary" : "outline"}
                     className="w-full sm:w-auto"
-                    disabled={
-                      paymentMethod.isDefault || isMutating === paymentMethod.id
-                    }
-                    onClick={() => mutatePaymentMethod(paymentMethod.id, "PATCH")}
+                    disabled={isMutating === paymentMethod.id}
+                    onClick={() => mutatePaymentMethod(
+                      paymentMethod.id,
+                      "PATCH",
+                      paymentMethod.isDefault ? "clear_default" : "set_default",
+                    )}
                   >
                     {isMutating === paymentMethod.id ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      <Star className="size-4" />
+                      <Star
+                        className={cn(
+                          "size-4",
+                          paymentMethod.isDefault && "fill-amber-400 text-amber-400",
+                        )}
+                      />
                     )}
-                    Setează ca principal
+                    {paymentMethod.isDefault ? "Setează ca secundar" : "Setează ca principal"}
                   </AppButton>
                   <AppButton
                     type="button"

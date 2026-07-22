@@ -19,16 +19,6 @@ export default function TrackingPage() {
     >
       <Card className="rounded-[var(--ui-radius-panel)]">
         <CardContent className="grid gap-6 p-6 md:p-8">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="max-w-2xl">
-              <p className="font-medium text-foreground">Ai un cod de comandă?</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Introdu codul primit de la expeditor. Urmărirea publică arată
-                starea, ETA-ul și progresul fără date private despre cont sau plată.
-              </p>
-            </div>
-          </div>
-
           <PublicTrackingCodeForm />
 
           <div className="flex items-start gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">

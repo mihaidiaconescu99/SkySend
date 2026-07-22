@@ -46,15 +46,15 @@ function hasTerminalDeliveryStatus(order: CreatedDeliveryOrder) {
   );
 }
 
-function isActiveOrder(order: CreatedDeliveryOrder) {
+function isActiveOrder(order: CreatedDeliveryOrder, nowMs: number) {
   if (hasTerminalDeliveryStatus(order)) {
     return false;
   }
 
   return (
-    order.fulfillmentStatus === "active_mission" ||
-    order.paymentStatus === "paid" ||
-    order.paymentStatus === "processing"
+    order.fulfillmentStatus === "active_mission" &&
+    order.paymentStatus === "paid" &&
+    !isScheduledDeliveryWaiting(order, nowMs)
   );
 }
 
@@ -252,8 +252,8 @@ export function ActiveDeliveryView() {
   }, []);
 
   const activeOrders = useMemo(
-    () => orders.filter((order) => isActiveOrder(order)),
-    [orders],
+    () => orders.filter((order) => isActiveOrder(order, nowMs)),
+    [nowMs, orders],
   );
   const hasActiveOrders = activeOrders.length > 0;
 

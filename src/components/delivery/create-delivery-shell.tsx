@@ -83,11 +83,7 @@ import {
   submitCreateDelivery,
 } from "@/lib/create-delivery-submit";
 import { getAdminOperationalSettings } from "@/lib/admin-settings";
-import {
-  notifyOrderPlaced,
-  notifyPaymentConfirmed,
-  notifyTrackingAvailable,
-} from "@/lib/notification-events";
+import { notifyOrderConfirmation } from "@/lib/notification-events";
 import { readAndClearRepeatDeliveryPrefill } from "@/lib/repeat-delivery";
 import { useSavedPlaces } from "@/hooks/use-saved-places";
 import { cn } from "@/lib/utils";
@@ -2109,14 +2105,7 @@ export function CreateDeliveryShell() {
         paymentStatus: "paid",
         stripePaymentIntentId,
       });
-      const notificationContext = {
-        userId: user?.id ?? null,
-        email: user?.primaryEmailAddress?.emailAddress ?? null,
-      };
-
-      notifyOrderPlaced(createdOrder, notificationContext);
-      notifyTrackingAvailable(createdOrder, notificationContext);
-      notifyPaymentConfirmed(createdOrder, notificationContext);
+      notifyOrderConfirmation(createdOrder);
 
       if (deliverySessionId) {
         await discardParcelAiImages();
@@ -2524,8 +2513,8 @@ export function CreateDeliveryShell() {
         {isMobile ? null : stepper}
 
         <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          <div className="order-2 grid gap-6 xl:order-1">
-            <Card className="rounded-[calc(var(--radius)+0.75rem)]">
+          <div className="order-2 divide-y divide-border/70 overflow-hidden rounded-[var(--ui-radius-panel)] border border-border/70 bg-card xl:order-1">
+            <Card className="rounded-none border-0 bg-transparent shadow-none">
               <CardContent className="grid gap-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="grid gap-2">
@@ -2556,7 +2545,7 @@ export function CreateDeliveryShell() {
                     return (
                       <div
                         key={item.label}
-                        className="rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/45 p-4"
+                        className="border-l border-border/70 pl-4"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
@@ -2584,18 +2573,6 @@ export function CreateDeliveryShell() {
                                 : "Selectează un punct de întâlnire înainte de confirmare."}
                             </p>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <StatusBadge
-                              label={formatPointCoordinates(item.point)}
-                              tone="info"
-                            />
-                            {item.point ? (
-                              <StatusBadge
-                                label={`${item.point.distanceFromOriginMeters} m de adresă`}
-                                tone="neutral"
-                              />
-                            ) : null}
-                          </div>
                         </div>
                       </div>
                     );
@@ -2604,8 +2581,8 @@ export function CreateDeliveryShell() {
               </CardContent>
             </Card>
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <Card className="rounded-[calc(var(--radius)+0.75rem)]">
+            <div className="grid divide-y divide-border/70 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:divide-x lg:divide-y-0">
+              <Card className="rounded-none border-0 bg-transparent shadow-none">
                 <CardContent className="grid gap-5 p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2634,7 +2611,7 @@ export function CreateDeliveryShell() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[calc(var(--radius)+0.75rem)]">
+              <Card className="rounded-none border-0 bg-transparent shadow-none">
                 <CardContent className="grid gap-5 p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2663,58 +2640,26 @@ export function CreateDeliveryShell() {
                         </p>
                       </div>
                     ) : null}
-                    <div>
-                      <p className="text-sm text-muted-foreground">Platformă</p>
-                      <p className="mt-1 font-medium text-foreground">
-                        {reviewSnapshot.deliveryPlatformLabel}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Modul cargo</p>
-                      <p className="mt-1 font-medium text-foreground">
-                        {reviewSnapshot.deliveryModuleLabel}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {reviewSnapshot.deliverySelectionReason}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Impact preț</p>
-                      <p className="mt-1 font-medium text-foreground">
-                        {reviewSnapshot.deliveryPriceImpactLabel}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Eligibilitate</p>
-                      <StatusBadge
-                        label={reviewSnapshot.deliveryEligibilityLabel}
-                        tone={
-                          reviewSnapshot.deliveryEligibilityLabel === "Eligibilă"
-                            ? "success"
-                            : "warning"
-                        }
-                        className="mt-2 w-fit"
-                      />
-                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card className="rounded-[calc(var(--radius)+0.75rem)]">
-              <CardContent className="grid gap-5 p-5 sm:p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <CircleAlert className="size-4 text-foreground" />
-                    <p className="font-medium text-foreground">Plan de rezervă</p>
-                  </div>
-                  <StatusBadge label="Regulă implicită" tone="info" />
-                </div>
-                <p className="text-sm leading-7 text-muted-foreground">
-                  {reviewSnapshot.fallbackNote}
-                </p>
-              </CardContent>
-            </Card>
+            <details className="group p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-foreground">
+                <span>Detalii operaționale</span>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-5 grid gap-4 border-t border-border/60 pt-5 text-sm leading-6 text-muted-foreground sm:grid-cols-2">
+                <div><p className="text-foreground">Platformă</p><p>{reviewSnapshot.deliveryPlatformLabel}</p></div>
+                <div><p className="text-foreground">Modul cargo</p><p>{reviewSnapshot.deliveryModuleLabel} · {reviewSnapshot.deliverySelectionReason}</p></div>
+                <div><p className="text-foreground">Impact preț</p><p>{reviewSnapshot.deliveryPriceImpactLabel}</p></div>
+                <div><p className="text-foreground">Eligibilitate</p><p>{reviewSnapshot.deliveryEligibilityLabel}</p></div>
+                <div><p className="text-foreground">Coordonate ridicare</p><p className="font-mono">{formatPointCoordinates(reviewSnapshot.pickupPoint)}</p></div>
+                <div><p className="text-foreground">Coordonate livrare</p><p className="font-mono">{formatPointCoordinates(reviewSnapshot.dropoffPoint)}</p></div>
+                <div className="sm:col-span-2"><p className="text-foreground">Plan de rezervă</p><p>{reviewSnapshot.fallbackNote}</p></div>
+              </div>
+            </details>
           </div>
 
           <aside className="order-1 grid gap-4 xl:order-2 xl:sticky xl:top-8 xl:max-h-[calc(100dvh_-_4rem)] xl:overflow-y-auto xl:pr-1">

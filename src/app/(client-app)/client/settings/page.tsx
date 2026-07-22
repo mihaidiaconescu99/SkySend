@@ -2,8 +2,8 @@ import { ClientSettingsView } from "@/components/settings/client-settings-view";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata = createPageMetadata(
-  "Setări",
-  "Gestionează contul SkySend și preferințele aplicației.",
+  "Cont",
+  "Gestionează profilul, securitatea și preferințele SkySend.",
 );
 
 export default function SettingsPage() {

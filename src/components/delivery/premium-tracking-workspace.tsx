@@ -141,7 +141,7 @@ function TerminalView({
           {success ? (
             <AppButton asChild size="lg" variant="outline"><Link href="/client/create-delivery"><PackageCheck className="size-4" />Creează altă livrare</Link></AppButton>
           ) : (
-            <AppButton asChild size="lg" variant="outline"><Link href="/client/support"><Headphones className="size-4" />Contactează suportul</Link></AppButton>
+            <AppButton asChild size="lg" variant="outline"><Link href={`/client/support?new=1&order=${encodeURIComponent(order.id)}`}><Headphones className="size-4" />Contactează suportul</Link></AppButton>
           )}
         </div>
       </div>

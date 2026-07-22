@@ -72,13 +72,14 @@ export function getHeroFrameIndex(progress: number, frameCount: number) {
   const finalFrame = Math.min(frameCount - 1, FRAME_SEQUENCE_END);
   const droneEnd = Math.min(finalFrame, DRONE_SEQUENCE_END);
 
-  if (progress <= 0.454) {
-    return Math.round((clamp(progress / 0.454) * droneEnd));
+  if (progress <= 0.62425) {
+    return Math.round(clamp(progress / 0.62425) * droneEnd);
   }
 
-  if (progress <= 0.652) {
+  if (progress <= 0.8965) {
     return Math.round(
-      droneEnd + clamp((progress - 0.454) / 0.198) * (finalFrame - droneEnd),
+      droneEnd +
+        clamp((progress - 0.62425) / 0.27225) * (finalFrame - droneEnd),
     );
   }
 

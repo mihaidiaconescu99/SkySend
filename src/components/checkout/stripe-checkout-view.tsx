@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -28,7 +27,7 @@ import {
   updateCreatedDeliveryOrderPayment,
 } from "@/lib/create-delivery-submit";
 import { calculateDistanceKm } from "@/lib/mission-route";
-import { notifyPaymentConfirmed } from "@/lib/notification-events";
+import { notifyOrderConfirmation } from "@/lib/notification-events";
 import { calculateSkySendPricing, isValidPricingSnapshot } from "@/lib/pricing";
 import { getStripeJs } from "@/lib/stripe/client";
 import { skySendStripeElementsAppearance } from "@/lib/stripe/elements";
@@ -171,7 +170,6 @@ function ExpiredCheckoutState({ orderId }: { orderId: string }) {
 export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useUser();
   const { formatCurrency } = useSettings();
   const elementContainerRef = useRef<HTMLDivElement | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
@@ -214,13 +212,10 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
         stripePaymentIntentId,
       });
 
-      notifyPaymentConfirmed(updatedOrder ?? paidOrder, {
-        userId: user?.id ?? null,
-        email: user?.primaryEmailAddress?.emailAddress ?? null,
-      });
+      notifyOrderConfirmation(updatedOrder ?? paidOrder);
       router.replace(`${paidOrder.href}?brief=1`);
     },
-    [router, user],
+    [router],
   );
 
   useEffect(() => {

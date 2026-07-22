@@ -8,6 +8,7 @@ import type {
 const GEOAPIFY_MAPS_BASE_URL = "https://maps.geoapify.com/v1/styles";
 const GEOAPIFY_GEOCODING_BASE_URL = "https://api.geoapify.com/v1/geocode";
 const DEFAULT_GEOAPIFY_STYLE = "dark-matter";
+const DEFAULT_GEOAPIFY_LIGHT_STYLE = "osm-bright";
 
 export type GeoapifyAutocompleteOptions = {
   limit?: number;
@@ -72,6 +73,17 @@ export function createGeoapifyStyleUrl(
   }
 
   return `${GEOAPIFY_MAPS_BASE_URL}/${style}/style.json?apiKey=${encodeURIComponent(apiKey)}`;
+}
+
+export function createGeoapifyStyleUrlForTheme(theme: "dark" | "light") {
+  const configuredStyle =
+    theme === "light"
+      ? process.env.NEXT_PUBLIC_GEOAPIFY_MAP_STYLE_LIGHT?.trim()
+      : process.env.NEXT_PUBLIC_GEOAPIFY_MAP_STYLE_DARK?.trim();
+  return createGeoapifyStyleUrl(
+    configuredStyle ||
+      (theme === "light" ? DEFAULT_GEOAPIFY_LIGHT_STYLE : DEFAULT_GEOAPIFY_STYLE),
+  );
 }
 
 function withGeoapifyQuery(

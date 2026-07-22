@@ -18,6 +18,7 @@ type SchedulerHandler = {
 const maintenancePaths = [
   "/api/cron/expire-mission-actions",
   "/api/cron/reconcile-refunds",
+  "/api/cron/process-order-communications",
 ] as const;
 
 async function invokeMaintenancePath(origin: string, secret: string, path: string) {

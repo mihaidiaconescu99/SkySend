@@ -1,5 +1,10 @@
 import PricingContent from "./pricing-content";
+import { defaultOperationalSettings } from "@/lib/admin-data";
+import { getAdminOperationalSettingsFromDB } from "@/lib/admin-data-server";
+import { dispatchTimingPricingMultipliers } from "@/lib/pricing";
 import { createLocalizedMetadata } from "@/lib/settings/metadata";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata() {
   return createLocalizedMetadata({
@@ -16,6 +21,16 @@ export async function generateMetadata() {
   });
 }
 
-export default function PricingPage() {
-  return <PricingContent />;
+export default async function PricingPage() {
+  const settings = await getAdminOperationalSettingsFromDB();
+  const basePriceMinor =
+    settings?.basePrice.amountMinor ?? defaultOperationalSettings.basePrice.amountMinor;
+
+  const startingPricesMinor = [
+    Math.round(basePriceMinor * dispatchTimingPricingMultipliers.standard),
+    Math.round(basePriceMinor * dispatchTimingPricingMultipliers.priority),
+    Math.round(basePriceMinor * dispatchTimingPricingMultipliers.scheduled),
+  ] as const;
+
+  return <PricingContent startingPricesMinor={startingPricesMinor} />;
 }

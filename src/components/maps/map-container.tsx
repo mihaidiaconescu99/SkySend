@@ -16,6 +16,7 @@ import {
 import {
   defaultMapStyle,
   getFallbackMapStyleForTheme,
+  getPrimaryMapStyleForTheme,
   mapConfig,
 } from "@/constants/map";
 import { cn } from "@/lib/utils";
@@ -593,10 +594,7 @@ export const MapContainer = memo(function MapContainer({
         const initialTheme = document.documentElement.classList.contains("light")
           ? "light"
           : "dark";
-        const initialStyle =
-          typeof defaultMapStyle === "string"
-            ? defaultMapStyle
-            : getFallbackMapStyleForTheme(initialTheme);
+        const initialStyle = getPrimaryMapStyleForTheme(initialTheme);
 
         const map = new maplibre.Map({
           container: mapNodeRef.current,
@@ -779,6 +777,26 @@ export const MapContainer = memo(function MapContainer({
       setDiagnostics(initialDiagnostics);
     };
   }, [interactive, shouldShowDiagnostics, showNavigation]);
+
+  useEffect(() => {
+    let currentTheme: "dark" | "light" =
+      document.documentElement.classList.contains("light") ? "light" : "dark";
+    const observer = new MutationObserver(() => {
+      const nextTheme: "dark" | "light" =
+        document.documentElement.classList.contains("light") ? "light" : "dark";
+      if (nextTheme === currentTheme || !mapRef.current) return;
+      currentTheme = nextTheme;
+      hasAppliedFallbackStyleRef.current = false;
+      hasLoadedStyleRef.current = false;
+      activeOverlayIdsRef.current = [];
+      activeLineIdsRef.current = [];
+      setIsReady(false);
+      setIsInitializing(true);
+      mapRef.current.setStyle(getPrimaryMapStyleForTheme(nextTheme));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current || !isReady) {

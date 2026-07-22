@@ -8,6 +8,7 @@ import {
 
 type PaymentMethodMutationBody = {
   paymentMethodId?: string;
+  action?: "set_default" | "clear_default";
 };
 
 async function readMutationBody(request: Request) {
@@ -42,7 +43,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const body = await readMutationBody(request);
 
-  if (!body?.paymentMethodId) {
+  if (!body?.paymentMethodId || !body.action) {
     return NextResponse.json(
       { error: "Metodă de plată id is required." },
       { status: 400 },
@@ -56,9 +57,21 @@ export async function PATCH(request: Request) {
       customer.id,
       body.paymentMethodId,
     );
+    const currentDefault =
+      typeof customer.invoice_settings.default_payment_method === "string"
+        ? customer.invoice_settings.default_payment_method
+        : customer.invoice_settings.default_payment_method?.id ?? null;
+
+    if (body.action === "clear_default" && currentDefault !== body.paymentMethodId) {
+      return NextResponse.json(
+        { error: "Only the current default payment method can be cleared." },
+        { status: 409 },
+      );
+    }
     const updatedCustomer = await stripe.customers.update(customer.id, {
       invoice_settings: {
-        default_payment_method: body.paymentMethodId,
+        default_payment_method:
+          body.action === "clear_default" ? "" : body.paymentMethodId,
       },
     });
     const paymentMethods = await listStripeCustomerPaymentMethods(

@@ -14,6 +14,7 @@ import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-rep
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createCompleteHandoffSnapshot } from "@/lib/meeting-point-snapshot";
 import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
+import { ensureOrderCommunication } from "@/lib/order-communications-server";
 import type { CreateDeliveryPayload } from "@/types/create-delivery";
 import type {
   DispatchTiming,
@@ -36,6 +37,7 @@ const CreateOrderBodySchema = z.object({
   recipientTrackingToken: z.string().min(1),
   paymentStatus: z.string().optional(),
   stripePaymentIntentId: z.string().nullable().optional(),
+  locale: z.enum(["ro", "en"]).default("ro"),
 });
 
 function buildSurcharges(pricing: SkySendPricingResult): PricingSurcharge[] {
@@ -196,6 +198,17 @@ export async function POST(request: Request) {
 
     if (paymentStatus === "paid") {
       await ensureOrderMission(adminSupabase, savedOrder);
+      try {
+        await ensureOrderCommunication({
+          supabase: adminSupabase,
+          order: savedOrder,
+          profile: profileResult.data,
+          locale: body.locale,
+          origin: new URL(request.url).origin,
+        });
+      } catch (error) {
+        console.error("[orders/create] communication scheduling failed", error);
+      }
     }
 
     return NextResponse.json({
@@ -322,6 +335,17 @@ export async function POST(request: Request) {
       currency: orderResult.data.currency,
     });
     await ensureOrderMission(adminSupabase, orderResult.data);
+    try {
+      await ensureOrderCommunication({
+        supabase: adminSupabase,
+        order: orderResult.data,
+        profile: profileResult.data,
+        locale: body.locale,
+        origin: new URL(request.url).origin,
+      });
+    } catch (error) {
+      console.error("[orders/create] communication scheduling failed", error);
+    }
   }
 
   return NextResponse.json({

@@ -65,7 +65,7 @@ export function DashboardShell({
               : isClientWorkspace
                 ? "expanded-ui:overflow-y-auto"
                 : "lg:overflow-y-auto",
-            isClientWorkspace && !isImmersiveClientRoute
+            isClientWorkspace
               ? "compact-ui:pb-bottom-nav expanded-ui:pb-0"
               : undefined,
           )}
@@ -75,7 +75,7 @@ export function DashboardShell({
             className={cn(
             "min-w-0",
             isImmersiveClientRoute
-                ? "relative h-dvh min-h-0 overflow-hidden p-0"
+                ? "relative h-dvh min-h-0 overflow-hidden p-0 compact-ui:h-[calc(100dvh-var(--bottom-nav-safe))] expanded-ui:h-dvh"
                 : isClientWorkspace
                   ? "px-4 py-4 expanded-ui:px-8 expanded-ui:py-6"
                   : "px-4 py-4 sm:px-6 lg:px-8 lg:py-6",
@@ -90,7 +90,7 @@ export function DashboardShell({
             >
               <DashboardTopbar role={activeRole} floating={isImmersiveClientRoute} />
             </div>
-            <div className={isImmersiveClientRoute ? "h-dvh min-h-0 overflow-hidden" : "pt-6"}>
+            <div className={isImmersiveClientRoute ? "h-dvh min-h-0 overflow-hidden compact-ui:h-[calc(100dvh-var(--bottom-nav-safe))] expanded-ui:h-dvh" : "pt-6"}>
               <motion.div
                 key={pathname}
                 initial={{ opacity: 0 }}
@@ -105,7 +105,7 @@ export function DashboardShell({
         </div>
       </div>
 
-      {isClientWorkspace && !isImmersiveClientRoute ? (
+      {isClientWorkspace ? (
         <div className="compact-ui:block expanded-ui:hidden">
           <DashboardBottomNav />
         </div>

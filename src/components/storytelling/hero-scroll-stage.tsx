@@ -100,7 +100,7 @@ function HeroScene({
         progress={progress}
         color="var(--story-editorial-base)"
         variant="valley"
-        progressRange={[19 / 22, 1]}
+        progressRange={[0.8965, 1]}
         referenceCurve
       />
     </div>
@@ -109,7 +109,7 @@ function HeroScene({
 
 export function HeroScrollStage({ copy }: HeroScrollStageProps) {
   return (
-    <StoryChapter id="story-hero" label={copy.title} screens={22}>
+    <StoryChapter id="story-hero" label={copy.title} screens={16}>
       {(progress) => <HeroScene progress={progress} copy={copy} />}
     </StoryChapter>
   );
