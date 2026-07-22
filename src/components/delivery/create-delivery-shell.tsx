@@ -902,6 +902,20 @@ export function CreateDeliveryShell() {
     };
   }, [flowStep]);
 
+  useEffect(() => {
+    if (flowStep !== "parcel" || !deliverySessionId) return;
+
+    const discardOnPageExit = () => {
+      void fetch(
+        `/api/parcel-ai/images?draftId=${encodeURIComponent(deliverySessionId)}`,
+        { method: "DELETE", keepalive: true },
+      );
+    };
+
+    window.addEventListener("pagehide", discardOnPageExit);
+    return () => window.removeEventListener("pagehide", discardOnPageExit);
+  }, [deliverySessionId, flowStep]);
+
   const selectedUrgency = urgencyOptions.find((option) => option.value === urgency);
   const scheduledBounds = useMemo(() => getScheduledBounds(), []);
   const selectedScheduledDate = useMemo(
@@ -1878,6 +1892,7 @@ export function CreateDeliveryShell() {
     setReviewGateMessage(null);
 
     if (flowStep === "parcel") {
+      void discardParcelAiImages();
       setFlowStep("route");
       return;
     }
@@ -2104,6 +2119,7 @@ export function CreateDeliveryShell() {
       notifyPaymentConfirmed(createdOrder, notificationContext);
 
       if (deliverySessionId) {
+        await discardParcelAiImages();
         await fetch("/api/client/delivery-draft", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2118,6 +2134,19 @@ export function CreateDeliveryShell() {
       );
     } finally {
       setIsSubmittingOrder(false);
+    }
+  }
+
+  async function discardParcelAiImages() {
+    if (!deliverySessionId) return;
+
+    try {
+      await fetch(
+        `/api/parcel-ai/images?draftId=${encodeURIComponent(deliverySessionId)}`,
+        { method: "DELETE", keepalive: true },
+      );
+    } catch {
+      // R2's lifecycle policy remains the final cleanup fallback.
     }
   }
 

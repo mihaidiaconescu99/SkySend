@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createParcelAiImageUpload, listParcelAiImages, removeParcelAiImage } from "@/lib/parcel-ai-images/server";
+import { createParcelAiImageUpload, listParcelAiImages, removeParcelAiImage, removeParcelAiImagesForDraft } from "@/lib/parcel-ai-images/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
 const createSchema = z.object({ draftId: z.string().uuid(), slot: z.number().int().min(0).max(1), fileName: z.string().trim().min(1).max(255), contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024) });
@@ -18,6 +18,15 @@ export async function POST(request: Request) {
 }
 export async function DELETE(request: Request) {
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const imageId = new URL(request.url).searchParams.get("imageId"); if (!imageId) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
-  try { await removeParcelAiImage(actor, imageId); return new Response(null, { status: 204 }); } catch { return NextResponse.json({ error: "image_not_found" }, { status: 404 }); }
+  const searchParams = new URL(request.url).searchParams;
+  const imageId = searchParams.get("imageId");
+  const draftId = searchParams.get("draftId");
+  if ((imageId && draftId) || (!imageId && !draftId)) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  try {
+    if (draftId) await removeParcelAiImagesForDraft(actor, draftId);
+    else await removeParcelAiImage(actor, imageId as string);
+    return new Response(null, { status: 204 });
+  } catch {
+    return NextResponse.json({ error: imageId ? "image_not_found" : "draft_not_found" }, { status: 404 });
+  }
 }

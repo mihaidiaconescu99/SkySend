@@ -92,6 +92,21 @@ export async function removeParcelAiImage(identity: SupportIdentity, imageId: st
   await deleteRecord(data as ParcelAiImageRecord);
 }
 
+export async function removeParcelAiImagesForDraft(
+  identity: SupportIdentity,
+  draftId: string,
+) {
+  await ensureDraftOwner(identity, draftId);
+  const { data, error } = await db().from("parcel_ai_images")
+    .select("id,slot,original_name,content_type,size_bytes,r2_original_key,r2_normalized_key,normalized_content_type,status,expires_at")
+    .eq("delivery_draft_id", draftId);
+  if (error) throw new Error(error.message);
+
+  await Promise.all(
+    ((data ?? []) as ParcelAiImageRecord[]).map((image) => deleteRecord(image)),
+  );
+}
+
 async function normalizeForAnalysis(image: ParcelAiImageRecord, ownerId: string, draftId: string) {
   ensureActive(image);
   if (image.status === "ready" && image.r2_normalized_key) {
