@@ -1,98 +1,116 @@
-export type AssistantKnowledgeChunk = {
-  id: string;
-  title: string;
-  text: string;
-  href?: string;
+import generatedKnowledge from "@/generated/assistant-knowledge.json";
+import type { AssistantKnowledgeRecord } from "@/types/assistant";
+
+const index = generatedKnowledge as {
+  version: number;
+  sources: string[];
+  records: AssistantKnowledgeRecord[];
 };
 
-export const assistantKnowledge: readonly AssistantKnowledgeChunk[] = [
-  {
-    id: "delivery-flow",
-    title: "Crearea unei livrări",
-    href: "/client/create-delivery",
-    text: "O livrare se creează după autentificare: alegi adresele și punctele de handoff, descrii și confirmi coletul, alegi standard, prioritar sau programat, verifici estimarea și continui către checkout Stripe. Chatul nu creează livrări și nu face checkout.",
-  },
-  {
-    id: "coverage",
-    title: "Acoperire",
-    href: "/#coverage",
-    text: "Zona activă implicită este Pitești, Argeș, România, într-o rază de 6 km de hub. O adresă trebuie să fie în zonă și să corespundă orașului, județului și țării configurate. Adresele de la limită pot necesita verificare suplimentară.",
-  },
-  {
-    id: "parcel",
-    title: "Eligibilitatea coletului",
-    href: "/client/create-delivery",
-    text: "Evaluatorul de colet folosește descrierea, ambalarea, greutatea, dimensiunile, fragilitatea și sensibilitatea termică. Configurațiile de dronă au limite diferite; limita maximă actuală este 12 kg, 85 L și 70 × 50 × 36 cm. Confirmarea fizică la ridicare are prioritate.",
-  },
-  {
-    id: "handoff-locker",
-    title: "Puncte de handoff și locker",
-    href: "/how-it-works",
-    text: "SkySend propune puncte de întâlnire în apropierea adreselor. Ele sunt recomandări operaționale, nu o garanție de aterizare reală. În simulare, lockerul poate coborî la ridicare și predare; poziția și PIN-ul se confirmă atunci când sunt solicitate.",
-  },
-  {
-    id: "tracking",
-    title: "Urmărirea comenzii",
-    href: "/tracking",
-    text: "Trackingul poate arăta comandă primită, verificare, dronă alocată, ridicare, tranzit, așteptarea destinatarului, livrată sau recuperare. Detaliile private sunt în Client → Comenzi, iar destinatarul poate folosi codul sau linkul public de urmărire.",
-  },
-  {
-    id: "payments",
-    title: "Plăți",
-    href: "/client/payment-methods",
-    text: "Plățile sunt procesate prin Stripe, iar datele complete de card nu sunt păstrate de SkySend. Pentru un preț, timp estimat, plată sau rambursare, folosește fluxul real al comenzii, deoarece acesta folosește adresele, punctele de handoff și profilul confirmat al coletului.",
-  },
-  {
-    id: "safety",
-    title: "Siguranță și excepții",
-    href: "/faq",
-    text: "Nu bloca zona de handoff și nu încărca un colet care diferă de profilul confirmat. O predare care nu poate fi încheiată poate necesita suport, recuperarea lockerului sau returnarea la hub. Evaluarea finală a excepțiilor aparține fluxului operatorului.",
-  },
-  {
-    id: "environment",
-    title: "Impact de mediu",
-    href: "/how-it-works",
-    text: "SkySend afișează estimări pentru CO2e evitat, distanță rutieră evitată și energie folosită. Sunt comparații orientative cu un scenariu rutier urban, nu emisii măsurate sau certificate.",
-  },
-  {
-    id: "dashboards",
-    title: "Dashboard-uri",
-    href: "/client",
-    text: "Clientul gestionează livrări, comenzi, locații salvate, plăți, notificări și setări. Operatorii urmăresc misiuni și alerte. Administratorii monitorizează comenzi, recuperări de lockere, mesaje, statistici și setări operaționale.",
-  },
+export const assistantKnowledge = index.records as readonly AssistantKnowledgeRecord[];
+export const assistantFaq = assistantKnowledge.filter((record) => record.kind === "faq");
+
+const synonymGroups = [
+  ["plata", "plati", "payment", "pay", "card", "stripe", "checkout"],
+  ["rambursare", "rambursari", "refund", "refunds", "returnare bani"],
+  ["comanda", "comenzi", "order", "orders", "livrare", "delivery"],
+  ["colet", "pachet", "parcel", "package"],
+  ["punct", "intalnire", "handoff", "meeting", "pickup", "dropoff"],
+  ["locker", "compartiment", "cutie"],
+  ["pin", "cod", "code"],
+  ["urmarire", "tracking", "status", "stare", "eta"],
+  ["anulare", "anulez", "cancel", "cancellation"],
+  ["factura", "invoice", "receipt", "chitanta"],
+  ["greutate", "weight", "dimensiuni", "dimensions", "volum", "volume"],
+  ["imagine", "imagini", "poza", "poze", "image", "photo"],
+  ["agent", "operator", "uman", "human", "support", "suport"],
 ] as const;
 
-function normalize(value: string) {
+const stopWords = new Set([
+  "a", "ai", "am", "are", "as", "can", "care", "ce", "cu", "cum", "de", "do", "este",
+  "fi", "how", "i", "in", "is", "la", "me", "mea", "meu", "my", "o", "pot", "sa",
+  "sunt", "the", "un", "una", "what", "with",
+]);
+
+export function normalizeAssistantText(value: string) {
   return value
     .toLocaleLowerCase("ro-RO")
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ");
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function terms(value: string) {
+  const normalizedValue = normalizeAssistantText(value);
+  const tokens = new Set(
+    normalizedValue
+      .split(" ")
+      .filter((term) => term.length >= 2 && !stopWords.has(term)),
+  );
+
+  for (const group of synonymGroups) {
+    const normalizedGroup = group.map(normalizeAssistantText);
+    if (normalizedGroup.some((term) => term.includes(" ") ? normalizedValue.includes(term) : tokens.has(term))) {
+      normalizedGroup.forEach((term) => term.split(" ").forEach((token) => tokens.add(token)));
+    }
+  }
+  return tokens;
+}
+
+function rawTerms(value: string) {
   return new Set(
-    normalize(value)
-      .split(/\s+/)
-      .filter((term) => term.length >= 3),
+    normalizeAssistantText(value)
+      .split(" ")
+      .filter((term) => term.length >= 2 && !stopWords.has(term)),
   );
 }
 
-export function retrieveAssistantKnowledge(query: string, limit = 4) {
+function overlap(queryTerms: Set<string>, value: string, weight: number) {
+  const valueTerms = rawTerms(value);
+  return [...queryTerms].reduce(
+    (score, term) => score + (valueTerms.has(term) ? weight : 0),
+    0,
+  );
+}
+
+export type AssistantKnowledgeMatch = {
+  record: AssistantKnowledgeRecord;
+  score: number;
+  exact: boolean;
+};
+
+export function scoreAssistantKnowledge(query: string): AssistantKnowledgeMatch[] {
+  const normalizedQuery = normalizeAssistantText(query);
   const queryTerms = terms(query);
 
   return assistantKnowledge
-    .map((chunk) => {
-      const chunkTerms = terms(`${chunk.title} ${chunk.text}`);
-      const score = [...queryTerms].reduce(
-        (total, term) => total + (chunkTerms.has(term) ? 1 : 0),
-        0,
-      );
-
-      return { chunk, score };
+    .map((record) => {
+      const exact = [record.title, ...record.aliases]
+        .map(normalizeAssistantText)
+        .some((candidate) => candidate === normalizedQuery || (candidate.length >= 8 && normalizedQuery.includes(candidate)));
+      const score =
+        (exact ? 100 : 0) +
+        overlap(queryTerms, record.title, 12) +
+        overlap(queryTerms, record.aliases.join(" "), 10) +
+        overlap(queryTerms, record.keywords.join(" "), 7) +
+        overlap(queryTerms, record.category, 4) +
+        overlap(queryTerms, record.body, 1) +
+        (record.kind === "policy" ? 1 : 0);
+      return { record, score, exact };
     })
-    .filter(({ score }) => score > 0)
-    .sort((left, right) => right.score - left.score)
-    .slice(0, limit)
-    .map(({ chunk }) => chunk);
+    .filter((match) => match.score >= 4)
+    .sort((left, right) => right.score - left.score || left.record.id.localeCompare(right.record.id));
+}
+
+export function retrieveAssistantKnowledge(query: string, limit = 6) {
+  return scoreAssistantKnowledge(query)
+    .slice(0, Math.max(0, limit))
+    .map((match) => match.record);
+}
+
+export function findStrongFaqMatch(query: string) {
+  const match = scoreAssistantKnowledge(query).find((item) => item.record.kind === "faq");
+  return match && (match.exact || match.score >= 34) ? match.record : null;
 }

@@ -5,10 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "dev:lan": "next dev -H 0.0.0.0",
+    "prebuild": "npm run knowledge:check",
     "build": "next build",
     "start": "next start",
     "start:lan": "next start -H 0.0.0.0",
     "lint": "eslint .",
+    "knowledge:generate": "node scripts/assistant-knowledge.mjs generate",
+    "knowledge:check": "node scripts/assistant-knowledge.mjs check",
     "test:parcel-estimation": "node scripts/parcel-estimation-regression.mjs",
     "test:supabase": "node --env-file=.env.local scripts/test-supabase-connection.mjs",
     "storytelling:hero-frames": "node scripts/generate-hero-frame-sequence.mjs",

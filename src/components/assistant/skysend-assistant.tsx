@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { assistantKnowledge } from "@/lib/ai/skysend-assistant-knowledge";
+import { assistantFaq, normalizeAssistantText } from "@/lib/ai/skysend-assistant-knowledge";
 import { isClerkFrontendConfigured } from "@/lib/clerk-config";
 import { useSettings } from "@/lib/settings/settings-context";
 import type { Language } from "@/lib/settings/types";
@@ -255,38 +255,6 @@ function toMessages(
     }));
 }
 
-function isHumanAssistanceRequest(value: string) {
-  const text = value
-    .toLocaleLowerCase("ro-RO")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
-
-  return [
-    "asistenta umana",
-    "operator",
-    "suport uman",
-    "persoana reala",
-    "agent",
-    "human support",
-    "talk to a human",
-    "speak to an operator",
-  ].some((term) => text.includes(term));
-}
-
-function translatedKnowledge(language: Language) {
-  const fallback = copyFor(language).faqFallback;
-  if (language === "en") return fallback;
-
-  return [
-    ...fallback,
-    ...assistantKnowledge.map((item) => ({
-      title: item.title,
-      text: item.text,
-      href: item.href === "/coverage" ? "/#coverage" : item.href,
-    })),
-  ];
-}
-
 export function SkySendAssistant() {
   if (clerkEnabled) {
     return <SkySendAssistantWithClerk />;
@@ -462,7 +430,7 @@ function SkySendAssistantPanel({
           ]);
         }
 
-        if (reply.handoffOffer || isHumanAssistanceRequest(body)) {
+        if (reply.handoffOffer) {
           setHandoffPromptOpen(true);
         }
       } else if (conversationId) {
@@ -919,6 +887,15 @@ function HelpPanel({
   copy: ReturnType<typeof copyFor>;
   language: Language;
 }) {
+  const [search, setSearch] = useState("");
+  const normalizedSearch = normalizeAssistantText(search);
+  const items = assistantFaq.filter((item) => {
+    if (!normalizedSearch) return true;
+    return normalizeAssistantText(
+      `${item.title} ${item.aliases.join(" ")} ${item.keywords.join(" ")} ${item.body}`,
+    ).includes(normalizedSearch);
+  });
+
   return (
     <div className="h-full overflow-y-auto px-5 py-5">
       <div className="mb-4">
@@ -926,17 +903,25 @@ function HelpPanel({
         <p className="text-xs text-cyan-50/50">{copy.faqSubtitle}</p>
       </div>
 
+      <input
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={language === "en" ? "Search the FAQ" : "Caută în FAQ"}
+        className="mb-4 h-10 w-full rounded-xl border border-cyan-300/16 bg-[#0b2028] px-3 text-sm text-cyan-50 outline-none placeholder:text-cyan-50/35 focus:border-cyan-300/45"
+      />
+
       <div className="grid gap-3">
-        {translatedKnowledge(language).map((item) => (
+        {items.map((item) => (
           <article
-            key={`${item.title}-${item.href ?? "faq"}`}
+            key={item.id}
             className="rounded-2xl border border-cyan-300/14 bg-white/[0.06] px-4 py-3 shadow-sm"
           >
             <h3 className="text-sm font-semibold text-cyan-50">
               {item.title}
             </h3>
             <p className="mt-1 text-xs leading-5 text-cyan-50/65">
-              {item.text}
+              {item.body}
             </p>
             {item.href ? (
               <Link

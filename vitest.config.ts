@@ -13,6 +13,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     env: {
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_vitest',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'supabase_anon_vitest',
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_vitest',
       CLERK_SECRET_KEY: 'sk_test_vitest',
       SUPABASE_SERVICE_ROLE_KEY: 'supabase_service_role_vitest',
       STRIPE_SECRET_KEY: 'sk_test_vitest',

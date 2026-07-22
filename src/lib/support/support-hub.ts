@@ -94,6 +94,18 @@ function titleFromMessage(message: string) {
   return clean.slice(0, 84) || "Solicitare de suport";
 }
 
+export function sanitizeSupportSummaryText(value: string) {
+  return value
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gu, "[email eliminat]")
+    .replace(/(?:\+?40|0)[\s.-]?[1-9](?:[\s.-]?\d){7,8}/gu, "[telefon eliminat]")
+    .replace(/\b(?:\d[ -]*?){13,19}\b/gu, "[număr de card eliminat]")
+    .replace(/\b(?:pi|ch|tok|sk|rk)_[A-Za-z0-9_-]+\b/gu, "[identificator eliminat]")
+    .replace(/\b[0-9a-f]{32,}\b/giu, "[token eliminat]")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 700);
+}
+
 async function audit(actor: SupportIdentity | null, action: string, entityId: string, changes: Record<string, unknown> = {}) {
   await db().from("audit_events").insert({
     actor_profile_id: actor?.profileId ?? null,
@@ -176,13 +188,39 @@ export async function handoffConversation(identity: SupportIdentity, conversatio
   const currentTicket = Array.isArray(conversation.support_tickets) ? conversation.support_tickets[0] : conversation.support_tickets;
   if (currentTicket?.id) return currentTicket;
   const history = Array.isArray(conversation.assistant_messages) ? conversation.assistant_messages : [];
-  const clientText = history.filter((item: any) => item.author_type === "client").map((item: any) => item.body).join("\n");
+  const clientMessages = history
+    .filter((item: any) => item.author_type === "client")
+    .sort((left: any, right: any) => String(left.created_at).localeCompare(String(right.created_at)))
+    .map((item: any) => sanitizeSupportSummaryText(String(item.body ?? "")))
+    .filter(Boolean);
+  const clientText = clientMessages.join("\n");
   const subject = titleFromMessage(clientText || conversation.title);
   const category = categoryFromContact(clientText);
+  const localOrderId = clientText.match(/SKY-[A-Z]{2}-\d{5}-\d{3}/iu)?.[0] ?? null;
+  let linkedOrderId: string | null = null;
+  let orderContext = "Nicio comandă proprie identificată.";
+  if (localOrderId) {
+    const { data: order, error: orderError } = await db().from("orders")
+      .select("id,local_order_id,status,fulfillment_status,payment_status,refund_status")
+      .eq("local_order_id", localOrderId)
+      .eq("sender_profile_id", identity.profileId)
+      .maybeSingle();
+    if (orderError) throw new Error(orderError.message);
+    if (order) {
+      linkedOrderId = order.id;
+      orderContext = `Comandă proprie verificată: ${order.local_order_id}; status ${order.status}; misiune ${order.fulfillment_status ?? "nespecificată"}; plată ${order.payment_status}; rambursare ${order.refund_status ?? "fără status"}.`;
+    }
+  }
+  const summary = [
+    `Problemă: ${clientMessages.at(-1) ?? subject}`,
+    `Pași sau context deja menționat: ${clientMessages.slice(-4, -1).join(" | ") || "niciun pas menționat"}.`,
+    orderContext,
+  ].join("\n").slice(0, 1_500);
   const { data: ticket, error } = await db().from("support_tickets").insert({
     conversation_id: conversationId, source: "ai_handoff", client_profile_id: identity.profileId,
+    linked_order_id: linkedOrderId,
     subject, category, priority: priorityForSupportText(clientText), status: "open",
-    ai_summary: `Clientul solicită intervenție umană. Subiect: ${subject}.`,
+    ai_summary: summary,
   }).select("*").single();
   if (error) throw new Error(error.message);
   await db().from("assistant_conversations").update({ mode: "human_requested", last_message_at: new Date().toISOString() }).eq("id", conversationId);
