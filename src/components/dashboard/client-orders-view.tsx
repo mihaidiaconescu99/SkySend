@@ -105,9 +105,14 @@ export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
         {([{"id":"all","label":"Toate comenzile","count":allOrders.length},{"id":"scheduled","label":"Comenzi programate","count":scheduledOrders.length}] as const).map((tab) => (
           <button key={tab.id} type="button" aria-pressed={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className="relative z-10 min-h-10 rounded-lg px-4 text-sm font-medium text-foreground">
+            className={cn(
+              "relative z-10 min-h-10 rounded-lg px-4 text-sm font-medium",
+              activeTab === tab.id
+                ? "text-cyan-800 dark:text-cyan-100"
+                : "text-foreground",
+            )}>
             {activeTab === tab.id ? (
-              <motion.span layoutId="orders-tab" className="absolute inset-0 -z-10 rounded-lg bg-background shadow-sm"
+              <motion.span layoutId="orders-tab" className="absolute inset-0 -z-10 rounded-lg border border-cyan-300/20 bg-cyan-400/12 shadow-[0_1px_5px_rgb(34_211_238_/_0.08)]"
                 transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }} />
             ) : null}
             {tab.label}<span className="ml-2 text-xs text-muted-foreground">{tab.count}</span>

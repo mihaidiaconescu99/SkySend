@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { AppButton } from "@/components/shared/app-button";
+import { BillingCustomerTypeSelector } from "@/components/billing/billing-customer-type-selector";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -16,7 +17,7 @@ import { getStripeJs } from "@/lib/stripe/client";
 import { skySendStripeElementsAppearance } from "@/lib/stripe/elements";
 import { useSettings } from "@/lib/settings/settings-context";
 import { cn } from "@/lib/utils";
-import type { BillingCustomerType, BillingSnapshotInput } from "@/types/billing";
+import type { BillingSnapshotInput } from "@/types/billing";
 import type { CreatedDeliveryOrder } from "@/types/create-delivery";
 import type { OperationalStatusSnapshot } from "@/types/operational-status";
 import type { ClientStripePaymentMethod } from "@/types/payment-methods";
@@ -142,7 +143,7 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
     for (let attempt = 0; attempt < 30; attempt += 1) {
       const refreshed = await loadOrder();
       if (refreshed?.paymentStatus === "paid") {
-        router.replace(`${refreshed.href}?brief=1`);
+        router.replace(refreshed.href);
         return;
       }
       await new Promise<void>((resolve) => window.setTimeout(resolve, 1_000));
@@ -312,11 +313,12 @@ export function StripeCheckoutView({ orderId }: StripeCheckoutViewProps) {
             {!billingSaved ? (
               <form className="grid gap-4" onSubmit={continueToPayment}>
                 <div><StatusBadge label="Pasul 1 din 2" tone="info" /><h2 className="mt-3 font-heading text-2xl">Date de facturare</h2></div>
-                <div className="grid grid-cols-2 gap-2 rounded-[var(--radius)] bg-secondary/45 p-1" role="group" aria-label="Tip client">
-                  {(["individual", "company"] as BillingCustomerType[]).map((type) => (
-                    <button key={type} type="button" onClick={() => updateBilling("customerType", type)} className={cn("min-h-11 rounded-[var(--radius)] px-3 text-sm", billing.customerType === type && "bg-background font-medium shadow-sm")}>{type === "individual" ? "Persoană fizică" : "Persoană juridică"}</button>
-                  ))}
-                </div>
+                <BillingCustomerTypeSelector
+                  value={billing.customerType}
+                  onValueChange={(type) => updateBilling("customerType", type)}
+                  layoutId="stripe-checkout-customer-type"
+                  className="rounded-[var(--radius)]"
+                />
                 {billing.customerType === "individual" ? (
                   <Field label="Nume complet" name="fullName" value={billing.fullName || user?.fullName || ""} onChange={(value) => updateBilling("fullName", value)} autoComplete="name" />
                 ) : (

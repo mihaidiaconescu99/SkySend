@@ -187,7 +187,7 @@ export async function POST(request: Request, { params }: Context) {
 
   const missions = new MissionsRepository(resolved.db);
   let missionResult = await missions.getByOrderId(resolved.order.id);
-  if (missionResult.ok && !missionResult.data && resolved.order.paymentStatus === "paid") {
+  if (missionResult.ok && resolved.order.paymentStatus === "paid") {
     const ensuredMission = await ensureOrderMission(resolved.db, resolved.order);
     if (ensuredMission) missionResult = { ok: true, data: ensuredMission };
   }
@@ -213,8 +213,12 @@ export async function POST(request: Request, { params }: Context) {
   let stepExpiresAt: string | null = null;
 
   if (parsed.data.action === "confirm_position") {
-    const pickup = mission.currentStatus === "awaiting_sender_position_confirmation";
-    const dropoff = mission.currentStatus === "awaiting_recipient_position_confirmation";
+    const pickup =
+      mission.currentStatus === "awaiting_sender_position_confirmation" ||
+      mission.currentStatus === "arrived_at_pickup";
+    const dropoff =
+      mission.currentStatus === "awaiting_recipient_position_confirmation" ||
+      mission.currentStatus === "arrived_at_dropoff";
     if ((!pickup && !dropoff) || !hasCapability(resolved.scope, pickup ? "pickup" : "dropoff")) {
       return NextResponse.json({ error: "Action is not allowed in this state." }, { status: 409 });
     }
@@ -260,8 +264,12 @@ export async function POST(request: Request, { params }: Context) {
     delete runtime.automaticTransition;
     delete runtime.activeFlight;
   } else {
-    const pickup = mission.currentStatus === "awaiting_sender_position_confirmation";
-    const dropoff = mission.currentStatus === "awaiting_recipient_position_confirmation";
+    const pickup =
+      mission.currentStatus === "awaiting_sender_position_confirmation" ||
+      mission.currentStatus === "arrived_at_pickup";
+    const dropoff =
+      mission.currentStatus === "awaiting_recipient_position_confirmation" ||
+      mission.currentStatus === "arrived_at_dropoff";
     if ((!pickup && !dropoff) || !hasCapability(resolved.scope, pickup ? "pickup" : "dropoff")) {
       return NextResponse.json({ error: "Action is not allowed in this state." }, { status: 409 });
     }

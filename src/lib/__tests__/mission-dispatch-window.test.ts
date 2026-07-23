@@ -22,17 +22,17 @@ function order(input: {
 }
 
 describe("paid-order dispatch window", () => {
-  it("uses a seven-second server-aligned delay", () => {
-    expect(missionDispatchDelaySeconds).toBe(7);
+  it("uses a ten-second server-aligned delay", () => {
+    expect(missionDispatchDelaySeconds).toBe(10);
     expect(getPaidOrderMissionDispatchStartMs(order({ paidAt: "2026-07-23T10:00:00.000Z" })))
-      .toBe(Date.parse("2026-07-23T10:00:07.000Z"));
+      .toBe(Date.parse("2026-07-23T10:00:10.000Z"));
   });
 
   it("anchors scheduled delivery countdown at the scheduled time", () => {
     expect(getPaidOrderMissionDispatchStartMs(order({
       paidAt: "2026-07-23T10:00:00.000Z",
       scheduledAt: "2026-07-23T12:00:00.000Z",
-    }))).toBe(Date.parse("2026-07-23T12:00:07.000Z"));
+    }))).toBe(Date.parse("2026-07-23T12:00:10.000Z"));
   });
 
   it("prefers the persisted server timestamp", () => {

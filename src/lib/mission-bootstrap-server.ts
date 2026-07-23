@@ -58,13 +58,72 @@ function canStartImmediately(order: Order, now: Date) {
   );
 }
 
+function getDispatchStartAt(order: Order, now: Date) {
+  const value = order.dispatchStartsAt
+    ? Date.parse(order.dispatchStartsAt)
+    : now.getTime();
+  return Number.isNaN(value) ? now.getTime() : value;
+}
+
+async function repairLegacyPredispatchMission(
+  missions: MissionsRepository,
+  order: Order,
+  mission: MissionRecord,
+) {
+  if (
+    !["mission_created", "preflight_checks"].includes(mission.currentStatus) ||
+    mission.stepExpiresAt
+  ) {
+    return mission;
+  }
+
+  const snapshot = completeOrderHandoffSnapshot(order);
+  const pickupOrigin = order.selectedPickupHandoffPoint ?? snapshot.pickup[0];
+  const dropoffOrigin = order.selectedDropoffHandoffPoint ?? snapshot.dropoff[0];
+  if (!pickupOrigin || !dropoffOrigin) return mission;
+
+  const pickup = routePoint(snapshot.pickup[0] ?? pickupOrigin);
+  const dropoff = routePoint(snapshot.dropoff[0] ?? dropoffOrigin);
+  const segments = buildMissionSegments({
+    missionId: `bootstrap:${order.localOrderId}`,
+    pickup,
+    dropoff,
+    warehouse: activeHub,
+  });
+  const firstFlight = segments.find((segment) => segment.type === "warehouse_to_pickup");
+  const runtime =
+    mission.runtimeState &&
+    typeof mission.runtimeState === "object" &&
+    !Array.isArray(mission.runtimeState)
+      ? { ...(mission.runtimeState as Record<string, unknown>) }
+      : {};
+  const now = new Date();
+  const dispatchStartAt = getDispatchStartAt(order, now);
+  runtime.pickup ??= pickup;
+  runtime.dropoff ??= dropoff;
+  runtime.dispatch = {
+    startsAt: new Date(dispatchStartAt).toISOString(),
+    flightDurationSeconds: firstFlight?.plannedDurationSeconds ?? 24,
+    flightSegmentId: firstFlight?.id ?? null,
+  };
+  const updated = await missions.updateIfVersion(mission.id, mission.stateVersion, {
+    currentStatus: "mission_created",
+    stepStartedAt: new Date(dispatchStartAt).toISOString(),
+    stepExpiresAt: new Date(dispatchStartAt).toISOString(),
+    runtimeState: runtime as Json,
+  });
+  return updated.ok ? updated.data : mission;
+}
+
 export async function ensureOrderMission(
   db: SupabaseClient<Database>,
   order: Order,
 ): Promise<MissionRecord | null> {
   const missions = new MissionsRepository(db);
   const existing = await missions.getByOrderId(order.id);
-  if (existing.ok && existing.data) return existing.data;
+  if (existing.ok && existing.data) {
+    return repairLegacyPredispatchMission(missions, order, existing.data);
+  }
   if (!existing.ok) return null;
 
   const snapshot = completeOrderHandoffSnapshot(order);
@@ -83,6 +142,7 @@ export async function ensureOrderMission(
 
   const now = new Date();
   const startsNow = canStartImmediately(order, now);
+  const dispatchStartAt = getDispatchStartAt(order, now);
   const pickup = routePoint(snapshot.pickup[0] ?? pickupOrigin);
   const dropoff = routePoint(snapshot.dropoff[0] ?? dropoffOrigin);
   const segments = buildMissionSegments({
@@ -130,15 +190,21 @@ export async function ensureOrderMission(
             dueAt,
           },
         }
-      : {}),
+      : {
+          dispatch: {
+            startsAt: new Date(dispatchStartAt).toISOString(),
+            flightDurationSeconds: flightSeconds,
+            flightSegmentId: firstFlight?.id ?? null,
+          },
+        }),
   };
   const created = await missions.create({
     orderId: order.id,
     currentStatus: startsNow ? "en_route_to_pickup" : "mission_created",
     pickupPin: createPin(),
     dropoffPin: createPin(),
-    stepStartedAt: now.toISOString(),
-    stepExpiresAt: startsNow ? dueAt : null,
+    stepStartedAt: startsNow ? now.toISOString() : new Date(dispatchStartAt).toISOString(),
+    stepExpiresAt: startsNow ? dueAt : new Date(dispatchStartAt).toISOString(),
     runtimeState: runtimeState as unknown as Json,
   });
   if (!created.ok) {

@@ -5,8 +5,6 @@ export type BillingHistoryTransaction = {
   orderId: string;
   date: string;
   amountLabel: string;
-  paymentMethodLabel: string;
-  paymentMethodDetail: string;
   status: Extract<PaymentStatus, "paid" | "pending" | "failed" | "refunded">;
-  receiptHref: string;
+  invoiceDownloadHref: string | null;
 };

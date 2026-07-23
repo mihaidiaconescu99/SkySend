@@ -23,6 +23,7 @@ import {
   storedPointToDeliveryPoint,
 } from "@/lib/meeting-point-snapshot";
 import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
+import { expireMissionIfDue } from "@/lib/mission-expiration-server";
 
 type PageProps = {
   params: Promise<{ orderId: string }>;
@@ -217,13 +218,21 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
     storedOrder.data &&
     storedOrder.data.paymentStatus === "paid" &&
     storedOrder.data.status !== "completed" &&
-    storedOrder.data.status !== "failed" &&
-    (!mission?.ok || !mission.data)
+    storedOrder.data.status !== "failed"
   ) {
     const ensuredMission = await ensureOrderMission(db, storedOrder.data);
     if (ensuredMission) {
       mission = { ok: true, data: ensuredMission };
     }
+  }
+  if (
+    storedOrder.ok &&
+    storedOrder.data &&
+    mission?.ok &&
+    mission.data &&
+    (await expireMissionIfDue(db, mission.data))
+  ) {
+    mission = await new MissionsRepository(db).getByOrderId(storedOrder.data.id);
   }
   if (storedOrder.ok && storedOrder.data) {
     runtimeOrder.paidAt = storedOrder.data.paidAt ?? null;
@@ -267,6 +276,10 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
   }
   if (order.status === "failed") runtimeOrder.fulfillmentStatus = "failed_mission";
   if (order.status === "delivered") runtimeOrder.fulfillmentStatus = "completed_mission";
+  const isFailedDelivery =
+    order.status === "failed" ||
+    runtimeOrder.fulfillmentStatus === "failed_mission" ||
+    runtimeOrder.missionStatus === "mission_failed";
   runtimeOrder.completedAt = order.completedAt ?? null;
   runtimeOrder.publicCodeAccessMode =
     storedOrder.ok && storedOrder.data
@@ -301,12 +314,11 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
       }
       startOnMount={shouldStartMission(order.status) && paymentStatus === "paid"}
     />
-    <div className="app-container mt-6">
-      <OrderBillingDocuments
-        orderId={order.id}
-        refundDownloadOnly={order.status === "failed"}
-      />
-    </div>
+    {!isFailedDelivery ? (
+      <div className="app-container mt-6">
+        <OrderBillingDocuments orderId={order.id} />
+      </div>
+    ) : null}
     </>
   );
 }

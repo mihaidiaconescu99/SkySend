@@ -14,6 +14,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppButton } from "@/components/shared/app-button";
+import { BillingCustomerTypeSelector } from "@/components/billing/billing-customer-type-selector";
 import { getStripeJs } from "@/lib/stripe/client";
 import { skySendStripeElementsAppearance } from "@/lib/stripe/elements";
 import { cn } from "@/lib/utils";
@@ -507,9 +508,13 @@ export function CreateDeliveryCheckoutPanel({
               {step === "billing" ? (
                 <div className="grid gap-5">
                   <div><p className="type-caption">Pasul 2 din 3</p><h2 className="mt-2 font-heading text-2xl">Date de facturare</h2></div>
-                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary/45 p-1">
-                    {(["individual", "company"] as const).map((type) => <button key={type} type="button" onClick={() => setBilling((current) => ({ ...current, customerType: type }))} className={cn("min-h-11 rounded-lg text-sm", billing.customerType === type && "bg-background font-medium shadow-sm")}>{type === "individual" ? "Persoană fizică" : "Persoană juridică"}</button>)}
-                  </div>
+                  <BillingCustomerTypeSelector
+                    value={billing.customerType}
+                    onValueChange={(type) =>
+                      setBilling((current) => ({ ...current, customerType: type }))
+                    }
+                    layoutId="delivery-checkout-customer-type"
+                  />
                   {billing.customerType === "individual" ? <Field label="Nume complet" name="fullName" value={billing.fullName ?? ""} onChange={(value) => setBilling((current) => ({ ...current, fullName: value }))} autoComplete="name" /> : <>
                     <Field label="Denumire legală" name="companyLegalName" value={billing.companyLegalName ?? ""} onChange={(value) => setBilling((current) => ({ ...current, companyLegalName: value }))} autoComplete="organization" />
                     <Field label="Cod fiscal" name="taxIdentifier" value={billing.taxIdentifier ?? ""} onChange={(value) => setBilling((current) => ({ ...current, taxIdentifier: value }))} />

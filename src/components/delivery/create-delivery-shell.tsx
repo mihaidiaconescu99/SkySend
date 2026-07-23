@@ -72,6 +72,7 @@ import {
   recommendDeliveryConfiguration,
 } from "@/lib/drone-recommendation";
 import { calculateDistanceKm } from "@/lib/mission-route";
+import { getDistanceBasedDeliveryEtaWindow } from "@/lib/delivery-eta";
 import { calculateSkySendPricing } from "@/lib/pricing";
 import {
   getMarkerDrivenViewport,
@@ -444,26 +445,6 @@ function getFallbackNote(
   }
 
   return "Plan de rezervă: respectă mai întâi punctele selectate manual, apoi folosește cel mai bun punct eligibil înainte de anulare.";
-}
-
-function getEstimatedWindowMinutes(
-  urgency: (typeof urgencyOptions)[number]["value"],
-  coverageState: "ready" | "inside" | "review" | "outside",
-) {
-  const baseMinutes =
-    urgency === "priority" ? 18 : urgency === "scheduled" ? 34 : 24;
-
-  if (coverageState === "review") {
-    return {
-      min: baseMinutes + 4,
-      max: baseMinutes + 10,
-    };
-  }
-
-  return {
-    min: baseMinutes,
-    max: baseMinutes + 6,
-  };
 }
 
 function getMarkerToneForAddress(
@@ -1026,8 +1007,8 @@ export function CreateDeliveryShell() {
     urgency,
   ]);
   const estimatedWindow = useMemo(() => {
-    return getEstimatedWindowMinutes(urgency, coverageSummary.state);
-  }, [coverageSummary.state, urgency]);
+    return getDistanceBasedDeliveryEtaWindow(routeDistanceKm);
+  }, [routeDistanceKm]);
   const selectedDeliveryConfiguration =
     deliveryConfigurationRecommendation.selectedConfiguration;
   const compatibilityDroneClass =
@@ -2442,7 +2423,7 @@ export function CreateDeliveryShell() {
     if (!checkoutPayload) return null;
 
     const handleCheckoutPaid = (orderId: string) => {
-      router.replace(`/client/orders/${orderId}?brief=1`);
+      router.replace(`/client/orders/${orderId}`);
       router.refresh();
       if (deliverySessionId) {
         void (async () => {

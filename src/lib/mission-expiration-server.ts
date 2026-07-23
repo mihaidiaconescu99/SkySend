@@ -8,6 +8,8 @@ import type { PremiumFailureCode } from "@/lib/mission-progress";
 import type { MissionRecord, MissionStatus } from "@/types/mission-record";
 import type { Json } from "@/types/database";
 import { expireTrackingLinksAfterTerminal } from "@/lib/tracking-access-server";
+import { activeHub } from "@/constants/hub";
+import { calculateHeadingDegrees } from "@/lib/mission-route";
 
 const timeoutFailureByStatus: Partial<Record<MissionStatus, PremiumFailureCode>> = {
   awaiting_sender_position_confirmation: "pickup_confirmation_timeout",
@@ -30,6 +32,81 @@ export async function expireMissionIfDue(
     !Array.isArray(mission.runtimeState)
       ? { ...(mission.runtimeState as Record<string, unknown>) }
       : {};
+  const dispatch = runtime.dispatch;
+  if (
+    mission.currentStatus === "mission_created" &&
+    dispatch &&
+    typeof dispatch === "object" &&
+    !Array.isArray(dispatch)
+  ) {
+    const dispatchState = dispatch as Record<string, unknown>;
+    const flightDurationSeconds =
+      typeof dispatchState.flightDurationSeconds === "number" &&
+      dispatchState.flightDurationSeconds > 0
+        ? Math.round(dispatchState.flightDurationSeconds)
+        : 24;
+    const pickup = runtime.pickup;
+    if (
+      !pickup ||
+      typeof pickup !== "object" ||
+      Array.isArray(pickup) ||
+      !((pickup as Record<string, unknown>).location) ||
+      typeof (pickup as Record<string, unknown>).location !== "object" ||
+      Array.isArray((pickup as Record<string, unknown>).location)
+    ) {
+      return false;
+    }
+    const destination = (pickup as Record<string, { latitude?: unknown; longitude?: unknown }>).location;
+    if (
+      typeof destination.latitude !== "number" ||
+      typeof destination.longitude !== "number"
+    ) {
+      return false;
+    }
+    const dispatchedAt = now.toISOString();
+    const dueAt = new Date(now.getTime() + flightDurationSeconds * 1000).toISOString();
+    runtime.automaticTransition = {
+      dueAt,
+      toStatus: "awaiting_sender_position_confirmation",
+    };
+    runtime.activeFlight = {
+      phase: "pickup",
+      from: activeHub.address.location,
+      to: { latitude: destination.latitude, longitude: destination.longitude },
+      startedAt: dispatchedAt,
+      dueAt,
+    };
+    delete runtime.dispatch;
+    const updated = await new MissionsRepository(db).updateIfVersion(
+      mission.id,
+      mission.stateVersion,
+      {
+        currentStatus: "en_route_to_pickup",
+        startedAt: mission.startedAt ?? dispatchedAt,
+        stepStartedAt: dispatchedAt,
+        stepExpiresAt: dueAt,
+        runtimeState: runtime as Json,
+        droneTelemetrySnapshot: {
+          ...mission.droneTelemetrySnapshot,
+          position: activeHub.address.location,
+          heading: calculateHeadingDegrees(
+            activeHub.address.location,
+            { latitude: destination.latitude, longitude: destination.longitude },
+          ),
+          speed: 0,
+          segmentProgress: 0,
+          segmentId:
+            typeof dispatchState.flightSegmentId === "string"
+              ? dispatchState.flightSegmentId
+              : null,
+          altitudeMeters: 18,
+          batteryPercent: 100,
+          lastUpdatedAt: dispatchedAt,
+        },
+      },
+    );
+    return updated.ok;
+  }
   const automatic = runtime.automaticTransition;
   if (
     (mission.currentStatus === "en_route_to_pickup" ||

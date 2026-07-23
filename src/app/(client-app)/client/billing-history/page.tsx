@@ -3,8 +3,8 @@ import { getBillingHistoryTransactions } from "@/lib/billing-history";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata = createPageMetadata(
-  "Billing History",
-  "Verificare secure payment history and receipt actions for SkySend client deliveries.",
+  "Istoric plăți",
+  "Toate plățile SkySend, statusurile lor și facturile disponibile.",
 );
 
 export default async function ClientBillingHistoryPage() {

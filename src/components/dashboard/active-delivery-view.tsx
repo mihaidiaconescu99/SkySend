@@ -39,6 +39,11 @@ function hasTerminalDeliveryStatus(order: CreatedDeliveryOrder) {
     order.fulfillmentStatus === "failed_mission" ||
     order.fulfillmentStatus === "fallback_required" ||
     order.fulfillmentStatus === "canceled" ||
+    order.missionStatus === "delivery_completed" ||
+    order.missionStatus === "proof_generated" ||
+    order.missionStatus === "mission_closed" ||
+    order.missionStatus === "mission_failed" ||
+    order.missionStatus === "fallback_required" ||
     order.paymentStatus === "failed" ||
     order.paymentStatus === "refunded" ||
     order.paymentStatus === "refund_pending" ||

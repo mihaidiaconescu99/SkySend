@@ -4,7 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { Loader2, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppButton } from "@/components/shared/app-button";
-import { cn } from "@/lib/utils";
+import { BillingCustomerTypeSelector } from "@/components/billing/billing-customer-type-selector";
 import type { SavedBillingProfile } from "@/types/billing";
 
 const empty = (name = "", email = "", locale: "ro" | "en" = "ro"): SavedBillingProfile => ({
@@ -65,9 +65,12 @@ export function AccountBillingProfile() {
         {exists ? <AppButton type="button" size="sm" variant="ghost" onClick={remove} disabled={busy}><Trash2 className="size-4" />Șterge</AppButton> : null}
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary/40 p-1 sm:col-span-2">
-          {(["individual", "company"] as const).map((type) => <button key={type} type="button" onClick={() => update("customerType", type)} className={cn("min-h-10 rounded-lg text-sm", billing.customerType === type && "bg-background font-medium shadow-sm")}>{type === "individual" ? "Persoană fizică" : "Persoană juridică"}</button>)}
-        </div>
+        <BillingCustomerTypeSelector
+          value={billing.customerType}
+          onValueChange={(type) => update("customerType", type)}
+          layoutId="account-billing-customer-type"
+          className="sm:col-span-2"
+        />
         {billing.customerType === "individual" ? <Input label="Nume complet" value={billing.fullName ?? ""} onChange={(value) => update("fullName", value)} /> : <><Input label="Denumire legală" value={billing.companyLegalName ?? ""} onChange={(value) => update("companyLegalName", value)} /><Input label="Cod fiscal" value={billing.taxIdentifier ?? ""} onChange={(value) => update("taxIdentifier", value)} /></>}
         <div className="sm:col-span-2"><Input label="Adresă / sediu" value={billing.addressLine} onChange={(value) => update("addressLine", value)} /></div>
         <Input label="Localitate" value={billing.city} onChange={(value) => update("city", value)} />

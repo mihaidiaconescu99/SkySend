@@ -36,6 +36,10 @@ import {
   updateCreatedDeliveryOrderFulfillment,
 } from "@/lib/create-delivery-submit";
 import { getFailureCodeForTimerKind } from "@/lib/mission-progress";
+import {
+  missionDispatchDelayMs,
+  missionDispatchDelaySeconds,
+} from "@/lib/mission-dispatch";
 import type { PremiumFailureCode } from "@/lib/mission-progress";
 import { showToast } from "@/lib/toast-store";
 import type {
@@ -175,8 +179,7 @@ const timers: RuntimeTimers = {
 const pendingDBRehydrationOrders = new Set<string>();
 const syncedMissionVersions = new Map<string, number>();
 
-export const missionDispatchDelaySeconds = 7;
-const missionDispatchDelayMs = missionDispatchDelaySeconds * 1000;
+export { missionDispatchDelaySeconds } from "@/lib/mission-dispatch";
 const missionRuntimeStoragePrefix = "skysend:mission-runtime:";
 const userActionNotificationStoragePrefix =
   "skysend:mission-runtime:first-action-notified:";

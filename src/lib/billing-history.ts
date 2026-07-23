@@ -8,6 +8,28 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { BillingHistoryTransaction } from "@/types/billing-history";
 import type { PaymentRecord } from "@/types/payment-record";
 
+type InvoiceDocumentRow = {
+  id: string;
+  order_id: string;
+  generation_status: string;
+};
+
+type BillingDocumentsQuery = {
+  from: (table: "billing_documents") => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        in: (
+          column: string,
+          values: string[],
+        ) => Promise<{
+          data: InvoiceDocumentRow[] | null;
+          error: { message: string } | null;
+        }>;
+      };
+    };
+  };
+};
+
 function formatCurrency(record: PaymentRecord) {
   return new Intl.NumberFormat("ro-RO", {
     style: "currency",
@@ -50,16 +72,39 @@ export async function getBillingHistoryTransactions(): Promise<
     throw new Error(records.error.message);
   }
 
+  const orderIds = [...new Set(records.data.map((record) => record.orderId))];
+  const billingDocuments = supabase as unknown as BillingDocumentsQuery;
+  const { data: invoiceRows, error: invoiceError } = orderIds.length
+    ? await billingDocuments
+        .from("billing_documents")
+        .select("id,order_id,generation_status")
+        .eq("document_type", "invoice")
+        .in("order_id", orderIds)
+    : { data: [], error: null };
+
+  if (invoiceError) {
+    throw new Error(invoiceError.message);
+  }
+
+  const invoiceDownloadHrefByOrderId = new Map<string, string>();
+  for (const invoice of invoiceRows ?? []) {
+    if (invoice.generation_status === "ready") {
+      invoiceDownloadHrefByOrderId.set(
+        invoice.order_id,
+        `/api/billing/documents/${invoice.id}`,
+      );
+    }
+  }
+
   return records.data.map((record) => ({
     id: record.id,
     orderId: record.orderId,
     date: record.createdAt,
     amountLabel: formatCurrency(record),
-    paymentMethodLabel: record.stripePaymentIntentId
-      ? "Stripe card"
-      : "Metoda de plata in asteptare",
-    paymentMethodDetail: record.stripePaymentIntentId ?? "Nicio referinta Stripe",
     status: mapStatus(record),
-    receiptHref: `/client/orders/${record.orderId}`,
+    invoiceDownloadHref:
+      record.type === "payment"
+        ? (invoiceDownloadHrefByOrderId.get(record.orderId) ?? null)
+        : null,
   }));
 }

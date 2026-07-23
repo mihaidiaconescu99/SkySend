@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarClock, Gauge, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  Gauge,
+  PackageCheck,
+  Thermometer,
+  Wind,
+  Zap,
+} from "lucide-react";
 import { AppButton } from "@/components/shared/app-button";
 import { useSettings } from "@/lib/settings/settings-context";
 
 const icons = [Gauge, Zap, CalendarClock] as const;
+const surchargeIcons = [PackageCheck, Thermometer, PackageCheck, Wind] as const;
 
 const content = {
   ro: {
@@ -17,12 +26,44 @@ const content = {
     eta: "Timp estimat",
     note:
       "Prețul final poate varia în funcție de distanță, colet și disponibilitate. Îl vezi înainte de confirmare.",
+    surchargeEyebrow: "Cerințe speciale",
+    surchargeTitle: "Taxe suplimentare, numai când sunt necesare.",
+    surchargeDescription:
+      "Unele colete au nevoie de pregătire suplimentară înainte de preluare. Orice ajustare este inclusă în estimarea afișată înainte de plată.",
+    surchargeRange:
+      "Pentru aceste cerințe, taxele suplimentare pot fi între 10 și 30 RON, în funcție de evaluarea coletului.",
+    surcharges: [
+      {
+        title: "Greutate și dimensiune",
+        description:
+          "Verificăm capacitatea dronei și spațiul necesar pentru colete voluminoase sau mai grele.",
+        price: null,
+      },
+      {
+        title: "Sensibilitate la temperatură",
+        description:
+          "Pentru produse care au nevoie de protecție termică sau de o pregătire atentă la manipulare.",
+        price: null,
+      },
+      {
+        title: "Fragilitate",
+        description:
+          "Se aplică atunci când coletul necesită ambalare, fixare sau verificări suplimentare înainte de zbor.",
+        price: null,
+      },
+      {
+        title: "Vreme și vânt",
+        description:
+          "În condiții de vânt care cer măsuri operaționale suplimentare, se poate aplica o taxă fixă.",
+        price: "+5 RON",
+      },
+    ],
     primary: "Creează livrare",
     secondary: "Verifică acoperirea",
     plans: [
-      { name: "Standard", description: "Pentru livrările de zi cu zi.", eta: "25–40 min" },
-      { name: "Prioritară", description: "Când fiecare minut contează.", eta: "12–25 min" },
-      { name: "Programată", description: "Alegi ziua și ora.", eta: "Interval ales" },
+      { name: "Standard", description: "Pentru livrările de zi cu zi.", eta: "6–10 min" },
+      { name: "Prioritară", description: "Când fiecare minut contează.", eta: "4–8 min" },
+      { name: "Programată", description: "Alegi ziua și ora.", eta: "6–10 min de la ora aleasă" },
     ],
   },
   en: {
@@ -34,12 +75,44 @@ const content = {
     eta: "Estimated time",
     note:
       "The final price may vary with distance, parcel and availability. You will see it before confirmation.",
+    surchargeEyebrow: "Special handling",
+    surchargeTitle: "Additional charges, only when needed.",
+    surchargeDescription:
+      "Some parcels need extra preparation before pickup. Any adjustment is included in the estimate shown before payment.",
+    surchargeRange:
+      "For these requirements, additional charges may range from 10 to 30 RON based on the parcel assessment.",
+    surcharges: [
+      {
+        title: "Weight and size",
+        description:
+          "We check aircraft capacity and the space needed for heavier or bulkier parcels.",
+        price: null,
+      },
+      {
+        title: "Temperature sensitivity",
+        description:
+          "For items that need thermal protection or more careful handling before dispatch.",
+        price: null,
+      },
+      {
+        title: "Fragility",
+        description:
+          "Applied when a parcel needs extra packaging, securement or checks before flight.",
+        price: null,
+      },
+      {
+        title: "Weather and wind",
+        description:
+          "A fixed operational adjustment may apply when wind conditions require extra measures.",
+        price: "+5 RON",
+      },
+    ],
     primary: "Create delivery",
     secondary: "Check coverage",
     plans: [
-      { name: "Standard", description: "For everyday deliveries.", eta: "25–40 min" },
-      { name: "Priority", description: "When every minute matters.", eta: "12–25 min" },
-      { name: "Scheduled", description: "Choose the day and time.", eta: "Chosen window" },
+      { name: "Standard", description: "For everyday deliveries.", eta: "6–10 min" },
+      { name: "Priority", description: "When every minute matters.", eta: "4–8 min" },
+      { name: "Scheduled", description: "Choose the day and time.", eta: "6–10 min after the selected time" },
     ],
   },
 } as const;
@@ -103,6 +176,50 @@ export default function PricingContent({
       <p className="max-w-3xl border-l border-primary/60 pl-5 text-sm leading-7 text-muted-foreground">
         {copy.note}
       </p>
+
+      <section className="border-y border-border/70">
+        <div className="max-w-3xl px-1 py-8 md:py-10">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">
+            {copy.surchargeEyebrow}
+          </p>
+          <h2 className="mt-3 font-heading text-3xl tracking-tight text-foreground md:text-4xl">
+            {copy.surchargeTitle}
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+            {copy.surchargeDescription}
+          </p>
+        </div>
+        <div className="grid border-t border-border/70 md:grid-cols-2">
+          {copy.surcharges.map((surcharge, index) => {
+            const Icon = surchargeIcons[index] ?? PackageCheck;
+
+            return (
+              <article
+                key={surcharge.title}
+                className="grid gap-4 border-b border-border/70 px-1 py-6 md:px-6 md:py-7 md:[&:nth-child(odd)]:border-r"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <Icon className="size-5 text-primary" aria-hidden="true" />
+                  {surcharge.price ? (
+                    <span className="text-sm font-medium text-foreground">
+                      {surcharge.price}
+                    </span>
+                  ) : null}
+                </div>
+                <div>
+                  <h3 className="font-medium text-foreground">{surcharge.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {surcharge.description}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <p className="max-w-3xl px-1 py-6 text-sm leading-7 text-muted-foreground md:px-6">
+          {copy.surchargeRange}
+        </p>
+      </section>
     </div>
   );
 }

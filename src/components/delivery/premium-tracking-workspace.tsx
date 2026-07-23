@@ -23,8 +23,6 @@ type Props = {
   order: CreatedDeliveryOrder;
   paymentStatus: CreatedDeliveryPaymentStatus;
   dispatchCountdown?: number;
-  onCancelBeforeDispatch?: () => void | Promise<void>;
-  isCancellingBeforeDispatch?: boolean;
 };
 
 function formatDuration(start?: string | null, end?: string | null) {
@@ -155,8 +153,6 @@ function TerminalView({
 export function PremiumTrackingWorkspace({
   order,
   dispatchCountdown = 0,
-  onCancelBeforeDispatch,
-  isCancellingBeforeDispatch = false,
 }: Props) {
   const {
     currentMission: runtimeMission,
@@ -269,18 +265,11 @@ export function PremiumTrackingWorkspace({
           {dispatchCountdown > 0 ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:px-10">
               <h1 className="max-w-xl font-heading text-4xl uppercase leading-[0.95] tracking-tight text-foreground sm:text-6xl expanded-ui:text-7xl">
-                Dispatch în {dispatchCountdown} {dispatchCountdown === 1 ? "secundă" : "secunde"}
+                Dispatch
               </h1>
-              <AppButton
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={onCancelBeforeDispatch}
-                disabled={isCancellingBeforeDispatch}
-                className="mt-10 w-full max-w-sm border-destructive/50 text-destructive hover:bg-destructive/10"
-              >
-                {isCancellingBeforeDispatch ? "Se anulează…" : "Anulează comanda"}
-              </AppButton>
+              <p className="mt-6 font-mono text-5xl font-semibold tabular-nums text-primary sm:text-7xl">
+                00:{String(dispatchCountdown).padStart(2, "0")}
+              </p>
             </div>
           ) : <>
           <div className="shrink-0 px-5 pb-5 pt-5 sm:px-7 expanded-ui:pt-24">

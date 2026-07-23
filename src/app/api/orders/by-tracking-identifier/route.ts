@@ -228,7 +228,6 @@ export async function GET(request: Request) {
   let mission = await new MissionsRepository(supabase).getByOrderId(result.data.id);
   if (
     mission.ok &&
-    !mission.data &&
     result.data.paymentStatus === "paid" &&
     result.data.status !== "completed" &&
     result.data.status !== "failed"

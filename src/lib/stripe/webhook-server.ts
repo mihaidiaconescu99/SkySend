@@ -11,6 +11,7 @@ import { ensureOrderCommunication } from "@/lib/order-communications-server";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { ensureInvoiceDocument, getBillingSnapshotForOrder } from "@/lib/billing/server";
 import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
+import { missionDispatchDelayMs } from "@/lib/mission-dispatch";
 
 const db = () => createAdminSupabaseClient() as any;
 
@@ -104,15 +105,26 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
   const method = await paymentMethodSnapshot(intent);
   const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
   const paidAt = row.paid_at ?? new Date().toISOString();
+  const dispatchStartsAt = new Date(
+    Date.parse(paidAt) + missionDispatchDelayMs,
+  ).toISOString();
   const { data: updated, error } = await database.from("orders").update({
     payment_status: "paid",
     stripe_payment_intent_id: intent.id,
     stripe_charge_id: chargeId,
     paid_at: paidAt,
+    dispatch_starts_at: dispatchStartsAt,
     status: row.status === "pending" ? "in_progress" : row.status,
     fulfillment_status: row.fulfillment_status === "order_created" || !row.fulfillment_status ? "active_mission" : row.fulfillment_status,
   }).eq("id", row.id).select("*").single();
   if (error) throw new Error(error.message);
+  if (checkoutSession) {
+    const { error: sessionUpdateError } = await database
+      .from("delivery_checkout_sessions")
+      .update({ dispatch_starts_at: dispatchStartsAt })
+      .eq("id", checkoutSession.id);
+    if (sessionUpdateError) throw new Error(sessionUpdateError.message);
+  }
   await database.from("order_billing_snapshots").update({ locked_at: paidAt }).eq("id", snapshot.id).is("locked_at", null);
 
   const payments = new PaymentRecordsRepository(createAdminSupabaseClient());
@@ -220,6 +232,29 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
   if (!row || row.payment_status === "paid") return;
   await database.from("orders").update({ payment_status: "failed", stripe_payment_intent_id: intent.id })
     .eq("id", row.id);
+
+  const payments = new PaymentRecordsRepository(createAdminSupabaseClient());
+  const existing = await payments.listByOrderId(row.id);
+  if (!existing.ok) throw new Error(existing.error.message);
+  if (
+    !existing.data.some(
+      (record) =>
+        record.type === "payment" && record.stripePaymentIntentId === intent.id,
+    )
+  ) {
+    const created = await payments.create({
+      orderId: row.id,
+      profileId: row.sender_profile_id,
+      stripePaymentIntentId: intent.id,
+      amountMinor: intent.amount,
+      currency: intent.currency.toUpperCase(),
+      type: "payment",
+      status: "failed",
+      failureReason:
+        intent.last_payment_error?.message?.slice(0, 1000) ?? "payment_failed",
+    });
+    if (!created.ok) throw new Error(created.error.message);
+  }
 }
 
 async function handleRefund(refund: any) {
