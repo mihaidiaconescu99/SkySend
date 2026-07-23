@@ -280,10 +280,6 @@ export function AdminOrdersView({ initialOrders }: AdminOrdersViewProps) {
 
     const dbPatch: Record<string, unknown> = {};
     if (patch.status !== undefined) dbPatch.status = patch.status;
-    if (patch.paymentStatus !== undefined)
-      dbPatch.paymentStatus = patch.paymentStatus;
-    if (patch.refundStatus !== undefined)
-      dbPatch.refundStatus = patch.refundStatus;
     if (patch.internalNotes !== undefined)
       dbPatch.internalNotes = patch.internalNotes;
 

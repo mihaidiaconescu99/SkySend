@@ -167,7 +167,7 @@ export async function uploadR2Object(input: {
   objectKey: string;
   body: Uint8Array;
   contentType: string;
-  retentionHours?: number;
+  retentionHours?: number | null;
 }) {
   const config = getR2Config();
   await getR2Client().send(
@@ -177,9 +177,19 @@ export async function uploadR2Object(input: {
       Body: input.body,
       ContentType: input.contentType,
       ContentLength: input.body.byteLength,
-      Metadata: { expires: String(Date.now() + (input.retentionHours ?? attachmentRetentionDays * 24) * 3600000) },
+      Metadata: input.retentionHours === null
+        ? undefined
+        : { expires: String(Date.now() + (input.retentionHours ?? attachmentRetentionDays * 24) * 3600000) },
     }),
   );
+}
+
+export function createBillingR2ObjectKey(
+  profileId: string,
+  orderId: string,
+  documentNumber: string,
+) {
+  return `billing/${profileId}/${orderId}/${safeFileName(documentNumber)}.pdf`;
 }
 
 export async function deleteR2Objects(objectKeys: string[]) {

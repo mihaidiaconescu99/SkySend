@@ -1,149 +1,75 @@
-
-
 import "server-only";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
+import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getStripeServer } from "@/lib/stripe/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { OrdersRepository } from "@/lib/repositories/orders-repository";
-import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-repository";
-import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
 
 export const refundBodySchema = z.object({
-
   orderId: z.string().min(1),
-  reason: z.string().optional(),
+  amountMinor: z.number().int().positive().optional(),
+  reason: z.string().trim().min(3).max(300),
 });
 
 export async function POST(request: Request) {
-
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const authResult = await requireAdminPanelUser();
+  if (!authResult.ok) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
-
-  let body: z.infer<typeof refundBodySchema>;
-  try {
-    body = refundBodySchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  const parsed = refundBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_refund_request", issues: parsed.error.issues }, { status: 400 });
   }
-
-  const adminSupabase = createAdminSupabaseClient();
-  const profiles = new ProfilesRepository(adminSupabase);
-  const orders = new OrdersRepository(adminSupabase);
-  const paymentRecords = new PaymentRecordsRepository(adminSupabase);
-
-  const profileResult = await profiles.getByClerkUserId(userId);
-  if (!profileResult.ok || !profileResult.data) {
-    return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+  const supabase = createAdminSupabaseClient() as any;
+  const { data: order } = await supabase.from("orders").select("*")
+    .eq(getOrderIdentifierColumn(parsed.data.orderId), parsed.data.orderId)
+    .maybeSingle();
+  if (!order) return NextResponse.json({ error: "order_not_found" }, { status: 404 });
+  if (!["paid", "partially_refunded"].includes(order.payment_status)) {
+    return NextResponse.json({ error: "payment_not_refundable" }, { status: 409 });
   }
-  const profileId = profileResult.data.id;
-
-  let orderLookup = await orders.getByLocalOrderId(body.orderId);
-  if (!orderLookup.ok) {
-    return NextResponse.json({ error: "Order lookup failed." }, { status: 502 });
+  const { data: previous } = await supabase.from("payment_records")
+    .select("amount_minor").eq("order_id", order.id)
+    .in("type", ["refund", "partial_refund"]).eq("status", "succeeded");
+  const refunded = (previous ?? []).reduce((sum: number, row: { amount_minor: number }) => sum + Number(row.amount_minor), 0);
+  const refundable = Number(order.total_amount_minor) - refunded;
+  const amount = parsed.data.amountMinor ?? refundable;
+  if (amount <= 0 || amount > refundable) {
+    return NextResponse.json({ error: "refund_amount_exceeds_balance", refundableAmountMinor: refundable }, { status: 400 });
   }
-  if (!orderLookup.data) {
-    orderLookup = await orders.getById(body.orderId);
-    if (!orderLookup.ok) {
-      return NextResponse.json({ error: "Order lookup failed." }, { status: 502 });
-    }
-    if (!orderLookup.data) {
-      return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    }
-  }
-  const order = orderLookup.data;
-
-  if (order.senderProfileId !== profileId) {
-    return NextResponse.json(
-      { error: "Order does not belong to this account." },
-      { status: 403 },
-    );
-  }
-
-  if (!order.stripePaymentIntentId && !order.stripeChargeId) {
-    return NextResponse.json(
-      { error: "Order has no associated Stripe payment." },
-      { status: 400 },
-    );
-  }
-
-  if (order.paymentStatus === "refunded") {
-    return NextResponse.json(
-      { error: "Order has already been refunded." },
-      { status: 409 },
-    );
-  }
-
-  if (order.paymentStatus !== "paid" && order.paymentStatus !== "refund_pending") {
-    return NextResponse.json(
-      {
-        error: `Order payment status "${order.paymentStatus}" is not eligible for refund.`,
-      },
-      { status: 400 },
-    );
-  }
-
-  const stripe = getStripeServer();
+  const { data: refundRequest, error: insertError } = await supabase.from("refund_requests").insert({
+    order_id: order.id,
+    requested_by_profile_id: authResult.profile.id,
+    amount_minor: amount,
+    reason: parsed.data.reason,
+  }).select("id").single();
+  if (insertError) return NextResponse.json({ error: "refund_request_failed" }, { status: 502 });
 
   try {
-    await orders.updatePaymentStatus(order.id, "refund_pending", "pending");
-    const refundParams: Parameters<typeof stripe.refunds.create>[0] = {
-      reason: "requested_by_customer",
+    const refund = await getStripeServer().refunds.create({
+      ...(order.stripe_payment_intent_id
+        ? { payment_intent: order.stripe_payment_intent_id }
+        : { charge: order.stripe_charge_id }),
+      amount,
       metadata: {
-        orderId: order.localOrderId,
-        failureReason: body.reason ?? "manual",
+        orderId: order.local_order_id,
+        orderUuid: order.id,
+        refundRequestId: refundRequest.id,
+        failureReason: parsed.data.reason,
       },
-    };
-
-    if (order.stripePaymentIntentId) {
-      refundParams.payment_intent = order.stripePaymentIntentId;
-    } else if (order.stripeChargeId) {
-      refundParams.charge = order.stripeChargeId;
-    }
-
-    const stripeRefund = await stripe.refunds.create(refundParams, {
-      idempotencyKey: `skysend-refund:${order.id}:${body.reason ?? "manual"}`,
-    });
-
-    await orders.updatePaymentStatus(order.id, "refunded", "completed");
-
-    await paymentRecords.create({
-      orderId: order.id,
-      profileId,
-      stripePaymentIntentId: order.stripePaymentIntentId,
-      stripeChargeId: order.stripeChargeId,
-      stripeRefundId: stripeRefund.id,
-      amountMinor: stripeRefund.amount,
-      currency: stripeRefund.currency.toUpperCase(),
-      type: "refund",
-      status: "succeeded",
-    });
-
-    return NextResponse.json({
-      success: true,
-      refundId: stripeRefund.id,
-      status: stripeRefund.status,
-    });
-  } catch (err) {
-    console.error("[stripe/refund] Stripe refund call failed:", err);
-
-    await orders
-      .updatePaymentStatus(order.id, "refund_pending", "failed")
-      .catch((updateErr) => {
-        console.error("[stripe/refund] Could not update order refundStatus:", updateErr);
-      });
-
-    return NextResponse.json(
-      {
-        error:
-          "Stripe refund could not be processed. The order has been flagged for manual review.",
-      },
-      { status: 502 },
-    );
+    }, { idempotencyKey: `skysend-admin-refund:${refundRequest.id}` });
+    await supabase.from("refund_requests").update({
+      stripe_refund_id: refund.id,
+      status: "submitted",
+    }).eq("id", refundRequest.id);
+    await supabase.from("orders").update({ refund_status: "pending" }).eq("id", order.id);
+    return NextResponse.json({ ok: true, refundId: refund.id, status: refund.status });
+  } catch (error) {
+    await supabase.from("refund_requests").update({ status: "failed" }).eq("id", refundRequest.id);
+    console.error("[stripe/refund]", error);
+    return NextResponse.json({ error: "stripe_refund_failed" }, { status: 502 });
   }
 }

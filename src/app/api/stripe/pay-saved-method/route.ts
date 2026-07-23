@@ -4,14 +4,15 @@ import {
   getAuthenticatedStripeCustomer,
   StripeAuthenticationError,
 } from "@/lib/stripe/server";
-import { isValidPricingSnapshot } from "@/lib/pricing";
-import type { SkySendPricingResult } from "@/types/pricing";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { assertOperationsAvailable } from "@/lib/operational-status-server";
+import { findOwnedOrder, getBillingSnapshotForOrder } from "@/lib/billing/server";
 
 type SavedMethodPaymentRequestBody = {
   orderId?: string;
   paymentIntentId?: string;
   paymentMethodId?: string;
-  pricingSnapshot?: SkySendPricingResult;
 };
 
 function createSavedPaymentConfirmationIdempotencyKey(
@@ -41,8 +42,7 @@ export async function POST(request: Request) {
   if (
     !body.orderId ||
     !body.paymentIntentId ||
-    !body.paymentMethodId ||
-    !isValidPricingSnapshot(body.pricingSnapshot)
+    !body.paymentMethodId
   ) {
     return NextResponse.json(
       { error: "Comanda pricing or payment method is not valid for checkout." },
@@ -50,11 +50,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const amountMinor = body.pricingSnapshot.total.amountMinor;
-  const currency = body.pricingSnapshot.total.currency;
-
   try {
-    const { stripe, customer } = await getAuthenticatedStripeCustomer();
+    const supabase = createAdminSupabaseClient();
+    await assertOperationsAvailable(supabase);
+    const { clerkUserId, stripe, customer } = await getAuthenticatedStripeCustomer();
+    const profile = await new ProfilesRepository(supabase).getByClerkUserId(clerkUserId);
+    if (!profile.ok || !profile.data) {
+      return NextResponse.json({ error: "Profile not found." }, { status: 404 });
+    }
+    const order = await findOwnedOrder(supabase, profile.data.id, body.orderId);
+    if (!order) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+    if (!(await getBillingSnapshotForOrder(supabase, order.id))) {
+      return NextResponse.json({ error: "Billing details are required." }, { status: 409 });
+    }
+    if (order.stripe_payment_intent_id !== body.paymentIntentId) {
+      return NextResponse.json({ error: "Payment intent does not match this order." }, { status: 409 });
+    }
+    const amountMinor = order.total_amount_minor;
+    const currency = order.currency;
     await assertStripePaymentMethodBelongsToCustomer(
       stripe,
       customer.id,

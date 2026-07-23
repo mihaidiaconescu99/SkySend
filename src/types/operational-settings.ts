@@ -3,6 +3,7 @@
 export interface OperationalSettings {
   id: string;
   isActive: boolean;
+  manualStatus?: "active" | "maintenance";
 
   serviceRadiusKm: number;
 

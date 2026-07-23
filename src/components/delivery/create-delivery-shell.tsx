@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { CreateDeliveryAddressSection } from "@/components/delivery/create-delivery-address-section";
 import { CreateDeliveryMapStep } from "@/components/delivery/mobile/create-delivery-map-step";
-import { CreateDeliveryPaymentPanel } from "@/components/delivery/create-delivery-payment-panel";
 import { CreateDeliveryParcelSection } from "@/components/delivery/create-delivery-parcel-section";
 import { LazyMapContainer } from "@/components/maps/lazy-map-container";
 import { AppButton } from "@/components/shared/app-button";
@@ -83,7 +82,6 @@ import {
   submitCreateDelivery,
 } from "@/lib/create-delivery-submit";
 import { getAdminOperationalSettings } from "@/lib/admin-settings";
-import { notifyOrderConfirmation } from "@/lib/notification-events";
 import { readAndClearRepeatDeliveryPrefill } from "@/lib/repeat-delivery";
 import { useSavedPlaces } from "@/hooks/use-saved-places";
 import { cn } from "@/lib/utils";
@@ -2079,7 +2077,7 @@ export function CreateDeliveryShell() {
     };
   }
 
-  async function handleReviewPaymentSucceeded(stripePaymentIntentId: string) {
+  async function handleContinueToBilling() {
     if (!canContinue || isSubmittingOrder) {
       setSubmitError(
         "Livrarea nu poate fi confirmată până când datele de verificare sunt complete.",
@@ -2100,12 +2098,13 @@ export function CreateDeliveryShell() {
     setSubmitError(null);
 
     try {
+      const checkoutOrderId =
+        pendingPaymentOrderId ?? createLocalOrderId(new Date().toISOString());
+      setPendingPaymentOrderId(checkoutOrderId);
       const createdOrder = await submitCreateDelivery(payload, {
-        id: pendingPaymentOrderId ?? undefined,
-        paymentStatus: "paid",
-        stripePaymentIntentId,
+        id: checkoutOrderId,
+        paymentStatus: "unpaid",
       });
-      notifyOrderConfirmation(createdOrder);
 
       if (deliverySessionId) {
         await discardParcelAiImages();
@@ -2116,10 +2115,12 @@ export function CreateDeliveryShell() {
         });
       }
 
-      router.push(createdOrder.href);
-    } catch {
+      router.push(`/client/checkout/${createdOrder.id}`);
+    } catch (error) {
       setSubmitError(
-        "Plata a reușit, dar SkySend nu a putut salva comanda local. Verifică livrările active înainte să reîncerci.",
+        error instanceof Error
+          ? error.message
+          : "Comanda nu a putut fi pregătită pentru facturare. Reîncearcă.",
       );
     } finally {
       setIsSubmittingOrder(false);
@@ -2741,19 +2742,24 @@ export function CreateDeliveryShell() {
                   </div>
                 ) : null}
 
-                {pendingPaymentOrderId ? (
-                  <CreateDeliveryPaymentPanel
-                    orderId={pendingPaymentOrderId}
-                    pricingSnapshot={pricingSnapshot}
-                    disabled={isSubmittingOrder}
-                    onPaymentSucceeded={handleReviewPaymentSucceeded}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4 text-sm text-muted-foreground">
-                    <LoaderCircle className="size-4 animate-spin text-foreground" />
-                    Se pregătește verificarea plății
-                  </div>
-                )}
+                <div className="grid gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Comanda va fi salvată cu status în așteptare. În pasul următor confirmi datele de facturare și apoi se încarcă formularul securizat Stripe.
+                  </p>
+                  <AppButton
+                    type="button"
+                    size="lg"
+                    disabled={isSubmittingOrder || !canContinue}
+                    onClick={handleContinueToBilling}
+                  >
+                    {isSubmittingOrder ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="size-4" />
+                    )}
+                    Confirmă și continuă la facturare
+                  </AppButton>
+                </div>
 
                 <div className="grid gap-3">
                   <AppButton

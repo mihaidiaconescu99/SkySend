@@ -121,14 +121,13 @@ describe("PATCH /api/admin/orders/[id]", () => {
     expect(response.status).toBe(403);
   });
 
-  it("persists status + paymentStatus + internalNotes to the DB row", async () => {
+  it("persists operational status and notes without changing payment authority", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_admin" });
     seedAdmin();
     seedOrder();
 
     const response = await patchOrder("order-1", {
       status: "delivered",
-      paymentStatus: "paid",
       internalNotes: "Livrat manual.",
     });
 
@@ -136,12 +135,21 @@ describe("PATCH /api/admin/orders/[id]", () => {
     const body = await response.json();
     expect(body.ok).toBe(true);
     expect(body.order.status).toBe("delivered");
-    expect(body.order.payment.status).toBe("paid");
+    expect(body.order.payment.status).toBe("pending");
 
     const order = store.orderRows.get("order-1");
     expect(order?.status).toBe("completed");
-    expect(order?.payment_status).toBe("paid");
+    expect(order?.payment_status).toBe("pending");
     expect(order?.notes).toBe("Livrat manual.");
+  });
+
+  it("rejects direct payment confirmation from the admin browser", async () => {
+    clerkMock.auth.mockResolvedValue({ userId: "user_admin" });
+    seedAdmin();
+    seedOrder();
+    const response = await patchOrder("order-1", { paymentStatus: "paid" });
+    expect(response.status).toBe(400);
+    expect(store.orderRows.get("order-1")?.payment_status).toBe("pending");
   });
 
   it("returns 404 when the order does not exist", async () => {

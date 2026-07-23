@@ -2,9 +2,8 @@ import {
   defaultOperationalSettings,
   operationalPlatformStatusLabels,
   readOperationalSettings,
-  updateOperationalSettings,
 } from "@/lib/admin-data";
-import type { AdminAuditActor, OperationalSettings } from "@/types/admin";
+import type { OperationalSettings } from "@/types/admin";
 import type {
   OperationalSettingsFormState,
   OperationalSettingsSaveResult,
@@ -15,12 +14,6 @@ import type {
 export const platformStatusOptions = Object.entries(
   operationalPlatformStatusLabels,
 ) as [PlatformStatus, string][];
-
-const adminSettingsActor: AdminAuditActor = {
-  actorId: "admin-local",
-  actorRole: "admin",
-  actorName: "Panou Administrator",
-};
 
 function formatRon(valueMinor: number) {
   return (valueMinor / 100).toFixed(2);
@@ -141,8 +134,8 @@ export function saveAdminOperationalSettings(
   const currentSettings = readOperationalSettings();
   const hubAddress =
     form.hubAddress.trim() || currentSettings.hubAddress.formattedAddress;
-  const updatedSettings = updateOperationalSettings(
-    {
+  const updatedSettings: OperationalSettings = {
+      ...currentSettings,
       serviceRadiusKm: parsed.serviceRadiusKm,
       hubAddress: {
         ...currentSettings.hubAddress,
@@ -164,21 +157,15 @@ export function saveAdminOperationalSettings(
         parcelUnloadMinutes: Math.round(parsed.parcelUnloadMinutes),
       },
       platformStatus: form.platformStatus,
-    },
-    adminSettingsActor,
-  );
-
-  if (!updatedSettings) {
-    return {
-      ok: false,
-      reason: "storage_unavailable",
-      errors: {},
+      platformStatusLabel: operationalPlatformStatusLabels[form.platformStatus],
+      source: "supabase",
+      persistence: "persisted",
+      updatedAt: new Date().toISOString(),
     };
-  }
 
   return {
     ok: true,
     settings: updatedSettings,
-    persistence: "local_only",
+    persistence: "persisted",
   };
 }

@@ -1,4 +1,5 @@
 import { CreateDeliveryShell } from "@/components/delivery/create-delivery-shell";
+import { DeliveryAvailabilityGate } from "@/components/delivery/delivery-availability-gate";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata = createPageMetadata(
@@ -7,5 +8,5 @@ export const metadata = createPageMetadata(
 );
 
 export default function CreateDeliveryPage() {
-  return <CreateDeliveryShell />;
+  return <DeliveryAvailabilityGate><CreateDeliveryShell /></DeliveryAvailabilityGate>;
 }

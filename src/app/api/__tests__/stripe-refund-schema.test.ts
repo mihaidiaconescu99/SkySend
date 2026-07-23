@@ -18,8 +18,8 @@ vi.mock("@/lib/repositories/profiles-repository", () => ({
 const { refundBodySchema } = await import("@/app/api/stripe/refund/route");
 
 describe("stripe/refund POST schema", () => {
-  it("accepts a minimal valid request with just orderId", () => {
-    const result = refundBodySchema.safeParse({ orderId: "SKY-PT-12345-000" });
+  it("accepts a valid request with an audit reason", () => {
+    const result = refundBodySchema.safeParse({ orderId: "SKY-PT-12345-000", reason: "Cerere administrativă" });
     expect(result.success).toBe(true);
   });
 
@@ -33,7 +33,7 @@ describe("stripe/refund POST schema", () => {
 
   it("accepts a UUID-format orderId", () => {
     const result = refundBodySchema.safeParse({
-      orderId: "00000000-0000-0000-0000-000000000001",
+      orderId: "00000000-0000-0000-0000-000000000001", reason: "Cerere administrativă",
     });
     expect(result.success).toBe(true);
   });

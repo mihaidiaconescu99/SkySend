@@ -6,36 +6,14 @@ import { z } from "zod";
 
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
-import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
-import { ensureOrderCommunication } from "@/lib/order-communications-server";
-import type { OrderStatus, PaymentStatus, UpdateOrderInput } from "@/types/order";
+import type { OrderStatus, UpdateOrderInput } from "@/types/order";
 
 const updateOrderStatusBodySchema = z.object({
   orderId: z.string().min(1),
-  paymentStatus: z
-    .enum(["unpaid", "processing", "paid", "failed", "refunded", "refund_pending"])
-    .optional(),
-  stripePaymentIntentId: z.string().nullable().optional(),
   fulfillmentStatus: z.string().nullable().optional(),
-  refundStatus: z.string().nullable().optional(),
   fallbackReason: z.string().nullable().optional(),
-  locale: z.enum(["ro", "en"]).default("ro"),
-});
-
-function mapPaymentStatus(status: string): PaymentStatus {
-  switch (status) {
-    case "paid":
-    case "failed":
-    case "refunded":
-    case "refund_pending":
-      return status;
-    case "processing":
-    case "unpaid":
-    default:
-      return "pending";
-  }
-}
+}).strict();
 
 function mapFulfillmentStatus(status?: string | null): OrderStatus | null {
   switch (status) {
@@ -71,7 +49,6 @@ export async function POST(request: Request) {
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
   const orders = new OrdersRepository(supabase);
-  const paymentRecords = new PaymentRecordsRepository(supabase);
   const profileResult = await profiles.getByClerkUserId(userId);
 
   if (!profileResult.ok || !profileResult.data) {
@@ -104,24 +81,12 @@ export async function POST(request: Request) {
   const patch: UpdateOrderInput = {};
   const nextOrderStatus = mapFulfillmentStatus(body.fulfillmentStatus);
 
-  if (body.paymentStatus) {
-    patch.paymentStatus = mapPaymentStatus(body.paymentStatus);
-  }
-
-  if (body.stripePaymentIntentId !== undefined) {
-    patch.stripePaymentIntentId = body.stripePaymentIntentId;
-  }
-
   if (body.fulfillmentStatus !== undefined) {
     patch.fulfillmentStatus = body.fulfillmentStatus;
   }
 
   if (nextOrderStatus) {
     patch.status = nextOrderStatus;
-  }
-
-  if (body.refundStatus !== undefined) {
-    patch.refundStatus = body.refundStatus;
   }
 
   if (body.fallbackReason !== undefined) {
@@ -132,43 +97,6 @@ export async function POST(request: Request) {
 
   if (!updated.ok) {
     return NextResponse.json({ error: updated.error.message }, { status: 502 });
-  }
-
-  if (patch.paymentStatus === "paid") {
-    const existingRecords = await paymentRecords.listByOrderId(order.id);
-    const hasPaymentRecord =
-      existingRecords.ok &&
-      existingRecords.data.some(
-        (record) =>
-          record.type === "payment" &&
-          record.status === "succeeded" &&
-          record.stripePaymentIntentId ===
-            (patch.stripePaymentIntentId ?? order.stripePaymentIntentId),
-      );
-
-    if (!hasPaymentRecord) {
-      await paymentRecords.create({
-        orderId: order.id,
-        profileId: profileResult.data.id,
-        stripePaymentIntentId:
-          patch.stripePaymentIntentId ?? order.stripePaymentIntentId,
-        amountMinor: order.totalAmountMinor,
-        currency: order.currency,
-        type: "payment",
-        status: "succeeded",
-      });
-    }
-    try {
-      await ensureOrderCommunication({
-        supabase,
-        order: updated.data,
-        profile: profileResult.data,
-        locale: body.locale,
-        origin: new URL(request.url).origin,
-      });
-    } catch (error) {
-      console.error("[orders/update-status] communication scheduling failed", error);
-    }
   }
 
   return NextResponse.json({ ok: true, order: updated.data });

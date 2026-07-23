@@ -203,6 +203,10 @@ function addBreakdownItem(
 
 export function calculateSkySendPricing(
   input: SkySendPricingInput,
+  authoritativePricing?: {
+    baseFeeMinor: number;
+    distanceFeePerKmMinor: number;
+  },
 ): SkySendPricingResult {
   const distanceKm = roundDistance(input.distanceKm);
   const drone = getDroneModel(input.selectedDroneId);
@@ -211,7 +215,8 @@ export function calculateSkySendPricing(
     configuration?.pricingMultipliers.baseMultiplier ?? drone.baseMultiplier;
   const perKmMultiplier =
     configuration?.pricingMultipliers.perKmMultiplier ?? drone.perKmMultiplier;
-  const operationalPricing = getOperationalPricingConfig();
+  const operationalPricing =
+    authoritativePricing ?? getOperationalPricingConfig();
   const effectiveBaseFeeMinor = operationalPricing.baseFeeMinor || baseFeeMinor;
   const effectiveDistanceFeePerKmMinor =
     operationalPricing.distanceFeePerKmMinor || distanceFeePer100mMinor * 10;

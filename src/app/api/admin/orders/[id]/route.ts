@@ -10,11 +10,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { mapRepoOrderToAdminOrder } from "@/lib/admin-order-mapper";
 import type { OrderStatus as DomainOrderStatus } from "@/types/domain";
-import type {
-  OrderStatus,
-  PaymentStatus,
-  UpdateOrderInput,
-} from "@/types/order";
+import type { OrderStatus, UpdateOrderInput } from "@/types/order";
 
 const PatchSchema = z
   .object({
@@ -30,10 +26,6 @@ const PatchSchema = z
         "returned",
       ])
       .optional(),
-    paymentStatus: z
-      .enum(["pending", "paid", "failed", "refunded", "refund_pending"])
-      .optional(),
-    refundStatus: z.string().nullable().optional(),
     fulfillmentStatus: z.string().nullable().optional(),
     internalNotes: z.string().nullable().optional(),
   })
@@ -57,21 +49,6 @@ function mapDomainStatusToRepo(
       return "cancelled";
     case "returned":
       return null;
-  }
-}
-
-function mapPaymentStatusToRepo(
-  status: string,
-): PaymentStatus | undefined {
-  switch (status) {
-    case "pending":
-    case "paid":
-    case "failed":
-    case "refunded":
-    case "refund_pending":
-      return status;
-    default:
-      return undefined;
   }
 }
 
@@ -113,15 +90,6 @@ export async function PATCH(
     if (mapped !== null) {
       patch.status = mapped;
     }
-  }
-  if (body.paymentStatus !== undefined) {
-    const mapped = mapPaymentStatusToRepo(body.paymentStatus);
-    if (mapped !== undefined) {
-      patch.paymentStatus = mapped;
-    }
-  }
-  if (body.refundStatus !== undefined) {
-    patch.refundStatus = body.refundStatus;
   }
   if (body.fulfillmentStatus !== undefined) {
     patch.fulfillmentStatus = body.fulfillmentStatus;

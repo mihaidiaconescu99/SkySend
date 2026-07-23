@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   CircleDollarSign,
   Clock3,
@@ -10,11 +10,11 @@ import {
   Settings2,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminOperationalStatusCard } from "@/components/admin/admin-operational-status-card";
 import { AppButton } from "@/components/shared/app-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  getAdminOperationalSettings,
   getDefaultOperationalSettingsFormState,
   platformStatusOptions,
   saveAdminOperationalSettings,
@@ -94,17 +94,6 @@ export function AdminSettingsView({ initialSettings }: AdminSettingsViewProps) {
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    const refreshFrame = window.requestAnimationFrame(() => {
-      const refreshedSettings = getAdminOperationalSettings();
-
-      setSettings(refreshedSettings);
-      setForm(settingsToFormState(refreshedSettings));
-    });
-
-    return () => window.cancelAnimationFrame(refreshFrame);
-  }, []);
-
   function updateField<Field extends keyof OperationalSettingsFormState>(
     field: Field,
     value: OperationalSettingsFormState[Field],
@@ -119,7 +108,7 @@ export function AdminSettingsView({ initialSettings }: AdminSettingsViewProps) {
     }));
   }
 
-  function saveSettings() {
+  async function saveSettings() {
     setIsSaving(true);
     const result = saveAdminOperationalSettings(form);
 
@@ -136,6 +125,25 @@ export function AdminSettingsView({ initialSettings }: AdminSettingsViewProps) {
       return;
     }
 
+    const response = await fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        serviceRadiusKm: result.settings.serviceRadiusKm,
+        basePriceMinor: result.settings.basePrice.amountMinor,
+        pricePerKmMinor: result.settings.pricePerKm.amountMinor,
+        confirmationTimerMinutes: result.settings.timeouts.meetingPointConfirmationMinutes,
+        loadingTimerMinutes: result.settings.timeouts.parcelLoadMinutes,
+        unloadingTimerMinutes: result.settings.timeouts.parcelUnloadMinutes,
+        manualStatus: result.settings.platformStatus,
+      }),
+    });
+    const remoteResult = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setFeedback({ tone: "error", message: remoteResult.error ?? "Setările nu au putut fi salvate în Supabase." });
+      setIsSaving(false);
+      return;
+    }
     setSettings(result.settings);
     setForm(settingsToFormState(result.settings));
     setErrors({});
@@ -164,6 +172,8 @@ export function AdminSettingsView({ initialSettings }: AdminSettingsViewProps) {
         title="Setări"
         description="Controlează statusul platformei, raza de livrare, tarifele și timpii folosiți în simulare."
       />
+
+      <AdminOperationalStatusCard />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="rounded-[calc(var(--radius)+0.375rem)]">

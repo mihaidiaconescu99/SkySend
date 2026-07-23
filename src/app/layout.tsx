@@ -4,6 +4,7 @@ import { Barlow_Condensed, Manrope, Sora } from "next/font/google";
 import Script from "next/script";
 import { Providers } from "@/components/shared/providers";
 import { SkipLink } from "@/components/shared/skip-link";
+import { OperationalNotice } from "@/components/shared/operational-notice";
 import { defaultMetadata } from "@/lib/metadata";
 import { ANTI_FOUC_SCRIPT } from "@/lib/settings/anti-fouc";
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({
         </Script>
         <Providers>
           <SkipLink />
+          <OperationalNotice />
           {children}
         </Providers>
       </body>

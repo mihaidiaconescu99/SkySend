@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { LiveMissionTrackingView } from "@/components/delivery/live-mission-tracking-view";
+import { OrderBillingDocuments } from "@/components/billing/order-billing-documents";
 import { droneClassLabels } from "@/constants/domain";
 import { createPageMetadata } from "@/lib/metadata";
 import { getClientOrderDetail } from "@/lib/client-orders";
@@ -273,6 +274,7 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
   const paymentStatus = toTrackingPaymentStatus(order.payment.status);
 
   return (
+    <>
     <LiveMissionTrackingView
       order={runtimeOrder}
       statusLabel={formatOrderStatus(order.status)}
@@ -297,5 +299,7 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
       }
       startOnMount={shouldStartMission(order.status) && paymentStatus === "paid"}
     />
+    <div className="app-container mt-6"><OrderBillingDocuments orderId={order.id} /></div>
+    </>
   );
 }

@@ -968,6 +968,7 @@ export type Database = {
           status: string
           stripe_charge_id: string | null
           stripe_payment_intent_id: string | null
+          paid_at?: string | null
           total_amount_minor: number
           updated_at: string
         }
@@ -1003,6 +1004,7 @@ export type Database = {
           status?: string
           stripe_charge_id?: string | null
           stripe_payment_intent_id?: string | null
+          paid_at?: string | null
           total_amount_minor: number
           updated_at?: string
         }
@@ -1038,6 +1040,7 @@ export type Database = {
           status?: string
           stripe_charge_id?: string | null
           stripe_payment_intent_id?: string | null
+          paid_at?: string | null
           total_amount_minor?: number
           updated_at?: string
         }

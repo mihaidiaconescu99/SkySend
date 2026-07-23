@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AppButton } from "@/components/shared/app-button";
+import { AdminBillingDocuments } from "@/components/admin/admin-billing-documents";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -219,16 +220,19 @@ function SelectField({
   value,
   onChange,
   options,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<[string, string]>;
+  disabled?: boolean;
 }) {
   return (
     <label className="grid gap-2">
       <FieldLabel>{label}</FieldLabel>
       <select
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="h-12 w-full rounded-2xl border border-input bg-muted px-4 text-sm text-foreground outline-none transition-[border-color,box-shadow] focus-visible:border-primary/55 focus-visible:ring-4 focus-visible:ring-ring"
@@ -376,8 +380,6 @@ function AdminOrderDetailsPanelContent({
     return {
       status: draft.status,
       parcelStatus: draft.parcelStatus,
-      paymentStatus: draft.paymentStatus,
-      refundStatus: draft.refundStatus,
       resolutionStatus: draft.resolutionStatus || null,
       estimatedWeightKg: estimatedWeight.value,
       detectedWeightKg: detectedWeight.value,
@@ -422,7 +424,32 @@ function AdminOrderDetailsPanelContent({
     onSave(order.id, patch, draft.changeReason.trim() || null);
   }
 
-  function handleQuickAction(action: "failed" | "cancelled" | "refund_started" | "refund_completed") {
+  async function handleQuickAction(action: "failed" | "cancelled" | "refund_started" | "refund_completed") {
+    if (action === "refund_started") {
+      const reason = window.prompt("Motivul obligatoriu al rambursării:")?.trim();
+      if (!reason) return;
+      const maximum = order.price?.amountMinor ?? 0;
+      const amountText = window.prompt("Suma de rambursat (RON):", (maximum / 100).toFixed(2));
+      if (!amountText) return;
+      const amountMinor = Math.round(Number(amountText.replace(",", ".")) * 100);
+      if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+        setError("Suma rambursării nu este validă.");
+        return;
+      }
+      const response = await fetch("/api/stripe/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, amountMinor, reason }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) setError(result.error ?? "Rambursarea nu a putut fi solicitată.");
+      else window.alert("Cererea a fost trimisă la Stripe. Statusul final vine exclusiv prin webhook.");
+      return;
+    }
+    if (action === "refund_completed") {
+      setError("Statusul reușit poate fi confirmat numai de webhook-ul Stripe.");
+      return;
+    }
     if (action === "failed" && order.status === "delivered") {
       setError("O comandă livrată nu poate fi marcată eșuată din această pagină.");
       return;
@@ -491,6 +518,7 @@ function AdminOrderDetailsPanelContent({
 
   return (
     <div className="grid gap-5">
+      <AdminBillingDocuments orderId={order.id} />
       <Card className="rounded-[calc(var(--radius)+0.5rem)]">
         <CardContent className="grid gap-5 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -561,6 +589,7 @@ function AdminOrderDetailsPanelContent({
                 updateDraft("paymentStatus", value as AdminPaymentStatus)
               }
               options={paymentStatusOptions}
+              disabled
             />
             <SelectField
               label="Status rambursare"
@@ -569,6 +598,7 @@ function AdminOrderDetailsPanelContent({
                 updateDraft("refundStatus", value as AdminRefundStatus)
               }
               options={refundStatusOptions}
+              disabled
             />
             <SelectField
               label="Status rezolvare"

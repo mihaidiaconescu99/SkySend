@@ -1,15 +1,19 @@
 # SkySend maintenance scheduler
 
-Acest Worker înlocuiește cron-urile Vercel care trebuie să ruleze la minut:
+Workerul rulează la fiecare minut și apelează un singur endpoint agregator protejat, `/api/cron/maintenance`. Agregatorul execută:
 
 - expirarea acțiunilor de misiune;
-- reconcilierea refundurilor.
+- reconcilierea refundurilor;
+- comunicările programate;
+- verificarea meteo idempotentă, o singură dată pe oră;
+- hold/reluare pentru misiunile aflate în preflight;
+- generarea și retry-ul documentelor PDF.
 
-Imaginile Parcel AI sunt șterse imediat când clientul le elimină, părăsește pasul coletului sau finalizează comanda. Politica lifecycle R2 rămâne protecția finală; cron-ul zilnic Vercel continuă să curețe atașamentele generale.
+Cronul zilnic Vercel pentru atașamentele temporare rămâne separat. Documentele din prefixul privat R2 `billing/` nu primesc expirare.
 
 ## Publicare
 
-Din acest director, autentifică-te în contul Cloudflare care conține bucketul R2, apoi setează aceleași valori folosite deja de aplicația Vercel:
+Din acest director:
 
 ```powershell
 npx wrangler login
@@ -18,6 +22,4 @@ npx wrangler secret put CRON_SECRET
 npx wrangler deploy
 ```
 
-La `SKYSEND_ORIGIN` introdu domeniul public al aplicației, fără slash final, de exemplu `https://skysend.vercel.app`. La `CRON_SECRET` introdu exact aceeași valoare configurată în Vercel. Nu salva aceste valori în fișier.
-
-Workerul rulează la fiecare minut și apelează intern endpointurile Vercel protejate. După publicarea workerului, cron trigger-ul poate avea nevoie de câteva minute până se propagă.
+`SKYSEND_ORIGIN` este domeniul public fără slash final, iar `CRON_SECRET` trebuie să fie identic cu valoarea din Vercel. Nu salva secretele în fișier.

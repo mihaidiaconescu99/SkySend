@@ -30,12 +30,14 @@ export type PaymentStatus =
   | "pending"
   | "paid"
   | "failed"
+  | "partially_refunded"
   | "refunded"
   | "refund_pending";
 export const PAYMENT_STATUSES: readonly PaymentStatus[] = [
   "pending",
   "paid",
   "failed",
+  "partially_refunded",
   "refunded",
   "refund_pending",
 ] as const;
@@ -110,6 +112,7 @@ export interface Order {
   selectedDropoffHandoffPoint: StoredHandoffPoint | null;
   stripePaymentIntentId: string | null;
   stripeChargeId: string | null;
+  paidAt?: string | null;
   paymentStatus: PaymentStatus;
   refundStatus: string | null;
   notes: string | null;
@@ -148,6 +151,7 @@ export interface CreateOrderInput {
   selectedDropoffHandoffPoint?: StoredHandoffPoint | null;
   stripePaymentIntentId?: string | null;
   stripeChargeId?: string | null;
+  paidAt?: string | null;
   paymentStatus?: PaymentStatus;
   refundStatus?: string | null;
   notes?: string | null;
@@ -171,6 +175,7 @@ export interface UpdateOrderInput {
   selectedDropoffHandoffPoint?: StoredHandoffPoint | null;
   stripePaymentIntentId?: string | null;
   stripeChargeId?: string | null;
+  paidAt?: string | null;
   paymentStatus?: PaymentStatus;
   refundStatus?: string | null;
   notes?: string | null;

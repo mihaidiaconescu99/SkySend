@@ -21,7 +21,7 @@ export type OperationalSettingsSaveResult =
   | {
       ok: true;
       settings: OperationalSettings;
-      persistence: "local_only";
+      persistence: "persisted";
     }
   | {
       ok: false;

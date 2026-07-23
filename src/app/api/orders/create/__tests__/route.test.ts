@@ -91,7 +91,7 @@ describe("POST /api/orders/create — idempotency on localOrderId", () => {
     expect(response.status).toBe(400);
   });
 
-  it("updates an existing paid order instead of creating a duplicate", async () => {
+  it("returns an existing order without accepting client payment authority", async () => {
 
     clerkMock.auth.mockResolvedValue({ userId: "user_client" });
     const profileId = "p-1";
@@ -125,14 +125,9 @@ describe("POST /api/orders/create — idempotency on localOrderId", () => {
     expect(store.orderRows.size).toBe(1);
     const order = [...store.orderRows.values()][0];
     expect(order.id).toBe("order-existing");
-    expect(order.payment_status).toBe("paid");
-    expect(order.stripe_payment_intent_id).toBe("pi_test_123");
-
-    expect(store.paymentRecordRows.size).toBe(1);
-    const payment = [...store.paymentRecordRows.values()][0];
-    expect(payment.order_id).toBe("order-existing");
-    expect(payment.status).toBe("succeeded");
-    expect(payment.type).toBe("payment");
+    expect(order.payment_status).toBe("pending");
+    expect(order.stripe_payment_intent_id).toBeNull();
+    expect(store.paymentRecordRows.size).toBe(0);
   });
 
   it("does not duplicate the payment_records row on a repeat paid request", async () => {
