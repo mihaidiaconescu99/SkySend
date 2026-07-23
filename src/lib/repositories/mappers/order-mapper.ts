@@ -290,6 +290,7 @@ export function rowToOrder(row: DBRow<"orders">): Order {
     stripePaymentIntentId: row.stripe_payment_intent_id ?? null,
     stripeChargeId: row.stripe_charge_id ?? null,
     paidAt: row.paid_at ?? null,
+    dispatchStartsAt: row.dispatch_starts_at ?? null,
     paymentStatus: parsePaymentStatus(row.payment_status),
     refundStatus: row.refund_status ?? null,
     notes: row.notes ?? null,
@@ -425,6 +426,9 @@ export function createInputToRow(
   if (input.paidAt !== undefined) {
     row.paid_at = input.paidAt;
   }
+  if (input.dispatchStartsAt !== undefined) {
+    row.dispatch_starts_at = input.dispatchStartsAt;
+  }
   if (input.paymentStatus !== undefined) {
     row.payment_status = parsePaymentStatus(input.paymentStatus);
   }
@@ -511,6 +515,9 @@ export function updateInputToRow(
   }
   if (input.paidAt !== undefined) {
     payload.paid_at = input.paidAt;
+  }
+  if (input.dispatchStartsAt !== undefined) {
+    payload.dispatch_starts_at = input.dispatchStartsAt;
   }
   if (input.paymentStatus !== undefined) {
     payload.payment_status = parsePaymentStatus(input.paymentStatus);

@@ -7,6 +7,7 @@ import { getRecipientTrackingPath } from "@/lib/recipient-tracking";
 import type { Database } from "@/types/database";
 import type { Order } from "@/types/order";
 import type { Profile } from "@/types/profile";
+import { getR2Object } from "@/lib/storage/r2";
 
 type Locale = "ro" | "en";
 const db = (supabase: SupabaseClient<Database>) => supabase as any;
@@ -79,6 +80,32 @@ export async function ensureOrderCommunication({
     await database.from("order_communication_events").update({ email_status: "skipped" }).eq("id", event.id);
     return { showPopups: firstInAppDelivery };
   }
+  let recipientEmail = profile.email;
+  let invoiceAttachment: { filename: string; contentBase64: string } | null = null;
+  let invoiceDownloadUrl: string | null = null;
+  let invoicePending = false;
+  if (eventType === "confirmation") {
+    const [{ data: invoice }, { data: billing }] = await Promise.all([
+      database.from("billing_documents").select("id,document_number,generation_status,pdf_object_key")
+        .eq("order_id", order.id).eq("document_type", "invoice").maybeSingle(),
+      database.from("order_billing_snapshots").select("invoice_email")
+        .eq("order_id", order.id).maybeSingle(),
+    ]);
+    recipientEmail = billing?.invoice_email ?? profile.email;
+    if (!invoice || ["pending", "generating", "retry_scheduled"].includes(invoice.generation_status)) {
+      return { showPopups: firstInAppDelivery };
+    }
+    if (invoice.generation_status === "ready" && invoice.pdf_object_key) {
+      const object = await getR2Object({ objectKey: invoice.pdf_object_key, maxBytes: 20 * 1024 * 1024 });
+      invoiceAttachment = {
+        filename: `${invoice.document_number}.pdf`,
+        contentBase64: Buffer.from(object.bytes).toString("base64"),
+      };
+      invoiceDownloadUrl = new URL(`/api/billing/documents/${invoice.id}`, origin).toString();
+    } else {
+      invoicePending = true;
+    }
+  }
   const { data: claimed } = await database.from("order_communication_events")
     .update({ email_status: "sending", email_attempt_count: Number(event.email_attempt_count ?? 0) + 1, last_error: null })
     .eq("id", event.id).in("email_status", ["pending", "failed"]).select("id").maybeSingle();
@@ -90,7 +117,7 @@ export async function ensureOrderCommunication({
     const trackingPath = getRecipientTrackingPath({ code: order.publicTrackingCode, token: order.recipientTrackingToken });
     const result = await sendOrderCommunicationEmail({
       event: eventType,
-      to: profile.email,
+      to: recipientEmail,
       locale,
       orderId: order.localOrderId,
       total: money(order.totalAmountMinor, order.currency, locale),
@@ -98,9 +125,22 @@ export async function ensureOrderCommunication({
       dropoff,
       scheduledAt: order.scheduledAt,
       trackingUrl: eventType === "confirmation" && !scheduled ? new URL(trackingPath, origin).toString() : null,
+      invoiceAttachment,
+      invoiceDownloadUrl,
+      invoicePending,
       idempotencyKey: `skysend-${order.id}-${eventType}`,
     });
-    await database.from("order_communication_events").update({ email_status: result.skipped ? "skipped" : "sent", email_sent_at: result.skipped ? null : new Date().toISOString() }).eq("id", event.id);
+    await database.from("order_communication_events").update({
+      email_status: result.skipped ? "skipped" : "sent",
+      email_sent_at: result.skipped ? null : new Date().toISOString(),
+      last_error: invoicePending ? "invoice_pending_at_confirmation" : null,
+    }).eq("id", event.id);
+    if (invoiceAttachment) {
+      await database.from("billing_documents").update({
+        delivery_status: result.skipped ? "skipped" : "sent",
+        delivered_at: result.skipped ? null : new Date().toISOString(),
+      }).eq("order_id", order.id).eq("document_type", "invoice");
+    }
   } catch (error) {
     await database.from("order_communication_events").update({ email_status: "failed", last_error: error instanceof Error ? error.message.slice(0, 1000) : "unknown_error" }).eq("id", event.id);
   }

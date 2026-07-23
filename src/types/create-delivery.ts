@@ -168,6 +168,7 @@ export type CreatedDeliveryOrder = {
   recipientTrackingTokenExpiresAt?: string | null;
   stripePaymentIntentId?: string | null;
   paidAt?: string | null;
+  dispatchStartsAt?: string | null;
   completedAt?: string | null;
   fallbackOutcome?: CreatedDeliveryFallbackOutcome | null;
   fallbackReason?: string | null;

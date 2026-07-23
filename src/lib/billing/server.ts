@@ -3,12 +3,13 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { createBillingR2ObjectKey, uploadR2Object } from "@/lib/storage/r2";
+import { createBillingR2ObjectKey, getR2Object, uploadR2Object } from "@/lib/storage/r2";
 import { serverEnv } from "@/lib/env.server";
 import type { BillingDocumentSummary, BillingSnapshotInput } from "@/types/billing";
 import type { Database } from "@/types/database";
 import type { Order, PricingSnapshot } from "@/types/order";
 import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
+import { sendBillingDocumentEmail } from "@/lib/email/resend";
 
 const db = (supabase: SupabaseClient<Database>) => supabase as any;
 
@@ -198,6 +199,58 @@ async function generateDocumentPdf(document: any, snapshot: any, order: any) {
 
 const retryMinutes = [0, 5, 30] as const;
 
+async function deliverGeneratedDocument(database: any, document: any, bytes: Uint8Array) {
+  const confirmation = document.document_type === "invoice"
+    ? await database.from("order_communication_events")
+      .select("email_status,last_error")
+      .eq("order_id", document.order_id)
+      .eq("event_type", "confirmation")
+      .maybeSingle()
+    : { data: null };
+  const needsSeparateEmail = document.document_type === "credit_note"
+    || (confirmation.data?.email_status === "sent" && confirmation.data?.last_error === "invoice_pending_at_confirmation");
+  if (!needsSeparateEmail) return;
+
+  const preferences = document.order?.sender_profile_id
+    ? await database.from("profiles").select("notification_preferences")
+      .eq("id", document.order.sender_profile_id).maybeSingle()
+    : { data: null };
+  if (preferences.data?.notification_preferences?.email === false) {
+    await database.from("billing_documents").update({ delivery_status: "skipped" }).eq("id", document.id);
+    return;
+  }
+  const { data: claimed } = await database.from("billing_documents").update({
+    delivery_status: "sending",
+    delivery_attempt_count: Number(document.delivery_attempt_count ?? 0) + 1,
+  }).eq("id", document.id).in("delivery_status", ["pending", "failed"]).select("id").maybeSingle();
+  if (!claimed) return;
+  try {
+    const origin = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+    const result = await sendBillingDocumentEmail({
+      to: document.snapshot.invoice_email,
+      locale: document.snapshot.locale === "en" ? "en" : "ro",
+      orderId: document.order.local_order_id,
+      documentType: document.document_type,
+      documentNumber: document.document_number,
+      downloadUrl: new URL(`/api/billing/documents/${document.id}`, origin).toString(),
+      attachment: {
+        filename: `${document.document_number}.pdf`,
+        contentBase64: Buffer.from(bytes).toString("base64"),
+      },
+      idempotencyKey: `skysend-billing-document-${document.id}`,
+    });
+    await database.from("billing_documents").update({
+      delivery_status: result.skipped ? "skipped" : "sent",
+      delivered_at: result.skipped ? null : new Date().toISOString(),
+    }).eq("id", document.id);
+  } catch (error) {
+    await database.from("billing_documents").update({
+      delivery_status: "failed",
+      last_error_message: error instanceof Error ? error.message.slice(0, 300) : "document_email_failed",
+    }).eq("id", document.id);
+  }
+}
+
 export async function processDueBillingDocuments(
   supabase: SupabaseClient<Database> = createAdminSupabaseClient(),
   now = new Date(),
@@ -225,6 +278,7 @@ export async function processDueBillingDocuments(
         generation_status: "ready", pdf_object_key: key,
         generated_at: new Date().toISOString(), next_attempt_at: new Date().toISOString(),
       }).eq("id", document.id);
+      await deliverGeneratedDocument(database, document, bytes);
       ready += 1;
     } catch (caught) {
       const message = caught instanceof Error ? caught.message.slice(0, 300) : "pdf_generation_failed";
@@ -238,7 +292,43 @@ export async function processDueBillingDocuments(
       failed += 1;
     }
   }
-  return { scanned: documents?.length ?? 0, ready, failed };
+  const { data: deliveryFailures } = await database.from("billing_documents")
+    .select("*,order:orders(*),snapshot:order_billing_snapshots(*)")
+    .eq("generation_status", "ready")
+    .eq("delivery_status", "failed")
+    .not("pdf_object_key", "is", null)
+    .order("updated_at")
+    .limit(10);
+  const { data: fallbackEvents } = await database.from("order_communication_events")
+    .select("order_id")
+    .eq("event_type", "confirmation")
+    .eq("email_status", "sent")
+    .eq("last_error", "invoice_pending_at_confirmation")
+    .limit(10);
+  const fallbackOrderIds = (fallbackEvents ?? []).map((event: any) => event.order_id);
+  const { data: fallbackInvoices } = fallbackOrderIds.length
+    ? await database.from("billing_documents")
+      .select("*,order:orders(*),snapshot:order_billing_snapshots(*)")
+      .eq("document_type", "invoice")
+      .eq("generation_status", "ready")
+      .in("delivery_status", ["pending", "failed"])
+      .in("order_id", fallbackOrderIds)
+    : { data: [] };
+  const deliveryRetries = [
+    ...(deliveryFailures ?? []),
+    ...(fallbackInvoices ?? []),
+  ].filter((document, index, values) => values.findIndex((candidate) => candidate.id === document.id) === index);
+  for (const document of deliveryRetries) {
+    try {
+      const object = await getR2Object({ objectKey: document.pdf_object_key, maxBytes: 20 * 1024 * 1024 });
+      await deliverGeneratedDocument(database, document, object.bytes);
+    } catch (error) {
+      await database.from("billing_documents").update({
+        last_error_message: error instanceof Error ? error.message.slice(0, 300) : "document_email_retry_failed",
+      }).eq("id", document.id);
+    }
+  }
+  return { scanned: documents?.length ?? 0, ready, failed, deliveryRetried: deliveryRetries.length };
 }
 
 export async function listBillingDocumentsForOwnedOrder(

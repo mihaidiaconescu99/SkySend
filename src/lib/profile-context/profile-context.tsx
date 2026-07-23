@@ -90,3 +90,7 @@ export function useCurrentProfile(): ProfileContextValue {
   }
   return ctx;
 }
+
+export function useOptionalCurrentProfile(): ProfileContextValue | null {
+  return useContext(ProfileContext);
+}

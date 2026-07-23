@@ -37,6 +37,11 @@ export type ClientOrderSummary = {
   estimatedCostLabel: string;
   payment: ClientOrderPaymentSnapshot;
   operationalStateLabel?: string | null;
+  invoice?: {
+    status: "pending" | "generating" | "retry_scheduled" | "ready" | "failed";
+    downloadHref: string | null;
+    number: string | null;
+  } | null;
   isRuntimeOrder?: boolean;
   runtimeOrder?: CreatedDeliveryOrder;
 };

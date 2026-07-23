@@ -14,6 +14,7 @@
     "knowledge:check": "node scripts/assistant-knowledge.mjs check",
     "test:parcel-estimation": "node scripts/parcel-estimation-regression.mjs",
     "test:supabase": "node --env-file=.env.local scripts/test-supabase-connection.mjs",
+    "cleanup:legacy-unpaid": "node --env-file=.env.local scripts/cleanup-legacy-unpaid-orders.mjs",
     "storytelling:hero-frames": "node scripts/generate-hero-frame-sequence.mjs",
     "storytelling:landing-media": "node scripts/process-landing-story-assets.mjs",
     "storytelling:how-media": "node scripts/process-how-it-works-assets.mjs",

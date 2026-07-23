@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useCurrentProfile } from "@/lib/profile-context/profile-context";
+import { useOptionalCurrentProfile } from "@/lib/profile-context/profile-context";
 import { createdDeliveryOrdersChangedEvent } from "@/lib/create-delivery-submit";
 import type { CreatedDeliveryOrder } from "@/types/create-delivery";
 
@@ -16,7 +16,8 @@ export function useCreatedDeliveryOrders(): {
   error: string | null;
   refresh: () => Promise<void>;
 } {
-  const { state } = useCurrentProfile();
+  const profileContext = useOptionalCurrentProfile();
+  const state = profileContext?.state ?? { status: "unauthenticated" as const };
 
   const profileId =
     state.status === "authenticated" ? state.profile.id : null;

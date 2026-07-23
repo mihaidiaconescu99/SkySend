@@ -112,7 +112,8 @@ export interface Order {
   selectedDropoffHandoffPoint: StoredHandoffPoint | null;
   stripePaymentIntentId: string | null;
   stripeChargeId: string | null;
-  paidAt?: string | null;
+    paidAt?: string | null;
+    dispatchStartsAt?: string | null;
   paymentStatus: PaymentStatus;
   refundStatus: string | null;
   notes: string | null;
@@ -151,7 +152,8 @@ export interface CreateOrderInput {
   selectedDropoffHandoffPoint?: StoredHandoffPoint | null;
   stripePaymentIntentId?: string | null;
   stripeChargeId?: string | null;
-  paidAt?: string | null;
+    paidAt?: string | null;
+    dispatchStartsAt?: string | null;
   paymentStatus?: PaymentStatus;
   refundStatus?: string | null;
   notes?: string | null;
@@ -175,7 +177,8 @@ export interface UpdateOrderInput {
   selectedDropoffHandoffPoint?: StoredHandoffPoint | null;
   stripePaymentIntentId?: string | null;
   stripeChargeId?: string | null;
-  paidAt?: string | null;
+    paidAt?: string | null;
+    dispatchStartsAt?: string | null;
   paymentStatus?: PaymentStatus;
   refundStatus?: string | null;
   notes?: string | null;

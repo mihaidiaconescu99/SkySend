@@ -6,7 +6,13 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { BillingDocumentSummary } from "@/types/billing";
 
-export function OrderBillingDocuments({ orderId }: { orderId: string }) {
+export function OrderBillingDocuments({
+  orderId,
+  refundDownloadOnly = false,
+}: {
+  orderId: string;
+  refundDownloadOnly?: boolean;
+}) {
   const [documents, setDocuments] = useState<BillingDocumentSummary[] | null>(null);
   useEffect(() => {
     void fetch(`/api/billing/documents?orderId=${encodeURIComponent(orderId)}`, { cache: "no-store" })
@@ -14,6 +20,32 @@ export function OrderBillingDocuments({ orderId }: { orderId: string }) {
       .then((result) => setDocuments(result.documents ?? []));
   }, [orderId]);
   if (!documents?.length) return null;
+  if (refundDownloadOnly) {
+    const refundDocuments = documents.filter(
+      (document) =>
+        document.type === "credit_note" &&
+        document.status === "ready" &&
+        document.downloadHref,
+    );
+
+    if (!refundDocuments.length) return null;
+
+    return (
+      <div className="flex flex-wrap gap-3">
+        {refundDocuments.map((document) => (
+          <a
+            key={document.id}
+            href={document.downloadHref ?? "#"}
+            className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius)] border px-3 text-sm font-medium"
+          >
+            <Download className="size-4" />
+            Descarcă document refund
+          </a>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <SectionCard eyebrow="Facturare" title="Documente" description="Factura originală și documentele de corecție sunt păstrate separat.">
       <div className="grid gap-3">

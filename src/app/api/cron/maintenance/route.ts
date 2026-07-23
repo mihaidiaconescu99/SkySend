@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { processDueBillingDocuments } from "@/lib/billing/server";
 import { reconcileOperationalMissionHolds } from "@/lib/operational-holds-server";
 import { evaluateAndPersistWeather } from "@/lib/weather/server";
+import { retryPaidCheckoutFinalizations } from "@/lib/stripe/webhook-server";
 
 const legacyJobs = [
   "/api/cron/expire-mission-actions",
@@ -29,10 +30,18 @@ export async function GET(request: Request) {
     }),
     evaluateAndPersistWeather(),
     processDueBillingDocuments(),
+    retryPaidCheckoutFinalizations(origin),
   ]);
   const holds = await reconcileOperationalMissionHolds();
+  const jobName = (index: number) => index < legacyJobs.length
+    ? legacyJobs[index]
+    : index === legacyJobs.length
+      ? "weather"
+      : index === legacyJobs.length + 1
+        ? "billing"
+        : "checkout-finalization";
   const jobs = settled.map((result, index) => result.status === "fulfilled"
-    ? { job: index < legacyJobs.length ? legacyJobs[index] : index === legacyJobs.length ? "weather" : "billing", ok: true, result: result.value }
-    : { job: index < legacyJobs.length ? legacyJobs[index] : index === legacyJobs.length ? "weather" : "billing", ok: false, error: result.reason instanceof Error ? result.reason.message : "failed" });
+    ? { job: jobName(index), ok: true, result: result.value }
+    : { job: jobName(index), ok: false, error: result.reason instanceof Error ? result.reason.message : "failed" });
   return NextResponse.json({ ok: jobs.every((job) => job.ok), jobs, holds });
 }

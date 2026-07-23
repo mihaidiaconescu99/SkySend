@@ -154,11 +154,18 @@ export async function r2ObjectExists(objectKey: string) {
   }
 }
 
-export async function createR2DownloadUrl(objectKey: string) {
+export async function createR2DownloadUrl(objectKey: string, filename?: string) {
   const config = getR2Config();
   return getSignedUrl(
     getR2Client(),
-    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
+    new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      ResponseContentType: "application/pdf",
+      ResponseContentDisposition: filename
+        ? `attachment; filename="${filename.replace(/[^a-zA-Z0-9._-]/gu, "-")}"`
+        : undefined,
+    }),
     { expiresIn: 300 },
   );
 }

@@ -52,9 +52,12 @@ export async function GET() {
     );
   }
 
-  const summaries = ordersResult.data.map((order) => mapOrderSummary(order));
+  const visibleOrders = ordersResult.data.filter(
+    (order) => !["pending", "failed"].includes(order.paymentStatus),
+  );
+  const summaries = visibleOrders.map((order) => mapOrderSummary(order));
 
-  const created = ordersResult.data.map(mapOrderToCreatedDelivery);
+  const created = visibleOrders.map(mapOrderToCreatedDelivery);
 
   return NextResponse.json({ orders: summaries, created });
 }

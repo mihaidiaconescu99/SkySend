@@ -17,6 +17,7 @@ import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { PreferencesControls } from "@/components/shared/preferences/preferences-controls";
 import { SectionCard } from "@/components/shared/section-card";
+import { AccountBillingProfile } from "@/components/settings/account-billing-profile";
 import { useCurrentProfile } from "@/lib/profile-context/profile-context";
 import { useSettings } from "@/lib/settings/settings-context";
 import { showToast } from "@/lib/toast-store";
@@ -428,6 +429,8 @@ export function ClientSettingsView() {
                 </AppButton>
               </div>
             </div>
+
+            <AccountBillingProfile />
 
             {accountMessage ? (
               <p className="text-sm font-medium text-primary">{accountMessage}</p>

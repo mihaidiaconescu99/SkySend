@@ -1,7 +1,6 @@
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
 import { Barlow_Condensed, Manrope, Sora } from "next/font/google";
-import Script from "next/script";
 import { Providers } from "@/components/shared/providers";
 import { SkipLink } from "@/components/shared/skip-link";
 import { OperationalNotice } from "@/components/shared/operational-notice";
@@ -53,10 +52,13 @@ export default function RootLayout({
       className={`dark ${bodyFont.variable} ${displayFont.variable} ${storyFont.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          id="skysend-anti-fouc"
+          dangerouslySetInnerHTML={{ __html: ANTI_FOUC_SCRIPT }}
+        />
+      </head>
       <body className="min-h-screen min-h-svh overflow-x-clip font-sans antialiased">
-        <Script id="skysend-anti-fouc" strategy="beforeInteractive">
-          {ANTI_FOUC_SCRIPT}
-        </Script>
         <Providers>
           <SkipLink />
           <OperationalNotice />

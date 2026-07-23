@@ -2,11 +2,6 @@ import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
 
-import { activeHub } from "@/constants/hub";
-import { droneClassLabels } from "@/constants/domain";
-import { calculateDistanceKm } from "@/lib/mission-route";
-import { formatEstimatedCo2Saved, formatRoadDistanceAvoided } from "@/lib/eco";
-import { getOrderProgress, getOrderTimelineLabels } from "@/lib/orders";
 import { AddressesRepository } from "@/lib/repositories/addresses-repository";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ParcelsRepository } from "@/lib/repositories/parcels-repository";
@@ -27,11 +22,14 @@ import type { Parcel } from "@/types/parcel";
 import type { PaymentRecord } from "@/types/payment-record";
 import type { Address } from "@/types/address";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 type ClientOrdersData = {
   orders: Order[];
   addressesById: Map<string, Address>;
   parcelsById: Map<string, Parcel>;
   paymentsByOrderId: Map<string, PaymentRecord>;
+  invoicesByOrderId: Map<string, ClientOrderSummary["invoice"]>;
 };
 
 async function getCurrentProfileContext() {
@@ -61,6 +59,7 @@ async function loadClientOrdersData(): Promise<ClientOrdersData> {
       addressesById: new Map(),
       parcelsById: new Map(),
       paymentsByOrderId: new Map(),
+      invoicesByOrderId: new Map(),
     };
   }
 
@@ -79,7 +78,9 @@ async function loadClientOrdersData(): Promise<ClientOrdersData> {
     throw new Error(ordersResult.error.message);
   }
 
-  const orders = ordersResult.data;
+  const orders = ordersResult.data.filter(
+    (order) => !["pending", "failed"].includes(order.paymentStatus),
+  );
   const addressIds = new Set<string>();
   const parcelIds = new Set<string>();
 
@@ -98,10 +99,18 @@ async function loadClientOrdersData(): Promise<ClientOrdersData> {
   const paymentsResult = await paymentsRepo.listByProfileId(profileId, {
     limit: 200,
   });
+  const orderIds = orders.map((order) => order.id);
+  const { data: invoiceRows } = orderIds.length
+    ? await (supabase as never as { from: (name: string) => any }).from("billing_documents")
+        .select("id,order_id,document_number,generation_status")
+        .eq("document_type", "invoice")
+        .in("order_id", orderIds)
+    : { data: [] };
 
   const addressesById = new Map<string, Address>();
   const parcelsById = new Map<string, Parcel>();
   const paymentsByOrderId = new Map<string, PaymentRecord>();
+  const invoicesByOrderId = new Map<string, ClientOrderSummary["invoice"]>();
 
   for (const [id, result] of addressEntries) {
     if (result.ok && result.data) {
@@ -125,15 +134,24 @@ async function loadClientOrdersData(): Promise<ClientOrdersData> {
     }
   }
 
-  return { orders, addressesById, parcelsById, paymentsByOrderId };
+  for (const invoice of invoiceRows ?? []) {
+    invoicesByOrderId.set(invoice.order_id, {
+      status: invoice.generation_status,
+      number: invoice.document_number,
+      downloadHref: invoice.generation_status === "ready" ? `/api/billing/documents/${invoice.id}` : null,
+    });
+  }
+
+  return { orders, addressesById, parcelsById, paymentsByOrderId, invoicesByOrderId };
 }
 
 export async function getClientOrderSummaries(): Promise<ClientOrderSummary[]> {
   const data = await loadClientOrdersData();
 
-  return data.orders.map((order) =>
-    mapOrderSummary(order, data.addressesById, data.paymentsByOrderId.get(order.id) ?? null),
-  );
+  return data.orders.map((order) => ({
+    ...mapOrderSummary(order, data.addressesById, data.paymentsByOrderId.get(order.id) ?? null),
+    invoice: data.invoicesByOrderId.get(order.id) ?? null,
+  }));
 }
 
 export async function getClientFailedOrderSummaries(): Promise<ClientFailedOrderSummary[]> {
@@ -177,7 +195,10 @@ export async function getClientOrderDetail(
 
   const order = orderResult.data;
 
-  if (order.senderProfileId !== profileId) {
+  if (
+    order.senderProfileId !== profileId ||
+    ["pending", "failed"].includes(order.paymentStatus)
+  ) {
     return null;
   }
 

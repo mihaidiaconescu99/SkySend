@@ -22,6 +22,9 @@ import { cn } from "@/lib/utils";
 type Props = {
   order: CreatedDeliveryOrder;
   paymentStatus: CreatedDeliveryPaymentStatus;
+  dispatchCountdown?: number;
+  onCancelBeforeDispatch?: () => void | Promise<void>;
+  isCancellingBeforeDispatch?: boolean;
 };
 
 function formatDuration(start?: string | null, end?: string | null) {
@@ -149,7 +152,12 @@ function TerminalView({
   );
 }
 
-export function PremiumTrackingWorkspace({ order }: Props) {
+export function PremiumTrackingWorkspace({
+  order,
+  dispatchCountdown = 0,
+  onCancelBeforeDispatch,
+  isCancellingBeforeDispatch = false,
+}: Props) {
   const {
     currentMission: runtimeMission,
     currentStatus: runtimeStatus,
@@ -249,7 +257,7 @@ export function PremiumTrackingWorkspace({ order }: Props) {
           "absolute inset-x-0 bottom-0 z-30 flex min-h-[46svh] flex-col border-t border-border bg-card shadow-[0_-18px_50px_-35px_rgba(0,0,0,.7)] transition-[max-height] duration-300 expanded-ui:static expanded-ui:max-h-none expanded-ui:min-h-0 expanded-ui:border-l expanded-ui:border-t-0 expanded-ui:shadow-none",
           mobileExpanded ? "max-h-[88svh]" : "max-h-[54svh]",
         )}>
-          <button
+          {dispatchCountdown <= 0 ? <button
             type="button"
             aria-label={mobileExpanded ? "Restrânge panoul" : "Extinde panoul"}
             aria-expanded={mobileExpanded}
@@ -257,7 +265,24 @@ export function PremiumTrackingWorkspace({ order }: Props) {
             className="mx-auto mt-1 flex h-8 w-14 items-center justify-center text-muted-foreground expanded-ui:hidden"
           >
             <ChevronUp className={cn("size-4 transition-transform", mobileExpanded ? "rotate-180" : undefined)} />
-          </button>
+          </button> : null}
+          {dispatchCountdown > 0 ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:px-10">
+              <h1 className="max-w-xl font-heading text-4xl uppercase leading-[0.95] tracking-tight text-foreground sm:text-6xl expanded-ui:text-7xl">
+                Dispatch în {dispatchCountdown} {dispatchCountdown === 1 ? "secundă" : "secunde"}
+              </h1>
+              <AppButton
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={onCancelBeforeDispatch}
+                disabled={isCancellingBeforeDispatch}
+                className="mt-10 w-full max-w-sm border-destructive/50 text-destructive hover:bg-destructive/10"
+              >
+                {isCancellingBeforeDispatch ? "Se anulează…" : "Anulează comanda"}
+              </AppButton>
+            </div>
+          ) : <>
           <div className="shrink-0 px-5 pb-5 pt-5 sm:px-7 expanded-ui:pt-24">
             <div className="flex min-w-0 items-center justify-between gap-4">
               <p className="min-w-0 truncate font-mono text-lg font-semibold text-foreground sm:text-xl">{order.id}</p>
@@ -289,6 +314,7 @@ export function PremiumTrackingWorkspace({ order }: Props) {
             accessScope={order.trackingAccessScope ?? "owner"}
             trackingIdentifier={order.trackingIdentifier}
           />
+          </>}
         </div>
       </div>
     </section>

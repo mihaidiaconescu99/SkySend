@@ -16,6 +16,40 @@ export type BillingSnapshotInput = {
   privacyAccepted: boolean;
 };
 
+export type SavedBillingProfile = Omit<
+  BillingSnapshotInput,
+  "privacyAccepted"
+>;
+
+export type CheckoutSubstep = "summary" | "billing" | "payment";
+
+export type DeliveryCheckoutSessionStatus =
+  | "active"
+  | "payment_processing"
+  | "finalizing"
+  | "finalized"
+  | "expired"
+  | "cancelled"
+  | "finalization_failed";
+
+export type DeliveryCheckoutSession = {
+  id: string;
+  deliveryDraftId: string | null;
+  localOrderId: string;
+  currentStep: CheckoutSubstep;
+  status: DeliveryCheckoutSessionStatus;
+  totalAmountMinor: number;
+  currency: string;
+  locale: "ro" | "en";
+  expiresAt: string;
+  billing: BillingSnapshotInput | null;
+  savedBillingProfile: SavedBillingProfile | null;
+  stripePaymentIntentId: string | null;
+  selectedPaymentMethodId: string | null;
+  orderId: string | null;
+  dispatchStartsAt: string | null;
+};
+
 export type BillingDocumentType = "invoice" | "credit_note";
 export type BillingGenerationStatus =
   | "pending"
@@ -36,4 +70,3 @@ export type BillingDocumentSummary = {
   refundReason: string | null;
   downloadHref: string | null;
 };
-

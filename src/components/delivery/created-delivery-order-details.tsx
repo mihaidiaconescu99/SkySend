@@ -125,7 +125,7 @@ export function CreatedDeliveryOrderDetails({
       etaLabel={etaLabel}
       paymentLabel={isPaid ? "Plată cu cardul confirmată" : "Plată necesară"}
       paymentStatus={paymentStatus}
-      checkoutHref={`/client/checkout/${createdOrder.id}`}
+      checkoutHref="/client/create-delivery?checkout=moved"
       parcelSummary={parcelSummary}
       droneSummary={getDeliveryConfigurationSummary(payload)}
       outcomeSummary={

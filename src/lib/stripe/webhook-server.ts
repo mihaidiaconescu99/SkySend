@@ -48,6 +48,41 @@ async function paymentMethodSnapshot(intent: Stripe.PaymentIntent) {
 
 async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: string) {
   const database = db();
+  let checkoutSession: any = null;
+  if (intent.metadata.checkoutSessionId) {
+    const { data, error: sessionError } = await database
+      .from("delivery_checkout_sessions")
+      .select("*,profile:profiles(clerk_user_id)")
+      .eq("id", intent.metadata.checkoutSessionId)
+      .maybeSingle();
+    if (sessionError || !data) throw new Error("webhook_checkout_session_not_found");
+    checkoutSession = data;
+    const customerId = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
+    if (
+      data.stripe_payment_intent_id !== intent.id ||
+      data.stripe_customer_id !== customerId ||
+      data.profile?.clerk_user_id !== intent.metadata.customerProfileId ||
+      data.total_amount_minor !== intent.amount_received ||
+      data.currency.toLowerCase() !== intent.currency.toLowerCase()
+    ) {
+      throw new Error("webhook_checkout_session_mismatch");
+    }
+    const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
+    const paidAt = new Date().toISOString();
+    const { error: finalizeError } = await database.rpc("finalize_paid_delivery_checkout", {
+      p_session_id: data.id,
+      p_payment_intent_id: intent.id,
+      p_charge_id: chargeId,
+      p_paid_at: paidAt,
+    });
+    if (finalizeError) {
+      await database.from("delivery_checkout_sessions").update({
+        status: "finalization_failed",
+        last_error: finalizeError.message.slice(0, 1000),
+      }).eq("id", data.id);
+      throw new Error(finalizeError.message);
+    }
+  }
   const row = await findOrderForIntent(intent.id, intent.metadata.orderId);
   if (!row) throw new Error("webhook_order_not_found");
   if (row.stripe_payment_intent_id !== intent.id) {
@@ -68,7 +103,7 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
   if (!snapshot) throw new Error("webhook_billing_snapshot_missing");
   const method = await paymentMethodSnapshot(intent);
   const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id ?? null;
-  const paidAt = new Date((intent.created ?? Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  const paidAt = row.paid_at ?? new Date().toISOString();
   const { data: updated, error } = await database.from("orders").update({
     payment_status: "paid",
     stripe_payment_intent_id: intent.id,
@@ -115,10 +150,72 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
       locale: snapshot.locale === "en" ? "en" : "ro", origin,
     });
   }
+  if (checkoutSession) {
+    await database.from("delivery_checkout_sessions").update({
+      status: "finalized",
+      last_error: null,
+    }).eq("id", checkoutSession.id);
+  }
+}
+
+export async function reconcilePaidCheckoutSession(sessionId: string, origin: string) {
+  const database = db();
+  const { data: session, error } = await database
+    .from("delivery_checkout_sessions")
+    .select("id,stripe_payment_intent_id,status,order_id")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!session) return { status: "missing" as const, finalized: false };
+  if (!session.stripe_payment_intent_id) {
+    return { status: "awaiting_payment" as const, finalized: false };
+  }
+
+  const intent = await getStripeServer().paymentIntents.retrieve(
+    session.stripe_payment_intent_id,
+  );
+  if (intent.status !== "succeeded") {
+    return { status: intent.status, finalized: false };
+  }
+
+  // Stripe's server-side API remains the authority. This also repairs a paid
+  // checkout when a local webhook forwarder or a production delivery was missed.
+  await handlePaymentSucceeded(intent, origin);
+  return { status: intent.status, finalized: true };
+}
+
+export async function retryPaidCheckoutFinalizations(origin: string) {
+  const database = db();
+  const { data: sessions, error } = await database.from("delivery_checkout_sessions")
+    .select("id,stripe_payment_intent_id")
+    .in("status", ["payment_processing", "finalizing", "finalization_failed"])
+    .not("stripe_payment_intent_id", "is", null)
+    .order("updated_at", { ascending: true })
+    .limit(20);
+  if (error) throw new Error(error.message);
+  let finalized = 0;
+  let failed = 0;
+  for (const session of sessions ?? []) {
+    try {
+      const result = await reconcilePaidCheckoutSession(session.id, origin);
+      if (result.finalized) finalized += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("[checkout-finalization-retry]", session.id, error);
+    }
+  }
+  return { scanned: sessions?.length ?? 0, finalized, failed };
 }
 
 async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
   const database = db();
+  if (intent.metadata.checkoutSessionId) {
+    await database.from("delivery_checkout_sessions").update({
+      status: "active",
+      last_error: intent.last_payment_error?.message?.slice(0, 1000) ?? "payment_failed",
+    }).eq("id", intent.metadata.checkoutSessionId).neq("status", "finalized");
+    return;
+  }
   const row = await findOrderForIntent(intent.id, intent.metadata.orderId);
   if (!row || row.payment_status === "paid") return;
   await database.from("orders").update({ payment_status: "failed", stripe_payment_intent_id: intent.id })

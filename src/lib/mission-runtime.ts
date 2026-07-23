@@ -175,7 +175,7 @@ const timers: RuntimeTimers = {
 const pendingDBRehydrationOrders = new Set<string>();
 const syncedMissionVersions = new Map<string, number>();
 
-export const missionDispatchDelaySeconds = 10;
+export const missionDispatchDelaySeconds = 7;
 const missionDispatchDelayMs = missionDispatchDelaySeconds * 1000;
 const missionRuntimeStoragePrefix = "skysend:mission-runtime:";
 const userActionNotificationStoragePrefix =
@@ -333,6 +333,8 @@ function consumeCurrentEtaDelay(mission: Mission) {
 }
 
 export function getPaidOrderMissionDispatchStartMs(order: CreatedDeliveryOrder) {
+  const persistedDispatchStart = getValidTimestampMs(order.dispatchStartsAt);
+  if (persistedDispatchStart !== null) return persistedDispatchStart;
   const paidAtMs =
     getValidTimestampMs(order.paidAt) ??
     getValidTimestampMs(order.payload.createdAt);

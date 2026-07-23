@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Clock3, PackageX } from "lucide-react";
+import { ArrowRight, Clock3, Download, PackageX } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { AppButton } from "@/components/shared/app-button";
 import { PageHeader } from "@/components/shared/page-header";
@@ -69,6 +69,20 @@ function DetailsLink({ order }: { order: ClientOrderSummary }) {
   );
 }
 
+function InvoiceDownload({ order }: { order: ClientOrderSummary }) {
+  if (!order.invoice?.downloadHref) return <span aria-hidden="true" className="block size-9" />;
+  return (
+    <a
+      href={order.invoice.downloadHref}
+      aria-label={`Descarcă factura ${order.invoice.number ?? order.id}`}
+      title="Descarcă factura PDF"
+      className="inline-flex size-9 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition hover:border-primary/45 hover:text-primary focus-visible:ring-4 focus-visible:ring-ring"
+    >
+      <Download className="size-4" />
+    </a>
+  );
+}
+
 export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
   const searchParams = useSearchParams();
   const reduceMotion = useReducedMotion();
@@ -102,15 +116,15 @@ export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
       </div>
 
       <div className="overflow-hidden rounded-[var(--ui-radius-panel)] border border-border/70 bg-card">
-        <div className="hidden grid-cols-[minmax(7rem,.75fr)_minmax(14rem,1.7fr)_minmax(7rem,.8fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_auto] gap-4 border-b border-border/70 px-5 py-4 text-xs font-medium uppercase tracking-[.12em] text-muted-foreground expanded-ui:grid">
-          <span>Cod</span><span>Traseu</span><span>Status</span><span>Creată</span><span>Cost</span><span className="sr-only">Acțiuni</span>
+        <div className="hidden grid-cols-[minmax(7rem,.75fr)_minmax(13rem,1.65fr)_minmax(7rem,.8fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_5rem_2.5rem] gap-4 border-b border-border/70 px-5 py-4 text-xs font-medium uppercase tracking-[.12em] text-muted-foreground expanded-ui:grid">
+          <span>Cod</span><span>Traseu</span><span>Status</span><span>Creată</span><span>Cost</span><span className="text-right">Detalii</span><span className="sr-only">Factură</span>
         </div>
         {visibleOrders.length === 0 ? <EmptyOrders scheduled={activeTab === "scheduled"} /> : (
           <div className="divide-y divide-border/70">
             {visibleOrders.map((order) => {
               const status = statusPresentation(order);
               return (
-                <article key={order.id} className="grid gap-4 px-4 py-5 transition-colors hover:bg-secondary/20 expanded-ui:grid-cols-[minmax(7rem,.75fr)_minmax(14rem,1.7fr)_minmax(7rem,.8fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_auto] expanded-ui:items-center expanded-ui:px-5">
+                <article key={order.id} className="grid gap-4 px-4 py-5 transition-colors hover:bg-secondary/20 expanded-ui:grid-cols-[minmax(7rem,.75fr)_minmax(13rem,1.65fr)_minmax(7rem,.8fr)_minmax(9rem,1fr)_minmax(6rem,.7fr)_5rem_2.5rem] expanded-ui:items-center expanded-ui:px-5">
                   <p className="break-all font-mono text-sm font-semibold text-foreground">{order.id}</p>
                   <div className="min-w-0 text-sm">
                     <p className="truncate text-foreground">{compactAddress(order.pickupArea)}</p>
@@ -119,7 +133,7 @@ export function ClientOrdersView({ orders }: { orders: ClientOrderSummary[] }) {
                   <p className={cn("text-sm font-medium", status.className)}>{status.label}</p>
                   <p className="text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                   <p className="text-sm font-medium text-foreground">{order.estimatedCostLabel}</p>
-                  <div className="flex justify-end"><DetailsLink order={order} /></div>
+                  <div className="flex items-center justify-end gap-2 expanded-ui:contents"><div className="flex justify-end"><DetailsLink order={order} /></div><div className="flex justify-end"><InvoiceDownload order={order} /></div></div>
                 </article>
               );
             })}

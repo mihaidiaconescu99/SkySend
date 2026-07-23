@@ -12,13 +12,16 @@ import {
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
-import { findOwnedOrder, getBillingSnapshotForOrder } from "@/lib/billing/server";
+import { reconcilePaidCheckoutSession } from "@/lib/stripe/webhook-server";
 import type { StripePaymentIntentDraft } from "@/types/stripe";
 
-const schema = z.object({ orderId: z.string().min(1), savePaymentMethod: z.boolean().default(true) });
+const schema = z.object({
+  checkoutSessionId: z.string().uuid(),
+  savePaymentMethod: z.boolean().default(false),
+});
 
-function idempotencyKey(orderId: string, amount: number, currency: string) {
-  return `skysend-payment-${orderId}-${amount}-${currency.toLowerCase()}`.slice(0, 255);
+function idempotencyKey(sessionId: string, amount: number, currency: string) {
+  return `skysend-checkout-${sessionId}-${amount}-${currency.toLowerCase()}`.slice(0, 255);
 }
 
 export async function POST(request: Request) {
@@ -28,42 +31,74 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid checkout request." }, { status: 400 });
   try {
     const supabase = createAdminSupabaseClient();
+    const db = supabase as any;
     await assertOperationsAvailable(supabase);
     const profile = await new ProfilesRepository(supabase).getByClerkUserId(userId);
     if (!profile.ok || !profile.data) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-    const order = await findOwnedOrder(supabase, profile.data.id, parsed.data.orderId);
-    if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    if (order.payment_status === "paid") return NextResponse.json({ error: "Order is already paid." }, { status: 409 });
-    const billing = await getBillingSnapshotForOrder(supabase, order.id);
-    if (!billing) return NextResponse.json({ error: "Billing details are required." }, { status: 409 });
+    const { data: session } = await db.from("delivery_checkout_sessions").select("*")
+      .eq("id", parsed.data.checkoutSessionId).eq("profile_id", profile.data.id).maybeSingle();
+    if (!session) return NextResponse.json({ error: "Checkout session not found." }, { status: 404 });
+    if (!["active", "payment_processing"].includes(session.status) || Date.parse(session.expires_at) <= Date.now()) {
+      return NextResponse.json({ error: "checkout_expired" }, { status: 409 });
+    }
+    if (!session.billing_data || !session.privacy_acknowledged_at) {
+      return NextResponse.json({ error: "Billing details are required." }, { status: 409 });
+    }
     const { stripe, customer, clerkUserId } = await getAuthenticatedStripeCustomer();
-    const draft: StripePaymentIntentDraft = {
-      amountMinor: order.total_amount_minor,
-      currency: order.currency,
-      customerProfileId: clerkUserId,
-      stripeCustomerId: customer.id,
-      orderId: order.local_order_id,
-      saveForFutureUse: parsed.data.savePaymentMethod,
-      metadata: { orderId: order.local_order_id, orderUuid: order.id, product: "skysend_delivery", environment: process.env.NODE_ENV ?? "development" },
-      statementDescriptorSuffix: "SKYSEND",
-    };
-    const intent = await stripe.paymentIntents.create({
-      ...createStripePaymentIntentParams(draft),
-      description: `SkySend delivery ${order.local_order_id}`,
-    }, { idempotencyKey: idempotencyKey(order.id, order.total_amount_minor, order.currency) });
-    await (supabase as any).from("orders").update({ stripe_payment_intent_id: intent.id })
-      .eq("id", order.id).is("stripe_payment_intent_id", null);
+    let intent = session.stripe_payment_intent_id
+      ? await stripe.paymentIntents.retrieve(session.stripe_payment_intent_id)
+      : null;
+    if (intent && intent.status === "succeeded") {
+      try {
+        await reconcilePaidCheckoutSession(session.id, new URL(request.url).origin);
+      } catch (error) {
+        console.error("[payment-intent] paid checkout reconciliation", session.id, error);
+      }
+      return NextResponse.json({
+        paymentIntentId: intent.id,
+        status: intent.status,
+      });
+    }
+    if (intent) {
+      intent = await stripe.paymentIntents.update(intent.id, {
+        setup_future_usage: parsed.data.savePaymentMethod ? "off_session" : "",
+      });
+    } else {
+      const draft: StripePaymentIntentDraft = {
+        amountMinor: session.total_amount_minor,
+        currency: session.currency,
+        customerProfileId: clerkUserId,
+        stripeCustomerId: customer.id,
+        orderId: session.local_order_id,
+        saveForFutureUse: parsed.data.savePaymentMethod,
+        metadata: {
+          checkoutSessionId: session.id,
+          product: "skysend_delivery",
+          environment: process.env.NODE_ENV ?? "development",
+        },
+        statementDescriptorSuffix: "SKYSEND",
+      };
+      intent = await stripe.paymentIntents.create({
+        ...createStripePaymentIntentParams(draft),
+        description: `SkySend delivery ${session.local_order_id}`,
+      }, { idempotencyKey: idempotencyKey(session.id, session.total_amount_minor, session.currency) });
+    }
+    await db.from("delivery_checkout_sessions").update({
+      stripe_payment_intent_id: intent.id,
+      stripe_customer_id: customer.id,
+      save_payment_method: parsed.data.savePaymentMethod,
+      status: "payment_processing",
+      current_step: "payment",
+    }).eq("id", session.id);
     return NextResponse.json({
       clientSecret: intent.client_secret,
       paymentIntentId: intent.id,
       savedPaymentMethods: await listStripeCustomerPaymentMethods(stripe, customer).catch(() => []),
+      selectedPaymentMethodId: session.selected_payment_method_id,
       status: intent.status,
     });
   } catch (error) {
     if (error instanceof StripeAuthenticationError) return NextResponse.json({ error: error.message }, { status: 401 });
-    if (error instanceof Error && error.name === "OperationalAvailabilityError") {
-      return NextResponse.json({ error: error.message }, { status: 423 });
-    }
     console.error("[payment-intent]", error);
     return NextResponse.json({ error: "Stripe payment could not be prepared. Please retry." }, { status: 502 });
   }

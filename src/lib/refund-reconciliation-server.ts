@@ -8,6 +8,8 @@ import { getStripeServer } from "@/lib/stripe/server";
 import type { Database } from "@/types/database";
 import type { Order } from "@/types/order";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 const refundableFailureCodes = new Set([
   "no_suitable_pickup_meeting_point",
   "no_suitable_dropoff_meeting_point",
@@ -93,5 +95,45 @@ export async function reconcilePendingRefunds(db: SupabaseClient<Database>) {
     if (result === "completed") completed += 1;
     if (result === "pending") pending += 1;
   }
-  return { scanned: data?.length ?? 0, completed, pending };
+  const database = db as any;
+  const { data: queuedRequests, error: queueError } = await database
+    .from("refund_requests")
+    .select("*,order:orders(*)")
+    .in("status", ["pending", "failed"])
+    .order("created_at")
+    .limit(50);
+  if (queueError) throw queueError;
+  let submitted = 0;
+  for (const request of queuedRequests ?? []) {
+    const order = request.order;
+    if (!order || order.payment_status !== "refund_pending") continue;
+    try {
+      const refund = await getStripeServer().refunds.create({
+        ...(order.stripe_payment_intent_id
+          ? { payment_intent: order.stripe_payment_intent_id }
+          : { charge: order.stripe_charge_id }),
+        amount: request.amount_minor,
+        metadata: {
+          orderId: order.local_order_id,
+          orderUuid: order.id,
+          refundRequestId: request.id,
+          failureReason: "customer_cancelled_before_dispatch",
+        },
+      }, { idempotencyKey: `skysend-predispatch-refund:${order.id}` });
+      await database.from("refund_requests").update({
+        stripe_refund_id: refund.id,
+        status: "submitted",
+      }).eq("id", request.id);
+      submitted += 1;
+    } catch (error) {
+      console.error("[refund-reconciliation] queued refund failed", error);
+      await database.from("refund_requests").update({ status: "pending" }).eq("id", request.id);
+    }
+  }
+  return {
+    scanned: (data?.length ?? 0) + (queuedRequests?.length ?? 0),
+    completed,
+    pending,
+    submitted,
+  };
 }

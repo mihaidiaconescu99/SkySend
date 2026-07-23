@@ -114,6 +114,9 @@ export type OrderCommunicationEmailInput = {
   scheduledAt?: string | null;
   trackingUrl?: string | null;
   idempotencyKey: string;
+  invoiceAttachment?: { filename: string; contentBase64: string } | null;
+  invoiceDownloadUrl?: string | null;
+  invoicePending?: boolean;
 };
 
 function escapeHtml(value: string) {
@@ -149,6 +152,12 @@ export async function sendOrderCommunicationEmail(input: OrderCommunicationEmail
     ...(scheduledDate ? [[ro ? "Programată" : "Scheduled", scheduledDate]] : []),
   ];
   const text = `${subject}\n\n${intro}\n\n${rows.map(([label, value]) => `${label}: ${value}`).join("\n")}${input.trackingUrl ? `\n\n${ro ? "Urmărește livrarea" : "Track delivery"}: ${input.trackingUrl}` : ""}`;
+  const invoiceNote = input.invoicePending
+    ? (ro ? "Factura este încă în procesare și va fi trimisă separat." : "The invoice is still processing and will be sent separately.")
+    : input.invoiceAttachment
+      ? (ro ? "Factura PDF este atașată acestui email." : "The PDF invoice is attached to this email.")
+      : null;
+  const finalText = `${text}${invoiceNote ? `\n\n${invoiceNote}` : ""}${input.invoiceDownloadUrl ? `\n${ro ? "Descarcă factura" : "Download invoice"}: ${input.invoiceDownloadUrl}` : ""}`;
   const htmlRows = rows.map(([label, value]) => `<tr><td style="padding:10px 0;color:#8093a3;vertical-align:top">${escapeHtml(label)}</td><td style="padding:10px 0;color:#f4f8fb;text-align:right">${escapeHtml(value)}</td></tr>`).join("");
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -161,10 +170,59 @@ export async function sendOrderCommunicationEmail(input: OrderCommunicationEmail
       from: fromEmail,
       to: input.to,
       subject,
-      text,
-      html: `<div style="background:#05080b;padding:32px 16px;color:#f4f8fb;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto"><p style="color:#20e7d5;font-size:12px;letter-spacing:.18em;margin:0 0 28px">SKYSEND</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 14px">${escapeHtml(subject)}</h1><p style="color:#aab9c5;line-height:1.7;margin:0 0 26px">${escapeHtml(intro)}</p><table style="width:100%;border-collapse:collapse;border-top:1px solid #21303b;border-bottom:1px solid #21303b">${htmlRows}</table>${input.trackingUrl ? `<a href="${escapeHtml(input.trackingUrl)}" style="display:inline-block;margin-top:26px;background:#20e7d5;color:#04110f;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px">${ro ? "Urmărește livrarea" : "Track delivery"}</a>` : ""}<p style="color:#607381;font-size:12px;margin-top:34px">SkySend · Pitești</p></div></div>`,
+      text: finalText,
+      html: `<div style="background:#05080b;padding:32px 16px;color:#f4f8fb;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto"><p style="color:#20e7d5;font-size:12px;letter-spacing:.18em;margin:0 0 28px">SKYSEND</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 14px">${escapeHtml(subject)}</h1><p style="color:#aab9c5;line-height:1.7;margin:0 0 26px">${escapeHtml(intro)}</p><table style="width:100%;border-collapse:collapse;border-top:1px solid #21303b;border-bottom:1px solid #21303b">${htmlRows}</table>${invoiceNote ? `<p style="color:#aab9c5;line-height:1.7;margin:24px 0 0">${escapeHtml(invoiceNote)}</p>` : ""}${input.invoiceDownloadUrl ? `<a href="${escapeHtml(input.invoiceDownloadUrl)}" style="display:inline-block;margin-top:18px;color:#20e7d5">${ro ? "Descarcă factura" : "Download invoice"}</a>` : ""}${input.trackingUrl ? `<a href="${escapeHtml(input.trackingUrl)}" style="display:inline-block;margin-top:26px;background:#20e7d5;color:#04110f;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px">${ro ? "Urmărește livrarea" : "Track delivery"}</a>` : ""}<p style="color:#607381;font-size:12px;margin-top:34px">SkySend · Pitești</p></div></div>`,
+      ...(input.invoiceAttachment ? { attachments: [{ filename: input.invoiceAttachment.filename, content: input.invoiceAttachment.contentBase64 }] } : {}),
     }),
   });
   if (!response.ok) throw new Error((await response.text()) || "Email could not be sent.");
+  return { skipped: false };
+}
+
+export type BillingDocumentEmailInput = {
+  to: string;
+  locale: "ro" | "en";
+  orderId: string;
+  documentType: "invoice" | "credit_note";
+  documentNumber: string;
+  downloadUrl: string;
+  attachment: { filename: string; contentBase64: string };
+  idempotencyKey: string;
+};
+
+export async function sendBillingDocumentEmail(input: BillingDocumentEmailInput) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail || !input.to) {
+    return { skipped: true, reason: "Email service is not configured." };
+  }
+  const ro = input.locale === "ro";
+  const correction = input.documentType === "credit_note";
+  const subject = correction
+    ? (ro ? `Document de corecție ${input.documentNumber}` : `Credit note ${input.documentNumber}`)
+    : (ro ? `Factura ${input.documentNumber} este disponibilă` : `Invoice ${input.documentNumber} is ready`);
+  const intro = correction
+    ? (ro ? `Rambursarea comenzii ${input.orderId} a fost confirmată. Documentul de corecție este atașat.` : `The refund for order ${input.orderId} was confirmed. The credit note is attached.`)
+    : (ro ? `Factura pentru comanda ${input.orderId} a fost finalizată și este atașată.` : `The invoice for order ${input.orderId} is complete and attached.`);
+  const action = correction
+    ? (ro ? "Descarcă documentul de corecție" : "Download credit note")
+    : (ro ? "Descarcă factura" : "Download invoice");
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": input.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: input.to,
+      subject,
+      text: `${subject}\n\n${intro}\n\n${action}: ${input.downloadUrl}`,
+      html: `<div style="background:#05080b;padding:32px 16px;color:#f4f8fb;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto"><p style="color:#20e7d5;font-size:12px;letter-spacing:.18em;margin:0 0 28px">SKYSEND</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 14px">${escapeHtml(subject)}</h1><p style="color:#aab9c5;line-height:1.7;margin:0 0 26px">${escapeHtml(intro)}</p><a href="${escapeHtml(input.downloadUrl)}" style="display:inline-block;background:#20e7d5;color:#04110f;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px">${escapeHtml(action)}</a></div></div>`,
+      attachments: [{ filename: input.attachment.filename, content: input.attachment.contentBase64 }],
+    }),
+  });
+  if (!response.ok) throw new Error((await response.text()) || "Billing document email could not be sent.");
   return { skipped: false };
 }

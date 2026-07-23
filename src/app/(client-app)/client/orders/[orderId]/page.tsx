@@ -226,6 +226,8 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
     }
   }
   if (storedOrder.ok && storedOrder.data) {
+    runtimeOrder.paidAt = storedOrder.data.paidAt ?? null;
+    runtimeOrder.dispatchStartsAt = storedOrder.data.dispatchStartsAt ?? null;
     const handoffSnapshot = completeOrderHandoffSnapshot(storedOrder.data);
     const pickupOrigin =
       storedOrder.data.selectedPickupHandoffPoint ?? handoffSnapshot.pickup[0];
@@ -285,7 +287,7 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
         order.paymentMethodDetail ?? "Method de payment în așteptare"
       }`}
       paymentStatus={paymentStatus}
-      checkoutHref={`/client/checkout/${order.id}`}
+      checkoutHref="/client/create-delivery?checkout=moved"
       parcelSummary={order.parcelSummary ?? "Rezumat colet not available."}
       droneSummary={
         order.recommendedDroneClass
@@ -299,7 +301,12 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
       }
       startOnMount={shouldStartMission(order.status) && paymentStatus === "paid"}
     />
-    <div className="app-container mt-6"><OrderBillingDocuments orderId={order.id} /></div>
+    <div className="app-container mt-6">
+      <OrderBillingDocuments
+        orderId={order.id}
+        refundDownloadOnly={order.status === "failed"}
+      />
+    </div>
     </>
   );
 }

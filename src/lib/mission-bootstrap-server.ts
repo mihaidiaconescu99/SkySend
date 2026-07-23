@@ -48,9 +48,13 @@ function routePoint(point: StoredHandoffPoint): MissionRoutePoint {
 }
 
 function canStartImmediately(order: Order, now: Date) {
+  const dispatchStartsAt = order.dispatchStartsAt
+    ? Date.parse(order.dispatchStartsAt)
+    : null;
   return (
     order.paymentStatus === "paid" &&
-    (!order.scheduledAt || Date.parse(order.scheduledAt) <= now.getTime())
+    (!order.scheduledAt || Date.parse(order.scheduledAt) <= now.getTime()) &&
+    (dispatchStartsAt === null || dispatchStartsAt <= now.getTime())
   );
 }
 

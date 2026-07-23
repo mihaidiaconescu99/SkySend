@@ -313,6 +313,7 @@ export function LiveMissionTrackingView({
   const [isOrderCanceled, setIsOrderCanceled] = useState(
     () => order.fulfillmentStatus === "canceled",
   );
+  const [isCancellingBeforeDispatch, setIsCancellingBeforeDispatch] = useState(false);
   const [scheduledNowMs, setScheduledNowMs] = useState(() => Date.now());
   const [userActionNowMs, setUserActionNowMs] = useState(() => Date.now());
   const isWaitingForScheduledStart = isScheduledDeliveryWaiting(
@@ -331,7 +332,6 @@ export function LiveMissionTrackingView({
     paymentStatus === "paid" &&
     startOnMount &&
     !isScheduledDeliveryWaiting(order) &&
-    order.fulfillmentStatus !== "active_mission" &&
     order.fulfillmentStatus !== "completed_mission" &&
     order.fulfillmentStatus !== "failed_mission" &&
     order.fulfillmentStatus !== "fallback_required" &&
@@ -386,7 +386,7 @@ export function LiveMissionTrackingView({
     dispatchCountdown > 0 &&
     !isMissionRunning &&
     currentStatus !== "drone_dispatched";
-  const effectiveCheckoutHref = checkoutHref ?? `/client/checkout/${order.id}`;
+  const effectiveCheckoutHref = checkoutHref ?? "/client/create-delivery?checkout=moved";
   const pricingSnapshot = order.payload.pricingSnapshot;
   const pickupSegment = currentMission?.segments.find(
     (segment) => segment.type === "warehouse_to_pickup",
@@ -518,20 +518,25 @@ export function LiveMissionTrackingView({
     currentMission?.sourceOrderId === order.id &&
     isProofOfDeliveryReady(currentStatus);
 
-  const handleCancelOrder = () => {
-    setIsOrderCanceled(true);
-    setDispatchCountdown(0);
-    resetMission();
-    updateCreatedDeliveryOrderFulfillment({
-      orderId: order.id,
-      fulfillmentStatus: "canceled",
-      missionId: currentMission?.id ?? order.missionId ?? null,
-      missionStatus: "mission_failed",
-    });
-    notifyOrderCancelled(order, {
-      userId: user?.id ?? null,
-      email: user?.primaryEmailAddress?.emailAddress ?? null,
-    });
+  const handleCancelOrder = async () => {
+    if (isCancellingBeforeDispatch) return;
+    setIsCancellingBeforeDispatch(true);
+    try {
+      const response = await fetch(`/api/client/orders/${encodeURIComponent(order.id)}/cancel-before-dispatch`, {
+        method: "POST",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "cancel_failed");
+      setIsOrderCanceled(true);
+      setDispatchCountdown(0);
+      resetMission();
+      notifyOrderCancelled(order, {
+        userId: user?.id ?? null,
+        email: user?.primaryEmailAddress?.emailAddress ?? null,
+      });
+    } finally {
+      setIsCancellingBeforeDispatch(false);
+    }
   };
 
   useEffect(() => {
@@ -543,6 +548,31 @@ export function LiveMissionTrackingView({
 
     return () => window.clearInterval(interval);
   }, [isWaitingForScheduledStart]);
+
+  useEffect(() => {
+    if (
+      !isPaymentPaid ||
+      isWaitingForScheduledStart ||
+      isOrderCanceled ||
+      dispatchCountdown > 0 ||
+      isMissionRunning ||
+      currentStatus === "drone_dispatched"
+    ) return;
+    const dispatchStartMs = getPaidOrderMissionDispatchStartMs(order);
+    if (dispatchStartMs === null) return;
+    const remaining = Math.max(0, Math.ceil((dispatchStartMs - Date.now()) / 1000));
+    if (remaining <= 0) return;
+    const timeout = window.setTimeout(() => setDispatchCountdown(remaining), 0);
+    return () => window.clearTimeout(timeout);
+  }, [
+    currentStatus,
+    dispatchCountdown,
+    isMissionRunning,
+    isOrderCanceled,
+    isPaymentPaid,
+    isWaitingForScheduledStart,
+    order,
+  ]);
 
   useEffect(() => {
     if (!userActionTimer) {
@@ -1021,59 +1051,13 @@ export function LiveMissionTrackingView({
 
   if (isCancelWindowOpen) {
     return (
-      <section className="app-container flex flex-col gap-6">
-        <PageHeader
-          eyebrow="Urmărire comandă"
-          title={order.id}
-          description="Comanda este confirmată. Dispatch-ul începe în curând."
-          actions={[
-            {
-              label: "Înapoi la comenzi",
-              href: "/client/orders",
-              variant: "ghost",
-              icon: <ArrowLeft className="size-4" />,
-            },
-          ]}
-        />
-
-        <SectionCard
-          eyebrow="Comandă plasată"
-          title={`Dispatch-ul începe în ${dispatchCountdown} secunde`}
-          description="Poți anula înainte ca drona să plece din hub."
-        >
-          <div className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge label="Plată confirmată" tone="success" />
-              <StatusBadge label="Dispatch nepornit" tone="neutral" />
-              <StatusBadge label="Operațiuni Pitești" tone="neutral" />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-background p-5">
-                <p className="font-medium text-foreground">Ridicare</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {order.payload.selectedPickupPoint.label}
-                </p>
-              </div>
-              <div className="rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-background p-5">
-                <p className="font-medium text-foreground">Livrare</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {order.payload.selectedDropoffPoint.label}
-                </p>
-              </div>
-            </div>
-            <AppButton
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={handleCancelOrder}
-              className="w-full sm:w-fit"
-            >
-              <XCircle className="size-4" />
-              Anulează comanda
-            </AppButton>
-          </div>
-        </SectionCard>
-      </section>
+      <PremiumTrackingWorkspace
+        order={order}
+        paymentStatus={paymentStatus}
+        dispatchCountdown={dispatchCountdown}
+        onCancelBeforeDispatch={handleCancelOrder}
+        isCancellingBeforeDispatch={isCancellingBeforeDispatch}
+      />
     );
   }
 

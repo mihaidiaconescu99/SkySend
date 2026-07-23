@@ -28,6 +28,7 @@ import {
 import { CreateDeliveryAddressSection } from "@/components/delivery/create-delivery-address-section";
 import { CreateDeliveryMapStep } from "@/components/delivery/mobile/create-delivery-map-step";
 import { CreateDeliveryParcelSection } from "@/components/delivery/create-delivery-parcel-section";
+import { CreateDeliveryCheckoutPanel } from "@/components/delivery/create-delivery-checkout-panel";
 import { LazyMapContainer } from "@/components/maps/lazy-map-container";
 import { AppButton } from "@/components/shared/app-button";
 import { SectionCard } from "@/components/shared/section-card";
@@ -77,10 +78,7 @@ import {
   getServiceAreaMapOverlay,
 } from "@/lib/map";
 import { getDistanceKm } from "@/lib/service-area";
-import {
-  createLocalOrderId,
-  submitCreateDelivery,
-} from "@/lib/create-delivery-submit";
+import { createLocalOrderId } from "@/lib/create-delivery-submit";
 import { getAdminOperationalSettings } from "@/lib/admin-settings";
 import { readAndClearRepeatDeliveryPrefill } from "@/lib/repeat-delivery";
 import { useSavedPlaces } from "@/hooks/use-saved-places";
@@ -430,14 +428,6 @@ function validateScheduledDispatch({
   };
 }
 
-function formatPointCoordinates(candidatePoint: CandidatePoint | null) {
-  if (!candidatePoint) {
-    return "Niciun punct de întâlnire selectat";
-  }
-
-  return `${candidatePoint.point.latitude.toFixed(5)}, ${candidatePoint.point.longitude.toFixed(5)}`;
-}
-
 function getFallbackNote(
   pickupPoint: CandidatePoint | null,
   dropoffPoint: CandidatePoint | null,
@@ -755,18 +745,14 @@ export function CreateDeliveryShell() {
     lastY: number;
     didDrag: boolean;
   } | null>(null);
-  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState<string | null>(
-    null,
+  const [pendingPaymentOrderId, setPendingPaymentOrderId] = useState(
+    () => createLocalOrderId(new Date().toISOString()),
   );
   const [deliverySessionId, setDeliverySessionId] = useState("");
   const [deliveryDraftHydrated, setDeliveryDraftHydrated] = useState(false);
   const [operationalSettings, setOperationalSettings] =
     useState<OperationalSettings>(() => getAdminOperationalSettings());
   const [reviewGateMessage, setReviewGateMessage] = useState<string | null>(null);
-  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [reviewPricingToggled, setReviewPricingToggled] = useState<boolean | null>(null);
-  const reviewPricingOpen = reviewPricingToggled !== null ? reviewPricingToggled : !isMobile;
   const activeRoutePlanningField = isPlanningHandoffPoints.pickup
     ? "pickup"
     : isPlanningHandoffPoints.dropoff
@@ -1877,8 +1863,7 @@ export function CreateDeliveryShell() {
   }
 
   function handleEditDetails() {
-    setSubmitError(null);
-    setPendingPaymentOrderId(null);
+    setPendingPaymentOrderId(createLocalOrderId(new Date().toISOString()));
     setFlowStep("options");
   }
 
@@ -2075,56 +2060,6 @@ export function CreateDeliveryShell() {
       coverageSummary,
       createdAt: new Date().toISOString(),
     };
-  }
-
-  async function handleContinueToBilling() {
-    if (!canContinue || isSubmittingOrder) {
-      setSubmitError(
-        "Livrarea nu poate fi confirmată până când datele de verificare sunt complete.",
-      );
-      return;
-    }
-
-    const payload = buildCreateDeliveryPayload();
-
-    if (!payload) {
-      setSubmitError(
-        "Lipsesc detalii din traseu. Revino și actualizează adresele sau punctele de întâlnire selectate.",
-      );
-      return;
-    }
-
-    setIsSubmittingOrder(true);
-    setSubmitError(null);
-
-    try {
-      const checkoutOrderId =
-        pendingPaymentOrderId ?? createLocalOrderId(new Date().toISOString());
-      setPendingPaymentOrderId(checkoutOrderId);
-      const createdOrder = await submitCreateDelivery(payload, {
-        id: checkoutOrderId,
-        paymentStatus: "unpaid",
-      });
-
-      if (deliverySessionId) {
-        await discardParcelAiImages();
-        await fetch("/api/client/delivery-draft", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: deliverySessionId, action: "submit" }),
-        });
-      }
-
-      router.push(`/client/checkout/${createdOrder.id}`);
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Comanda nu a putut fi pregătită pentru facturare. Reîncearcă.",
-      );
-    } finally {
-      setIsSubmittingOrder(false);
-    }
   }
 
   async function discardParcelAiImages() {
@@ -2503,6 +2438,28 @@ export function CreateDeliveryShell() {
   );
 
   if (flowStep === "review" && canContinue) {
+    const checkoutPayload = buildCreateDeliveryPayload();
+    if (!checkoutPayload) return null;
+
+    const handleCheckoutPaid = (orderId: string) => {
+      router.replace(`/client/orders/${orderId}?brief=1`);
+      router.refresh();
+      if (deliverySessionId) {
+        void (async () => {
+          try {
+            await discardParcelAiImages();
+            await fetch("/api/client/delivery-draft", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: deliverySessionId, action: "submit" }),
+            });
+          } catch (error) {
+            console.error("[create-delivery] post-payment draft cleanup", error);
+          }
+        })();
+      }
+    };
+
     return (
       <section className="app-container flex h-dvh min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pb-[calc(var(--bottom-nav-safe)_+_1.5rem)] pt-0 sm:gap-6 sm:pb-10 sm:pt-[8.5rem] lg:pt-[9rem]">
         {isMobile ? (
@@ -2513,9 +2470,9 @@ export function CreateDeliveryShell() {
 
         {isMobile ? null : stepper}
 
-        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-          <div className="order-2 divide-y divide-border/70 overflow-hidden rounded-[var(--ui-radius-panel)] border border-border/70 bg-card xl:order-1">
-            <Card className="rounded-none border-0 bg-transparent shadow-none">
+        <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1.22fr)_minmax(26rem,1fr)] xl:items-start">
+          <div className="order-2 grid overflow-hidden rounded-[var(--ui-radius-panel)] border border-border/70 bg-card lg:grid-cols-2 xl:order-1">
+            <Card className="rounded-none border-0 bg-transparent shadow-none lg:border-r lg:border-border/70">
               <CardContent className="grid gap-5 p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="grid gap-2">
@@ -2526,7 +2483,7 @@ export function CreateDeliveryShell() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="relative grid gap-0 before:absolute before:bottom-8 before:left-[0.45rem] before:top-8 before:w-px before:bg-primary/35">
                   {[
                     {
                       label: "Ridicare",
@@ -2546,8 +2503,9 @@ export function CreateDeliveryShell() {
                     return (
                       <div
                         key={item.label}
-                        className="border-l border-border/70 pl-4"
+                        className="relative border-l-2 border-transparent py-5 pl-8 first:pt-2 last:pb-2"
                       >
+                        <span className="absolute left-0 top-7 z-10 size-4 rounded-full border-4 border-card bg-primary first:top-4" />
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <Icon className="size-4 text-foreground" />
@@ -2582,7 +2540,7 @@ export function CreateDeliveryShell() {
               </CardContent>
             </Card>
 
-            <div className="grid divide-y divide-border/70 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:divide-x lg:divide-y-0">
+            <div className="grid divide-y divide-border/70">
               <Card className="rounded-none border-0 bg-transparent shadow-none">
                 <CardContent className="grid gap-5 p-5 sm:p-6">
                   <div className="flex items-center justify-between gap-3">
@@ -2607,6 +2565,10 @@ export function CreateDeliveryShell() {
                       <p className="font-medium text-foreground">
                         {reviewSnapshot.estimatedWeightRange}
                       </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 border-t border-border/60 pt-4">
+                      <div><p className="text-muted-foreground">Dimensiuni</p><p className="font-medium text-foreground">{parcelDraft.lengthCm && parcelDraft.widthCm && parcelDraft.heightCm ? `${parcelDraft.lengthCm} × ${parcelDraft.widthCm} × ${parcelDraft.heightCm} cm` : parcelSizeLabels[parcelDraft.approximateSize]}</p></div>
+                      <div><p className="text-muted-foreground">Ambalare</p><p className="font-medium text-foreground">{parcelPackagingLabels[parcelDraft.packaging]}</p></div>
                     </div>
                   </div>
                 </CardContent>
@@ -2642,138 +2604,27 @@ export function CreateDeliveryShell() {
                       </div>
                     ) : null}
                   </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-border/60 pt-4 text-sm leading-6">
+                    <div><p className="text-muted-foreground">Modul cargo</p><p className="font-medium text-foreground">{reviewSnapshot.deliveryModuleLabel}</p></div>
+                    <div><p className="text-muted-foreground">ETA</p><p className="font-medium text-foreground">{reviewSnapshot.estimatedWindowLabel}</p></div>
+                    <div><p className="text-muted-foreground">Fragilitate</p><p className="font-medium capitalize text-foreground">{parcelDraft.fragilityLevel}</p></div>
+                    <div><p className="text-muted-foreground">Platformă</p><p className="font-medium text-foreground">{reviewSnapshot.deliveryPlatformLabel}</p></div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-
-            <details className="group p-5 sm:p-6">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-foreground">
-                <span>Detalii operaționale</span>
-                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-5 grid gap-4 border-t border-border/60 pt-5 text-sm leading-6 text-muted-foreground sm:grid-cols-2">
-                <div><p className="text-foreground">Platformă</p><p>{reviewSnapshot.deliveryPlatformLabel}</p></div>
-                <div><p className="text-foreground">Modul cargo</p><p>{reviewSnapshot.deliveryModuleLabel} · {reviewSnapshot.deliverySelectionReason}</p></div>
-                <div><p className="text-foreground">Impact preț</p><p>{reviewSnapshot.deliveryPriceImpactLabel}</p></div>
-                <div><p className="text-foreground">Eligibilitate</p><p>{reviewSnapshot.deliveryEligibilityLabel}</p></div>
-                <div><p className="text-foreground">Coordonate ridicare</p><p className="font-mono">{formatPointCoordinates(reviewSnapshot.pickupPoint)}</p></div>
-                <div><p className="text-foreground">Coordonate livrare</p><p className="font-mono">{formatPointCoordinates(reviewSnapshot.dropoffPoint)}</p></div>
-                <div className="sm:col-span-2"><p className="text-foreground">Plan de rezervă</p><p>{reviewSnapshot.fallbackNote}</p></div>
-              </div>
-            </details>
           </div>
 
-          <aside className="order-1 grid gap-4 xl:order-2 xl:sticky xl:top-8 xl:max-h-[calc(100dvh_-_4rem)] xl:overflow-y-auto xl:pr-1">
-            <Card className="rounded-[calc(var(--radius)+0.75rem)]">
-              <CardContent className="grid gap-5 p-5">
-                <div className="grid min-w-0 gap-1">
-                  <p className="type-caption">Plată</p>
-                  <p className="font-heading text-3xl leading-tight tracking-tight text-foreground sm:text-4xl sm:leading-none">
-                    {reviewSnapshot.estimatedPriceLabel}
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Confirmă și plătește din această verificare finală. Nu mai există un al doilea pas de plată.
-                  </p>
-                </div>
-
-                <div className="grid gap-3">
-                  <div className="rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">
-                    <div className="flex items-center gap-3">
-                      <Clock3 className="size-4 text-foreground" />
-                      <p className="font-medium text-foreground">Interval</p>
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {reviewSnapshot.estimatedWindowLabel}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-2 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">
-                  <button
-                    type="button"
-                    onClick={() => setReviewPricingToggled(!reviewPricingOpen)}
-                    className="flex items-center justify-between gap-3 text-left"
-                    aria-expanded={reviewPricingOpen}
-                  >
-                    <p className="font-medium text-foreground">Detalii tarifare</p>
-                    <ChevronDown
-                      className={cn(
-                        "size-4 shrink-0 text-muted-foreground transition-transform xl:hidden",
-                        reviewPricingOpen ? "rotate-180" : "",
-                      )}
-                    />
-                  </button>
-                  {reviewPricingOpen ? (
-                    <>
-                      {[
-                        ...pricingSnapshot.breakdown.map((item) => [
-                          item.label,
-                          item.amount.amountMinor,
-                        ] as const),
-                        ["Total", pricingSnapshot.total.amountMinor] as const,
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm"
-                        >
-                          <span className="min-w-0 text-muted-foreground">{label}</span>
-                          <span className="font-medium text-foreground">
-                            {formatCurrency(Number(value) / 100)}
-                          </span>
-                        </div>
-                      ))}
-                    </>
-                  ) : null}
-                </div>
-
-                {submitError ? (
-                  <div className="rounded-[calc(var(--radius)+0.375rem)] border border-destructive/25 bg-destructive/5 p-4">
-                    <div className="flex items-start gap-3">
-                      <CircleAlert className="mt-0.5 size-4 text-destructive" />
-                      <div className="grid gap-1">
-                        <p className="font-medium text-foreground">
-                          Confirmarea necesită atenție
-                        </p>
-                        <p className="text-sm leading-6 text-muted-foreground">
-                          {submitError}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="grid gap-3 rounded-[calc(var(--radius)+0.375rem)] border border-border/80 bg-secondary/45 p-4">
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Comanda va fi salvată cu status în așteptare. În pasul următor confirmi datele de facturare și apoi se încarcă formularul securizat Stripe.
-                  </p>
-                  <AppButton
-                    type="button"
-                    size="lg"
-                    disabled={isSubmittingOrder || !canContinue}
-                    onClick={handleContinueToBilling}
-                  >
-                    {isSubmittingOrder ? (
-                      <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                      <ArrowRight className="size-4" />
-                    )}
-                    Confirmă și continuă la facturare
-                  </AppButton>
-                </div>
-
-                <div className="grid gap-3">
-                  <AppButton
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    disabled={isSubmittingOrder}
-                    onClick={handleEditDetails}
-                  >
-                    <ArrowLeft className="size-4" />
-                    Înapoi
-                  </AppButton>
-                </div>
-              </CardContent>
+          <aside className="order-1 min-h-0 xl:order-2 xl:sticky xl:top-8 xl:h-[calc(100dvh_-_4rem)]">
+            <Card className="h-full min-h-[34rem] overflow-hidden rounded-[calc(var(--radius)+0.75rem)]">
+              <CreateDeliveryCheckoutPanel
+                payload={checkoutPayload}
+                pricing={pricingSnapshot}
+                localOrderId={pendingPaymentOrderId}
+                deliveryDraftId={deliverySessionId || null}
+                onPaid={handleCheckoutPaid}
+                onBackToEdit={handleEditDetails}
+              />
             </Card>
           </aside>
         </div>

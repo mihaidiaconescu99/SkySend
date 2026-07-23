@@ -501,7 +501,12 @@ function SkySendAssistantPanel({
             aria-labelledby="skysend-assistant-title"
             className="absolute bottom-16 right-0 flex h-[min(43rem,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-[30rem] flex-col overflow-hidden rounded-[1.65rem] border border-cyan-300/20 bg-[#071116] text-white shadow-[0_32px_90px_-32px_rgba(0,0,0,.95)] sm:bottom-[4.7rem]"
           >
-            <header className="relative min-h-52 bg-[#061923] px-6 py-6 text-white">
+            <header
+              className={cn(
+                "relative bg-[#061923] px-6 py-6 text-white",
+                activeTab === "home" ? "min-h-52" : "min-h-0",
+              )}
+            >
               <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent" />
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-3">
@@ -536,14 +541,16 @@ function SkySendAssistantPanel({
                 </button>
               </div>
 
-              <div className="absolute bottom-7 left-6 right-6">
-                <p className="max-w-xs text-3xl font-semibold leading-tight">
-                  {copy.heroTitle}
-                </p>
-                <p className="mt-2 text-sm text-cyan-100/70">
-                  {copy.heroText}
-                </p>
-              </div>
+              {activeTab === "home" ? (
+                <div className="absolute bottom-7 left-6 right-6">
+                  <p className="max-w-xs text-3xl font-semibold leading-tight">
+                    {copy.heroTitle}
+                  </p>
+                  <p className="mt-2 text-sm text-cyan-100/70">
+                    {copy.heroText}
+                  </p>
+                </div>
+              ) : null}
             </header>
 
             <main className="min-h-0 flex-1 overflow-hidden bg-[#071116]">

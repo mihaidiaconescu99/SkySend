@@ -52,6 +52,7 @@ function buildOrderRow(
     status: "pending",
     fulfillment_status: null,
     dispatch_timing: "standard",
+    dispatch_starts_at: null,
     scheduled_at: null,
     drone_class: "medium_standard",
     delivery_configuration_id: "aer_express",

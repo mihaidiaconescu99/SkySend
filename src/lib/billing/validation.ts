@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const optionalText = z.string().trim().max(160).nullable().optional();
 
-export const billingSnapshotSchema = z.object({
+const billingFieldsSchema = z.object({
   customerType: z.enum(["individual", "company"]),
   fullName: optionalText,
   companyLegalName: optionalText,
@@ -14,8 +14,12 @@ export const billingSnapshotSchema = z.object({
   postalCode: optionalText,
   invoiceEmail: z.string().trim().email().max(254),
   locale: z.enum(["ro", "en"]),
-  privacyAccepted: z.literal(true),
-}).superRefine((value, context) => {
+});
+
+function validateBillingIdentity(
+  value: z.infer<typeof billingFieldsSchema>,
+  context: z.RefinementCtx,
+) {
   if (value.customerType === "individual" && !value.fullName?.trim()) {
     context.addIssue({ code: "custom", path: ["fullName"], message: "full_name_required" });
   }
@@ -30,5 +34,11 @@ export const billingSnapshotSchema = z.object({
   if (value.countryCode === "RO" && !/^\d{6}$/u.test(value.postalCode ?? "")) {
     context.addIssue({ code: "custom", path: ["postalCode"], message: "romanian_postal_code_required" });
   }
-});
+}
 
+export const savedBillingProfileSchema = billingFieldsSchema
+  .superRefine(validateBillingIdentity);
+
+export const billingSnapshotSchema = billingFieldsSchema.extend({
+  privacyAccepted: z.literal(true),
+}).superRefine(validateBillingIdentity);

@@ -941,6 +941,7 @@ export type Database = {
           currency: string
           delivery_configuration_id: string
           dispatch_timing: string
+          dispatch_starts_at: string | null
           drone_class: string
           dropoff_address_id: string
           eta_max_minutes: number | null
@@ -977,6 +978,7 @@ export type Database = {
           currency?: string
           delivery_configuration_id: string
           dispatch_timing?: string
+          dispatch_starts_at?: string | null
           drone_class: string
           dropoff_address_id: string
           eta_max_minutes?: number | null
@@ -1013,6 +1015,7 @@ export type Database = {
           currency?: string
           delivery_configuration_id?: string
           dispatch_timing?: string
+          dispatch_starts_at?: string | null
           drone_class?: string
           dropoff_address_id?: string
           eta_max_minutes?: number | null

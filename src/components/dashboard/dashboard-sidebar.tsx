@@ -7,6 +7,7 @@ import type { DashboardNavItem } from "@/types/navigation";
 import type { DashboardRole } from "@/types/roles";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { cn } from "@/lib/utils";
+import { motion, useReducedMotion } from "motion/react";
 
 function SidebarGroup({
   items,
@@ -17,6 +18,7 @@ function SidebarGroup({
   currentRoute: string;
   label: string;
 }) {
+  const reduceMotion = Boolean(useReducedMotion());
   return (
     <section className="min-w-0">
       <nav className="grid gap-1.5" aria-label={label}>
@@ -45,20 +47,27 @@ function SidebarGroup({
               className={cn(
                 "block min-w-0 rounded-xl border px-3 py-2.5 transition-colors",
                 isActive
-                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  ? "border-transparent text-foreground"
                   : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-secondary/70 hover:text-foreground",
               )}
             >
               <span className="flex min-w-0 items-center gap-3.5">
                 <span
                   className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                    "relative flex size-8 shrink-0 items-center justify-center rounded-lg",
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "text-primary-foreground"
                       : "bg-secondary text-foreground",
                   )}
                 >
-                  <Icon className="size-[1.08rem]" />
+                  {isActive ? (
+                    <motion.span
+                      layoutId="dashboard-active-icon"
+                      className="absolute inset-0 rounded-lg bg-primary"
+                      transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 42, mass: 0.75 }}
+                    />
+                  ) : null}
+                  <Icon className="relative z-10 size-[1.08rem]" />
                 </span>
                 <span className="truncate text-[0.95rem] font-medium">{item.label}</span>
               </span>

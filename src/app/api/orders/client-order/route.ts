@@ -111,7 +111,8 @@ function orderToCreatedDelivery(order: Order): CreatedDeliveryOrder {
     publicTrackingCode: order.publicTrackingCode,
     recipientTrackingToken: order.recipientTrackingToken,
     stripePaymentIntentId: order.stripePaymentIntentId,
-    paidAt: null,
+    paidAt: order.paidAt,
+    dispatchStartsAt: order.dispatchStartsAt,
     completedAt: order.status === "completed" ? order.updatedAt : null,
     refundStatus: order.refundStatus as CreatedDeliveryOrder["refundStatus"],
     href: `/client/orders/${order.localOrderId}`,
@@ -160,6 +161,10 @@ export async function GET(request: Request) {
       { error: "Order does not belong to this account." },
       { status: 403 },
     );
+  }
+
+  if (["pending", "failed"].includes(orderResult.data.paymentStatus)) {
+    return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
 
   return NextResponse.json(orderToCreatedDelivery(orderResult.data));

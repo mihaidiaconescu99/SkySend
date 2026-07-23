@@ -621,7 +621,8 @@ function applyDefaults(table: TableName, row: AnyRow): AnyRow {
       parcel_id: row.parcel_id,
       status: row.status ?? "pending",
       fulfillment_status: row.fulfillment_status ?? null,
-      dispatch_timing: row.dispatch_timing ?? "standard",
+    dispatch_timing: row.dispatch_timing ?? "standard",
+    dispatch_starts_at: row.dispatch_starts_at ?? null,
       scheduled_at: row.scheduled_at ?? null,
       drone_class: row.drone_class,
       delivery_configuration_id: row.delivery_configuration_id,
@@ -814,6 +815,7 @@ export function buildOrderRow(
     created_at: "2026-05-23T10:00:00Z",
     updated_at: "2026-05-23T10:00:00Z",
     ...overrides,
+    dispatch_starts_at: overrides.dispatch_starts_at ?? null,
   };
 }
 
