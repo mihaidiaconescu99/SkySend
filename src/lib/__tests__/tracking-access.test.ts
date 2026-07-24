@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getActionCapabilities, isOrderTerminal } from "@/lib/tracking-access-server";
+import {
+  getActionCapabilities,
+  getDirectTrackingScope,
+  isOrderTerminal,
+} from "@/lib/tracking-access-server";
 import type { Order } from "@/types/order";
 
 describe("tracking access capabilities", () => {
@@ -20,6 +24,15 @@ describe("tracking access capabilities", () => {
     expect(getActionCapabilities("owner").canManageSharing).toBe(true);
     expect(getActionCapabilities("full")).toMatchObject({ canPickup: true, canDropoff: true });
     expect(getActionCapabilities("view")).toMatchObject({ canPickup: false, canDropoff: false });
+  });
+
+  it("keeps enumerable public identifiers read-only", () => {
+    expect(getDirectTrackingScope("public_identifier")).toBe("view");
+    expect(getActionCapabilities(getDirectTrackingScope("public_identifier"))).toMatchObject({
+      canPickup: false,
+      canDropoff: false,
+    });
+    expect(getDirectTrackingScope("recipient_token")).toBe("full");
   });
 
   it("makes completed, failed and cancelled orders terminal", () => {

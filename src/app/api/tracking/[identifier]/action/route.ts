@@ -12,6 +12,7 @@ import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { processEligibleRefund } from "@/lib/refund-reconciliation-server";
 import {
   expireTrackingLinksAfterTerminal,
+  getDirectTrackingScope,
   isOrderTerminal,
   resolveTrackingToken,
   type TrackingAccessScope,
@@ -73,13 +74,13 @@ async function resolveOrder(identifier: string) {
   let orderResult = normalized.startsWith("SKY-PT-")
     ? await orders.getByLocalOrderId(normalized)
     : await orders.getByPublicTrackingCode(normalized);
-  let scope: TrackingAccessScope = "view";
+  let scope: TrackingAccessScope = getDirectTrackingScope("public_identifier");
 
-  if (orderResult.ok && orderResult.data) {
-    scope = orderResult.data.publicCodeAccessMode === "control" ? "full" : "view";
-  } else {
+  if (!orderResult.ok || !orderResult.data) {
     orderResult = await orders.getByRecipientTrackingToken(identifier);
-    if (orderResult.ok && orderResult.data) scope = "full";
+    if (orderResult.ok && orderResult.data) {
+      scope = getDirectTrackingScope("recipient_token");
+    }
   }
 
   if (!orderResult.ok || !orderResult.data) {

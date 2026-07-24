@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/input-schemas";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
+import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import { billingSnapshotSchema } from "@/lib/billing/validation";
 import {
   getOwnedCheckoutSession,
@@ -20,7 +21,11 @@ import { assertOperationsAvailable } from "@/lib/operational-status-server";
 import { checkoutDeliveryPayloadSchema } from "@/lib/delivery-input-schemas";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getStripeServer } from "@/lib/stripe/server";
+import {
+  assertStripePaymentMethodBelongsToCustomer,
+  getAuthenticatedStripeCustomer,
+  getStripeServer,
+} from "@/lib/stripe/server";
 import { reconcilePaidCheckoutSession } from "@/lib/stripe/webhook-server";
 import type { CreateDeliveryPayload } from "@/types/create-delivery";
 
@@ -95,7 +100,7 @@ export async function GET(request: Request) {
     ["payment_processing", "finalizing", "finalization_failed"].includes(row.status)
   ) {
     try {
-      await reconcilePaidCheckoutSession(row.id, new URL(request.url).origin);
+      await reconcilePaidCheckoutSession(row.id, getTrustedAppOrigin(request));
     } catch (error) {
       console.error("[delivery-checkout] paid session reconciliation", row.id, error);
     }
@@ -123,6 +128,21 @@ export async function POST(request: Request) {
   if (!parsed.ok) return parsed.response;
   try {
     await assertOperationsAvailable(context.supabase);
+    if (parsed.data.deliveryDraftId) {
+      const { data: ownedDraft, error: draftError } = await context.db
+        .from("delivery_drafts")
+        .select("id")
+        .eq("id", parsed.data.deliveryDraftId)
+        .eq("profile_id", context.profile.id)
+        .maybeSingle();
+      if (draftError) throw new Error("delivery_draft_lookup_failed");
+      if (!ownedDraft) {
+        return NextResponse.json(
+          { error: "delivery_draft_not_found" },
+          { status: 404 },
+        );
+      }
+    }
     const { data: reusable } = await context.db.from("delivery_checkout_sessions")
       .select("*")
       .eq("profile_id", context.profile.id)
@@ -131,7 +151,12 @@ export async function POST(request: Request) {
     if (reusable?.status === "finalized") {
       return NextResponse.json({ error: "checkout_already_finalized" }, { status: 409 });
     }
-    const active = await getOwnedCheckoutSession(context.supabase, context.profile.id);
+    const active = await getOwnedCheckoutSession(
+      context.supabase,
+      context.profile.id,
+      null,
+      { includeFinalizationFailed: false },
+    );
     if (active && active.id !== reusable?.id) {
       const cancellation = await cancelIntent(active.stripe_payment_intent_id);
       if (cancellation === "captured") return NextResponse.json({ error: "payment_finalizing" }, { status: 409 });
@@ -182,7 +207,9 @@ export async function POST(request: Request) {
       last_error: null,
     };
     const mutation = reusable
-      ? context.db.from("delivery_checkout_sessions").update(checkoutRow).eq("id", reusable.id)
+      ? context.db.from("delivery_checkout_sessions").update(checkoutRow)
+          .eq("id", reusable.id)
+          .eq("profile_id", context.profile.id)
       : context.db.from("delivery_checkout_sessions").insert(checkoutRow);
     const { data, error } = await mutation.select("*,order:orders(local_order_id)").single();
     if (error) throw new Error(error.message);
@@ -246,6 +273,25 @@ export async function PATCH(request: Request) {
   } else if (parsed.data.action === "set_step") {
     update = { current_step: parsed.data.step };
   } else if (parsed.data.action === "select_payment_method") {
+    if (parsed.data.paymentMethodId) {
+      try {
+        const { stripe, customer, clerkUserId } =
+          await getAuthenticatedStripeCustomer();
+        if (clerkUserId !== context.profile.clerkUserId) {
+          return NextResponse.json({ error: "checkout_not_found" }, { status: 404 });
+        }
+        await assertStripePaymentMethodBelongsToCustomer(
+          stripe,
+          customer.id,
+          parsed.data.paymentMethodId,
+        );
+      } catch {
+        return NextResponse.json(
+          { error: "payment_method_not_found" },
+          { status: 404 },
+        );
+      }
+    }
     update = { selected_payment_method_id: parsed.data.paymentMethodId };
   } else {
     const cancellation = await cancelIntent(row.stripe_payment_intent_id);

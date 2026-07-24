@@ -1,13 +1,14 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { bearerSecretMatches } from "@/lib/api/request-security";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
 import { expireMissionIfDue } from "@/lib/mission-expiration-server";
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!bearerSecretMatches(request.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

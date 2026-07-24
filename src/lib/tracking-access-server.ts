@@ -7,6 +7,7 @@ import type { Order } from "@/types/order";
 import type { TrackingLinkScope } from "@/types/mission-record";
 
 export type TrackingAccessScope = "owner" | "full" | "pickup" | "dropoff" | "view";
+export type DirectTrackingCredential = "public_identifier" | "recipient_token";
 
 const terminalOrderStatuses = new Set(["completed", "failed", "cancelled"]);
 
@@ -136,4 +137,10 @@ export function getActionCapabilities(scope: TrackingAccessScope) {
     canDropoff: scope === "owner" || scope === "full" || scope === "dropoff",
     canManageSharing: scope === "owner",
   };
+}
+
+export function getDirectTrackingScope(
+  credential: DirectTrackingCredential,
+): TrackingAccessScope {
+  return credential === "recipient_token" ? "full" : "view";
 }

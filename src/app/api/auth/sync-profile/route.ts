@@ -6,6 +6,7 @@ import {
   normalizedEmailSchema,
   plainTextSchema,
 } from "@/lib/api/input-schemas";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { getServerAuthorizationContext } from "@/lib/server-authorization";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -16,7 +17,13 @@ const clerkProfileSchema = z.object({
   fullName: plainTextSchema(1, 160).nullable(),
 }).strict();
 
-export async function POST() {
+export async function POST(
+  request = new Request("http://localhost/api/auth/sync-profile", {
+    method: "POST",
+  }),
+) {
+  const originFailure = requireSameOrigin(request);
+  if (originFailure) return originFailure;
   try {
 
     const authorization = await getServerAuthorizationContext();

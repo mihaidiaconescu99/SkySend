@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { validateRequest } from "@/lib/api/validation";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import { savedBillingProfileSchema } from "@/lib/billing/validation";
 import { getSavedBillingProfile, saveBillingProfile } from "@/lib/checkout/server";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
@@ -32,7 +33,9 @@ export async function PUT(request: Request) {
   });
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const originFailure = requireSameOrigin(request);
+  if (originFailure) return originFailure;
   const actor = await context();
   if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const { error } = await (actor.supabase as never as {

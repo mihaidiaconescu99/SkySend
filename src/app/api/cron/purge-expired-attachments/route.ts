@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerSecretMatches } from "@/lib/api/request-security";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { deleteR2Objects } from "@/lib/storage/r2";
 
@@ -7,7 +8,7 @@ export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
-  if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!bearerSecretMatches(request.headers.get("authorization"), cronSecret)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readLimitedTextRequest } from "@/lib/api/validation";
+import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import { getStripeServer } from "@/lib/stripe/server";
 import { processStripeEvent } from "@/lib/stripe/webhook-server";
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
   try {
-    await processStripeEvent(event, new URL(request.url).origin);
+    await processStripeEvent(event, getTrustedAppOrigin(request));
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("[stripe-webhook] processing failed", error);

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { bearerSecretMatches, getTrustedAppOrigin } from "@/lib/api/request-security";
 import { processDueBillingDocuments } from "@/lib/billing/server";
 import { reconcileOperationalMissionHolds } from "@/lib/operational-holds-server";
 import { evaluateAndPersistWeather } from "@/lib/weather/server";
@@ -15,14 +16,19 @@ const legacyJobs = [
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   const authorization = request.headers.get("authorization");
-  if (!secret || authorization !== `Bearer ${secret}`) {
+  if (!bearerSecretMatches(authorization, secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const origin = new URL(request.url).origin;
+  let origin: string;
+  try {
+    origin = getTrustedAppOrigin(request);
+  } catch {
+    return NextResponse.json({ error: "origin_not_configured" }, { status: 503 });
+  }
   const settled = await Promise.allSettled([
     ...legacyJobs.map(async (path) => {
       const response = await fetch(new URL(path, origin), {
-        headers: { Authorization: authorization },
+        headers: { Authorization: authorization ?? "" },
         cache: "no-store",
       });
       if (!response.ok) throw new Error(`${path}:${response.status}`);

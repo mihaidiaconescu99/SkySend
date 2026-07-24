@@ -110,12 +110,32 @@ export async function getAttachmentDownload(identity: SupportIdentity, id: strin
     if (!isAuthorizedSupportOperator(identity)) throw new Error("forbidden");
   } else if (data.assistant_message_id) {
     const { data: message } = await db().from("assistant_messages")
-      .select("assistant_conversations(profile_id)").eq("id", data.assistant_message_id).maybeSingle();
-    if (!isAuthorizedSupportOperator(identity) && message?.assistant_conversations?.profile_id !== identity.profileId) throw new Error("forbidden");
+      .select("assistant_conversations(profile_id,support_tickets(assigned_operator_profile_id))")
+      .eq("id", data.assistant_message_id).maybeSingle();
+    const ticket = Array.isArray(message?.assistant_conversations?.support_tickets)
+      ? message.assistant_conversations.support_tickets[0]
+      : message?.assistant_conversations?.support_tickets;
+    if (
+      isAuthorizedSupportOperator(identity)
+        ? !isSupportAdmin(identity) &&
+          ticket?.assigned_operator_profile_id !== identity.profileId
+        : message?.assistant_conversations?.profile_id !== identity.profileId
+    ) {
+      throw new Error("forbidden");
+    }
   } else if (data.evaluation_message_id) {
     const { data: message } = await db().from("parcel_evaluation_messages")
-      .select("parcel_evaluations(client_profile_id)").eq("id", data.evaluation_message_id).maybeSingle();
-    if (!isAuthorizedSupportOperator(identity) && message?.parcel_evaluations?.client_profile_id !== identity.profileId) throw new Error("forbidden");
+      .select("parcel_evaluations(client_profile_id,assigned_operator_profile_id)")
+      .eq("id", data.evaluation_message_id).maybeSingle();
+    if (
+      isAuthorizedSupportOperator(identity)
+        ? !isSupportAdmin(identity) &&
+          message?.parcel_evaluations?.assigned_operator_profile_id !==
+            identity.profileId
+        : message?.parcel_evaluations?.client_profile_id !== identity.profileId
+    ) {
+      throw new Error("forbidden");
+    }
   }
   return createR2DownloadUrl(data.r2_object_key);
 }

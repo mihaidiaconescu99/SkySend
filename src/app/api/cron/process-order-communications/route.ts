@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerSecretMatches, getTrustedAppOrigin } from "@/lib/api/request-security";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ensureOrderCommunication } from "@/lib/order-communications-server";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
@@ -7,7 +8,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!bearerSecretMatches(request.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -17,7 +18,12 @@ export async function GET(request: Request) {
   const profilesRepo = new ProfilesRepository(supabase);
   const now = Date.now();
   const fourHours = 4 * 60 * 60 * 1000;
-  const origin = new URL(request.url).origin;
+  let origin: string;
+  try {
+    origin = getTrustedAppOrigin(request);
+  } catch {
+    return NextResponse.json({ error: "origin_not_configured" }, { status: 503 });
+  }
   let processed = 0;
 
   const { data: scheduledRows } = await database.from("orders")

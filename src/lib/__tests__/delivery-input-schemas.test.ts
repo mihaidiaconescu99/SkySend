@@ -11,5 +11,16 @@ describe("checkoutDeliveryPayloadSchema", () => {
     expect(checkoutDeliveryPayloadSchema.shape).not.toHaveProperty(
       "pricingSnapshot",
     );
+    for (const privilegedField of [
+      "role",
+      "profileId",
+      "totalAmount",
+      "totalAmountMinor",
+      "paymentStatus",
+    ]) {
+      expect(checkoutDeliveryPayloadSchema.shape).not.toHaveProperty(
+        privilegedField,
+      );
+    }
   });
 });

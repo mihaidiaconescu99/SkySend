@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { uploadFileNameSchema } from "@/lib/api/input-schemas";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import { createParcelAiImageUpload, listParcelAiImages, removeParcelAiImage, removeParcelAiImagesForDraft } from "@/lib/parcel-ai-images/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
   }
 }
 export async function DELETE(request: Request) {
+  const originFailure = requireSameOrigin(request); if (originFailure) return originFailure;
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const searchParams = new URL(request.url).searchParams;
   const imageId = searchParams.get("imageId");

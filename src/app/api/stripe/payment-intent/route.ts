@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { validateRequest } from "@/lib/api/validation";
+import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import {
   createStripePaymentIntentParams,
   getAuthenticatedStripeCustomer,
@@ -9,6 +10,7 @@ import {
   listStripeCustomerPaymentMethods,
   StripeAuthenticationError,
 } from "@/lib/stripe/server";
+import { toStripeCurrencyCode } from "@/lib/stripe/shared";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
@@ -49,9 +51,26 @@ export async function POST(request: Request) {
     let intent = session.stripe_payment_intent_id
       ? await stripe.paymentIntents.retrieve(session.stripe_payment_intent_id)
       : null;
+    if (intent) {
+      const intentCustomer =
+        typeof intent.customer === "string"
+          ? intent.customer
+          : intent.customer?.id ?? null;
+      if (
+        intentCustomer !== customer.id ||
+        intent.metadata.checkoutSessionId !== session.id ||
+        intent.amount !== session.total_amount_minor ||
+        intent.currency !== toStripeCurrencyCode(session.currency)
+      ) {
+        return NextResponse.json(
+          { error: "Payment intent does not match this checkout." },
+          { status: 409 },
+        );
+      }
+    }
     if (intent && intent.status === "succeeded") {
       try {
-        await reconcilePaidCheckoutSession(session.id, new URL(request.url).origin);
+        await reconcilePaidCheckoutSession(session.id, getTrustedAppOrigin(request));
       } catch (error) {
         console.error("[payment-intent] paid checkout reconciliation", session.id, error);
       }
@@ -90,7 +109,7 @@ export async function POST(request: Request) {
       save_payment_method: parsed.data.savePaymentMethod,
       status: "payment_processing",
       current_step: "payment",
-    }).eq("id", session.id);
+    }).eq("id", session.id).eq("profile_id", profile.data.id);
     return NextResponse.json({
       clientSecret: intent.client_secret,
       paymentIntentId: intent.id,

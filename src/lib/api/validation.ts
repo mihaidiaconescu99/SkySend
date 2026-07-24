@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireSameOrigin } from "@/lib/api/request-security";
 
 export const DEFAULT_JSON_BODY_LIMIT_BYTES = 64 * 1024;
 
@@ -17,6 +18,7 @@ export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 
 type ValidationOptions = {
   maxBytes?: number;
+  sameOrigin?: boolean;
 };
 
 type RawBodyOptions = ValidationOptions & {
@@ -46,6 +48,10 @@ export async function validateRequest<TSchema extends z.ZodTypeAny>(
   request: Request,
   options: ValidationOptions = {},
 ): Promise<ValidationResult<z.infer<TSchema>>> {
+  if (options.sameOrigin !== false) {
+    const originFailure = requireSameOrigin(request);
+    if (originFailure) return { ok: false, response: originFailure };
+  }
   const raw = await readLimitedTextRequest(request, options);
   if (!raw.ok) return raw;
 

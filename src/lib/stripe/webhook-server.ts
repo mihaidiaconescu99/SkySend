@@ -77,11 +77,21 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
       p_paid_at: paidAt,
     });
     if (finalizeError) {
-      await database.from("delivery_checkout_sessions").update({
-        status: "finalization_failed",
-        last_error: finalizeError.message.slice(0, 1000),
-      }).eq("id", data.id);
-      throw new Error(finalizeError.message);
+      // An API response can fail after Postgres has already committed the
+      // transaction. Never overwrite that completed checkout as failed.
+      const { data: committedSession, error: committedLookupError } =
+        await database
+          .from("delivery_checkout_sessions")
+          .select("order_id")
+          .eq("id", data.id)
+          .maybeSingle();
+      if (committedLookupError || !committedSession?.order_id) {
+        await database.from("delivery_checkout_sessions").update({
+          status: "finalization_failed",
+          last_error: finalizeError.message.slice(0, 1000),
+        }).eq("id", data.id);
+        throw new Error(finalizeError.message);
+      }
     }
   }
   const row = await findOrderForIntent(intent.id, intent.metadata.orderId);
@@ -99,6 +109,13 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
   }
   if (row.total_amount_minor !== intent.amount_received || row.currency.toLowerCase() !== intent.currency.toLowerCase()) {
     throw new Error("webhook_payment_amount_mismatch");
+  }
+  if (checkoutSession) {
+    const { error: sessionFinalizeError } = await database
+      .from("delivery_checkout_sessions")
+      .update({ status: "finalized", last_error: null })
+      .eq("id", checkoutSession.id);
+    if (sessionFinalizeError) throw new Error(sessionFinalizeError.message);
   }
   const snapshot = await getBillingSnapshotForOrder(createAdminSupabaseClient(), row.id);
   if (!snapshot) throw new Error("webhook_billing_snapshot_missing");

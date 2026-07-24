@@ -2,6 +2,7 @@ import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { opaqueIdentifierSchema } from "@/lib/api/input-schemas";
@@ -57,12 +58,12 @@ function toResponse(
   order: Order,
   links: Array<{ scope: string; token: string }>,
 ) {
-  const requestOrigin = new URL(request.url).origin;
-  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/u, "");
-  const origin =
-    process.env.NODE_ENV === "production" && configuredOrigin
-      ? configuredOrigin
-      : requestOrigin;
+  let origin: string;
+  try {
+    origin = getTrustedAppOrigin(request);
+  } catch {
+    return NextResponse.json({ error: "origin_not_configured" }, { status: 503 });
+  }
   return {
     publicCodeAccessMode: order.publicCodeAccessMode,
     terminal: isOrderTerminal(order),

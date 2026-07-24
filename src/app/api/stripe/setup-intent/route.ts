@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import {
   getAuthenticatedStripeCustomer,
   listStripeCustomerPaymentMethods,
   StripeAuthenticationError,
 } from "@/lib/stripe/server";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const originFailure = requireSameOrigin(request);
+  if (originFailure) return originFailure;
   try {
     const { stripe, customer, clerkUserId } = await getAuthenticatedStripeCustomer();
     const setupIntent = await stripe.setupIntents.create({
@@ -15,9 +18,7 @@ export async function POST() {
         clerkUserId,
         product: "skysend",
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      payment_method_types: ["card"],
     });
 
     return NextResponse.json({

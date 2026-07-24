@@ -1,7 +1,5 @@
 import { createInAppNotification } from "@/lib/notifications";
 import { showToast } from "@/lib/toast-store";
-import { areEmailNotificăriEnabled } from "@/lib/notification-preferences";
-import { getRecipientTrackingPath } from "@/lib/recipient-tracking";
 import type { CreatedDeliveryOrder } from "@/types/create-delivery";
 import type { MissionStatus } from "@/types/mission";
 
@@ -29,48 +27,6 @@ export function notifyOrderConfirmation(order: CreatedDeliveryOrder) {
   });
 }
 
-function getAbsoluteUrl(path: string) {
-  if (typeof window !== "undefined") {
-    return new URL(path, window.location.origin).toString();
-  }
-
-  return path;
-}
-
-function sendEmailEvent({
-  event,
-  email,
-  order,
-  trackingPath,
-}: {
-  event:
-    | "order_confirmation"
-    | "payment_confirmation"
-    | "recipient_tracking_link"
-    | "delivery_completed"
-    | "order_cancelled";
-  email?: string | null;
-  order: CreatedDeliveryOrder;
-  trackingPath?: string | null;
-}) {
-  if (!email || typeof window === "undefined" || !areEmailNotificăriEnabled()) {
-    return;
-  }
-
-  void fetch("/api/notifications/email", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      event,
-      to: email,
-      orderId: order.id,
-      trackingUrl: trackingPath ? getAbsoluteUrl(trackingPath) : null,
-    }),
-  }).catch(() => undefined);
-}
-
 export function notifyOrderPlaced(
   order: CreatedDeliveryOrder,
   context: NotificationContext = {},
@@ -87,22 +43,12 @@ export function notifyOrderPlaced(
     type: "order",
     actionUrl: order.href,
   });
-  sendEmailEvent({
-    event: "order_confirmation",
-    email: context.email,
-    order,
-  });
 }
 
 export function notifyTrackingAvailable(
   order: CreatedDeliveryOrder,
   context: NotificationContext = {},
 ) {
-  const trackingPath = getRecipientTrackingPath({
-    code: order.publicTrackingCode,
-    token: order.recipientTrackingToken,
-  });
-
   showToast({
     title: "Tracking disponibil",
     message: "Urmărirea live este pregătită.",
@@ -114,12 +60,6 @@ export function notifyTrackingAvailable(
     message: "Urmărirea live este pregătită.",
     type: "mission",
     actionUrl: order.href,
-  });
-  sendEmailEvent({
-    event: "recipient_tracking_link",
-    email: context.email,
-    order,
-    trackingPath,
   });
 }
 
@@ -139,12 +79,6 @@ export function notifyPaymentConfirmed(
     type: "payment",
     actionUrl: order.href,
   });
-  sendEmailEvent({
-    event: "payment_confirmation",
-    email: context.email,
-    order,
-    trackingPath: order.href,
-  });
 }
 
 export function notifyOrderCancelled(
@@ -163,11 +97,6 @@ export function notifyOrderCancelled(
     type: "order",
     actionUrl: order.href,
   });
-  sendEmailEvent({
-    event: "order_cancelled",
-    email: context.email,
-    order,
-  });
 }
 
 export function notifyDeliveryCompleted(
@@ -185,11 +114,6 @@ export function notifyDeliveryCompleted(
     message: "Coletul a fost livrat cu succes.",
     type: "mission",
     actionUrl: order.href,
-  });
-  sendEmailEvent({
-    event: "delivery_completed",
-    email: context.email,
-    order,
   });
 }
 

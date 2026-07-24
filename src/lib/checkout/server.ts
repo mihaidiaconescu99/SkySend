@@ -200,12 +200,17 @@ export async function getOwnedCheckoutSession(
   supabase: SupabaseClient<Database>,
   profileId: string,
   sessionId?: string | null,
+  options: { includeFinalizationFailed?: boolean } = {},
 ) {
   let query = database(supabase).from("delivery_checkout_sessions")
     .select("*,order:orders(local_order_id)").eq("profile_id", profileId);
+  const resumableStatuses = ["active", "payment_processing", "finalizing"];
+  if (options.includeFinalizationFailed !== false) {
+    resumableStatuses.push("finalization_failed");
+  }
   query = sessionId
     ? query.eq("id", sessionId)
-    : query.in("status", ["active", "payment_processing", "finalizing", "finalization_failed"])
+    : query.in("status", resumableStatuses)
       .order("created_at", { ascending: false }).limit(1);
   const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);

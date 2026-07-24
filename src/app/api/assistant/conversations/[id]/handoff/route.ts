@@ -2,9 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { publicErrorCode } from "@/lib/api/validation";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import { getSupportIdentity, handoffConversation } from "@/lib/support/support-hub";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const originFailure = requireSameOrigin(request);
+  if (originFailure) return originFailure;
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const identity = await getSupportIdentity(userId);

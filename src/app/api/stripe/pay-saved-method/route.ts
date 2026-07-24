@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateRequest } from "@/lib/api/validation";
+import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import {
   assertStripePaymentMethodBelongsToCustomer,
   getAuthenticatedStripeCustomer,
@@ -32,20 +33,29 @@ export async function POST(request: Request) {
     await assertStripePaymentMethodBelongsToCustomer(stripe, customer.id, parsed.data.paymentMethodId);
     let intent = await stripe.paymentIntents.retrieve(parsed.data.paymentIntentId);
     const owner = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
-    if (owner !== customer.id || intent.metadata.checkoutSessionId !== session.id || intent.amount !== session.total_amount_minor) {
+    if (
+      (session.stripe_customer_id && session.stripe_customer_id !== customer.id) ||
+      owner !== customer.id ||
+      intent.metadata.checkoutSessionId !== session.id ||
+      intent.amount !== session.total_amount_minor ||
+      intent.currency !== String(session.currency).toLowerCase()
+    ) {
       return NextResponse.json({ error: "Payment intent does not match this checkout." }, { status: 409 });
     }
     if (["requires_payment_method", "requires_confirmation"].includes(intent.status)) {
       intent = await stripe.paymentIntents.confirm(intent.id, {
         payment_method: parsed.data.paymentMethodId,
-        return_url: `${new URL(request.url).origin}/client/create-delivery?checkout=${session.id}&payment=return`,
+        return_url: new URL(
+          `/client/create-delivery?checkout=${session.id}&payment=return`,
+          getTrustedAppOrigin(request),
+        ).toString(),
         use_stripe_sdk: true,
       });
     }
     await db.from("delivery_checkout_sessions").update({
       selected_payment_method_id: parsed.data.paymentMethodId,
       status: "payment_processing",
-    }).eq("id", session.id);
+    }).eq("id", session.id).eq("profile_id", profile.data.id);
     return NextResponse.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, status: intent.status });
   } catch (error) {
     if (error instanceof StripeAuthenticationError) return NextResponse.json({ error: "Authentication is required for checkout." }, { status: 401 });

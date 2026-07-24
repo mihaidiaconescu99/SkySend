@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { requireSameOrigin } from "@/lib/api/request-security";
 import { opaqueIdentifierSchema } from "@/lib/api/input-schemas";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
@@ -9,9 +10,11 @@ import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ orderId: string }> },
 ) {
+  const originFailure = requireSameOrigin(request);
+  if (originFailure) return originFailure;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const { userId } = await auth();
