@@ -15,7 +15,8 @@ export async function GET(request: Request) {
   const missions = new MissionsRepository(db);
   const expired = await missions.listExpiredActionTimers();
   if (!expired.ok) {
-    return NextResponse.json({ error: expired.error.message }, { status: 502 });
+    console.error("[expire-mission-actions] lookup failed", expired.error);
+    return NextResponse.json({ error: "mission_expiration_lookup_failed" }, { status: 502 });
   }
 
   let processed = 0;

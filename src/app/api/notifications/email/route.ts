@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  localOrderIdSchema,
+  normalizedEmailSchema,
+} from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import {
   sendSkySendEmail,
   type SkySendEmailEvent,
@@ -12,21 +18,29 @@ const emailEvents: SkySendEmailEvent[] = [
   "order_cancelled",
 ];
 
+const emailRequestSchema = z.object({
+  event: z.enum(emailEvents as [SkySendEmailEvent, ...SkySendEmailEvent[]]),
+  to: normalizedEmailSchema.nullable().optional(),
+  orderId: localOrderIdSchema.nullable().optional(),
+  trackingUrl: z
+    .string()
+    .trim()
+    .url()
+    .max(1_000)
+    .refine((value) => new URL(value).protocol === "https:", {
+      message: "https_required",
+    })
+    .nullable()
+    .optional(),
+}).strict();
+
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      event?: SkySendEmailEvent;
-      to?: string | null;
-      orderId?: string | null;
-      trackingUrl?: string | null;
-    };
-
-    if (!body.event || !emailEvents.includes(body.event)) {
-      return NextResponse.json(
-        { error: "Unsupported email event." },
-        { status: 400 },
-      );
-    }
+    const parsed = await validateRequest(emailRequestSchema, request, {
+      maxBytes: 8 * 1024,
+    });
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
 
     const result = await sendSkySendEmail({
       event: body.event,

@@ -4,15 +4,26 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  opaqueIdentifierSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import type { OrderStatus, UpdateOrderInput } from "@/types/order";
 
 const updateOrderStatusBodySchema = z.object({
-  orderId: z.string().min(1),
-  fulfillmentStatus: z.string().nullable().optional(),
-  fallbackReason: z.string().nullable().optional(),
+  orderId: opaqueIdentifierSchema,
+  fulfillmentStatus: z.enum([
+    "active_mission",
+    "completed_mission",
+    "failed_mission",
+    "fallback_required",
+    "canceled",
+  ]).nullable().optional(),
+  fallbackReason: plainTextSchema(1, 1_000).nullable().optional(),
 }).strict();
 
 function mapFulfillmentStatus(status?: string | null): OrderStatus | null {
@@ -38,13 +49,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  let body: z.infer<typeof updateOrderStatusBodySchema>;
-
-  try {
-    body = updateOrderStatusBodySchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
+  const parsed = await validateRequest(updateOrderStatusBodySchema, request, {
+    maxBytes: 8 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
@@ -96,7 +105,8 @@ export async function POST(request: Request) {
   const updated = await orders.updateById(order.id, patch);
 
   if (!updated.ok) {
-    return NextResponse.json({ error: updated.error.message }, { status: 502 });
+    console.error("[orders/update-status] update failed", updated.error);
+    return NextResponse.json({ error: "Order update failed." }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true, order: updated.data });

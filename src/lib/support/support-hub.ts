@@ -3,10 +3,15 @@ import "server-only";
 
 import { currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
+import {
+  localOrderIdSchema,
+  normalizedEmailSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
 import { sendSupportEmail } from "@/lib/email/support-email";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { getServerAuthorizationContext } from "@/lib/server-authorization";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getCurrentStaffAccess } from "@/lib/staff-access/server";
 import type { UserRole } from "@/types/roles";
 
 export const supportCategories = ["parcel_data", "delivery_tracking", "billing", "account", "technical", "general"] as const;
@@ -29,16 +34,24 @@ const db = () => createAdminSupabaseClient() as never as {
 };
 
 export async function getSupportIdentity(clerkUserId: string): Promise<SupportIdentity | null> {
+  const authorization = await getServerAuthorizationContext();
+  if (
+    authorization.userId !== clerkUserId ||
+    authorization.resolution !== "resolved" ||
+    !authorization.role
+  ) {
+    return null;
+  }
+  const user = await currentUser();
+  if (!user || user.id !== clerkUserId) return null;
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
-  const user = await currentUser();
   const email = user?.emailAddresses.find((item) => item.id === user.primaryEmailAddressId)?.emailAddress
     ?? user?.emailAddresses[0]?.emailAddress
     ?? null;
   const fullName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || null;
   const avatarUrl = user?.imageUrl || null;
-  const access = await getCurrentStaffAccess();
-  const role = access?.role ?? "client";
+  const role = authorization.role;
   const profile = await profiles.findOrCreateByClerkUserId(clerkUserId, {
     clerkUserId,
     email: email ?? `${clerkUserId}@skysend.local`,
@@ -47,6 +60,9 @@ export async function getSupportIdentity(clerkUserId: string): Promise<SupportId
   });
   if (!profile.ok || !profile.data) return null;
 
+  if (profile.data.role !== role) {
+    await profiles.updateById(profile.data.id, { role });
+  }
   await db().from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.data.id);
 
   return {
@@ -231,11 +247,11 @@ export async function handoffConversation(identity: SupportIdentity, conversatio
 }
 
 export const directSupportTicketSchema = z.object({
-  subject: z.string().trim().min(3).max(160),
+  subject: plainTextSchema(3, 160),
   category: z.enum(supportCategories),
-  message: z.string().trim().min(10).max(5000),
-  orderId: z.string().trim().max(120).optional(),
-});
+  message: plainTextSchema(10, 5000),
+  orderId: localOrderIdSchema.optional(),
+}).strict();
 
 export async function createDirectSupportTicket(
   identity: SupportIdentity,
@@ -319,12 +335,12 @@ export async function createDirectSupportTicket(
 }
 
 export const publicContactSchema = z.object({
-  email: z.string().trim().email().max(254),
-  subject: z.string().trim().min(1).max(200),
-  category: z.string().trim().max(80).nullable().optional(),
-  message: z.string().trim().min(1).max(5000),
-  name: z.string().trim().max(120).optional(),
-});
+  email: normalizedEmailSchema,
+  subject: plainTextSchema(1, 200),
+  category: plainTextSchema(1, 80).nullable().optional(),
+  message: plainTextSchema(1, 5000),
+  name: plainTextSchema(1, 120).optional(),
+}).strict();
 
 export async function listTickets(identity: SupportIdentity, queue: string) {
   if (!isAuthorizedSupportOperator(identity)) throw new Error("forbidden");

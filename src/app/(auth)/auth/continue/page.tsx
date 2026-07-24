@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { InternalOrganizationActivation } from "@/components/auth/internal-organization-activation";
 import { createPageMetadata } from "@/lib/metadata";
 import { resolveRoleRedirectPath } from "@/lib/role-routing";
 
@@ -8,7 +9,18 @@ export const metadata = createPageMetadata(
 );
 
 export default async function AuthContinuePage() {
-  const destination = await resolveRoleRedirectPath();
+  const { destination, context } = await resolveRoleRedirectPath();
 
+  if (
+    context.needsOrganizationActivation &&
+    context.internalOrganizationId
+  ) {
+    return (
+      <InternalOrganizationActivation
+        organizationId={context.internalOrganizationId}
+        destination={destination}
+      />
+    );
+  }
   redirect(destination);
 }

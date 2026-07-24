@@ -5,13 +5,10 @@ import {
   SignInButton,
   SignUpButton,
   UserButton,
-  useUser,
 } from "@clerk/nextjs";
 import { roleRoutingPaths } from "@/constants/roles";
-import { getRoleFromClerkMetadata } from "@/lib/auth";
 import { isClerkFrontendConfigured } from "@/lib/clerk-config";
 import { Button } from "@/components/ui/button";
-import type { ClerkRoleMetadata, UserRole } from "@/types/roles";
 
 type ClerkAuthControlsProps = {
   mobile?: boolean;
@@ -19,18 +16,6 @@ type ClerkAuthControlsProps = {
 };
 
 const clerkEnabled = isClerkFrontendConfigured();
-
-function getAccountSettingsUrl(role: UserRole | null | undefined) {
-  switch (role) {
-    case "admin":
-      return "/admin/settings";
-    case "operator":
-      return "/operator";
-    case "client":
-    default:
-      return "/client/settings";
-  }
-}
 
 export function ClerkAuthControls({
   mobile = false,
@@ -50,13 +35,6 @@ function ClerkAuthControlsInner({
   mobile: boolean;
   onAction?: () => void;
 }) {
-  const { user } = useUser();
-  const role =
-    getRoleFromClerkMetadata(
-      (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    ) ?? "client";
-  const accountSettingsUrl = getAccountSettingsUrl(role);
-
   return (
     <>
       <Show when="signed-out">
@@ -91,7 +69,7 @@ function ClerkAuthControlsInner({
             showName={!mobile}
             afterSwitchSessionUrl={roleRoutingPaths.authContinue}
             userProfileMode="navigation"
-            userProfileUrl={accountSettingsUrl}
+            userProfileUrl={roleRoutingPaths.authContinue}
           />
         </div>
       </Show>

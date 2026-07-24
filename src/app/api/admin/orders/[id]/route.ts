@@ -5,6 +5,11 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  opaqueIdentifierSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
@@ -26,8 +31,15 @@ const PatchSchema = z
         "returned",
       ])
       .optional(),
-    fulfillmentStatus: z.string().nullable().optional(),
-    internalNotes: z.string().nullable().optional(),
+    fulfillmentStatus: z.enum([
+      "order_created",
+      "active_mission",
+      "completed_mission",
+      "failed_mission",
+      "fallback_required",
+      "canceled",
+    ]).nullable().optional(),
+    internalNotes: plainTextSchema(1, 2_000).nullable().optional(),
   })
   .strict();
 
@@ -65,13 +77,15 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-
-  let body: z.infer<typeof PatchSchema>;
-  try {
-    body = PatchSchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  if (!opaqueIdentifierSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid order identifier." }, { status: 400 });
   }
+
+  const parsed = await validateRequest(PatchSchema, request, {
+    maxBytes: 8 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const supabase = createAdminSupabaseClient();
   const orders = new OrdersRepository(supabase);
@@ -108,7 +122,7 @@ export async function PATCH(
   const updated = await orders.updateById(id, patch);
   if (!updated.ok) {
     console.error("[admin/orders] update failed:", updated.error);
-    return NextResponse.json({ error: updated.error.message }, { status: 502 });
+    return NextResponse.json({ error: "Order update failed." }, { status: 502 });
   }
 
   return NextResponse.json({

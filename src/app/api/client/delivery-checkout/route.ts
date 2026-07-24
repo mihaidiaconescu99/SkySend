@@ -1,6 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  localOrderIdSchema,
+  publicTrackingCodeSchema,
+  recipientTrackingTokenSchema,
+} from "@/lib/api/input-schemas";
+import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { billingSnapshotSchema } from "@/lib/billing/validation";
 import {
   getOwnedCheckoutSession,
@@ -10,6 +17,7 @@ import {
   serializeCheckoutSession,
 } from "@/lib/checkout/server";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
+import { createDeliveryPayloadSchema } from "@/lib/delivery-input-schemas";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe/server";
@@ -18,19 +26,19 @@ import type { CreateDeliveryPayload } from "@/types/create-delivery";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const createSchema = z.object({
-  payload: z.record(z.string(), z.unknown()),
-  localOrderId: z.string().min(1).max(80),
-  publicTrackingCode: z.string().min(1).max(120),
-  recipientTrackingToken: z.string().min(1).max(200),
+  payload: createDeliveryPayloadSchema,
+  localOrderId: localOrderIdSchema,
+  publicTrackingCode: publicTrackingCodeSchema,
+  recipientTrackingToken: recipientTrackingTokenSchema,
   deliveryDraftId: z.string().uuid().nullable().optional(),
   locale: z.enum(["ro", "en"]).default("ro"),
-});
+}).strict();
 
 const patchSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("save_billing"), sessionId: z.string().uuid(), billing: billingSnapshotSchema, saveForFuture: z.boolean() }),
-  z.object({ action: z.literal("set_step"), sessionId: z.string().uuid(), step: z.enum(["summary", "billing", "payment"]) }),
-  z.object({ action: z.literal("select_payment_method"), sessionId: z.string().uuid(), paymentMethodId: z.string().nullable() }),
-  z.object({ action: z.literal("cancel"), sessionId: z.string().uuid() }),
+  z.object({ action: z.literal("save_billing"), sessionId: z.string().uuid(), billing: billingSnapshotSchema, saveForFuture: z.boolean() }).strict(),
+  z.object({ action: z.literal("set_step"), sessionId: z.string().uuid(), step: z.enum(["summary", "billing", "payment"]) }).strict(),
+  z.object({ action: z.literal("select_payment_method"), sessionId: z.string().uuid(), paymentMethodId: z.string().trim().regex(/^pm_[A-Za-z0-9_]+$/u).max(255).nullable() }).strict(),
+  z.object({ action: z.literal("cancel"), sessionId: z.string().uuid() }).strict(),
 ]);
 
 async function actor() {
@@ -58,6 +66,8 @@ async function cancelIntent(paymentIntentId?: string | null) {
 }
 
 export async function GET(request: Request) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const context = await actor();
   if (!context) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const sessionId = new URL(request.url).searchParams.get("sessionId");
@@ -100,10 +110,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const context = await actor();
   if (!context) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const parsed = createSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "validation_failed", issues: parsed.error.issues }, { status: 400 });
+  const parsed = await validateRequest(createSchema, request, {
+    maxBytes: 256 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   try {
     await assertOperationsAvailable(context.supabase);
     const { data: reusable } = await context.db.from("delivery_checkout_sessions")
@@ -127,7 +141,11 @@ export async function POST(request: Request) {
       if (cancellation === "captured") return NextResponse.json({ error: "payment_finalizing" }, { status: 409 });
       if (cancellation === "unavailable") return NextResponse.json({ error: "stripe_intent_unavailable" }, { status: 503 });
     }
-    const priced = await priceCheckoutPayload(context.supabase, parsed.data.payload as unknown as CreateDeliveryPayload);
+    const trustedPayload = {
+      ...parsed.data.payload,
+      userId: context.profile.clerkUserId,
+    } as unknown as CreateDeliveryPayload;
+    const priced = await priceCheckoutPayload(context.supabase, trustedPayload);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const checkoutRow = {
       profile_id: context.profile.id,
@@ -165,16 +183,30 @@ export async function POST(request: Request) {
     const saved = await getSavedBillingProfile(context.supabase, context.profile.id);
     return NextResponse.json({ session: serializeCheckoutSession(data, saved), pricing: priced.pricing });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "checkout_create_failed";
-    return NextResponse.json({ error: message }, { status: message.includes("unavailable") ? 423 : 502 });
+    const message = publicErrorCode(
+      error,
+      [
+        "operations_maintenance",
+        "operations_suspended",
+        "operational_pricing_unavailable",
+        "delivery_points_required",
+      ] as const,
+      "checkout_create_failed",
+    );
+    const status = message.startsWith("operations_") ? 423 : 502;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function PATCH(request: Request) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const context = await actor();
   if (!context) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const parsed = patchSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "validation_failed", issues: parsed.error.issues }, { status: 400 });
+  const parsed = await validateRequest(patchSchema, request, {
+    maxBytes: 24 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   const row = await getOwnedCheckoutSession(context.supabase, context.profile.id, parsed.data.sessionId);
   if (!row) return NextResponse.json({ error: "checkout_not_found" }, { status: 404 });
   if (row.status === "finalized") {
@@ -218,7 +250,10 @@ export async function PATCH(request: Request) {
   const { data, error } = await context.db.from("delivery_checkout_sessions").update(update)
     .eq("id", row.id).eq("profile_id", context.profile.id)
     .select("*,order:orders(local_order_id)").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+  if (error) {
+    console.error("[delivery-checkout] update failed", error);
+    return NextResponse.json({ error: "checkout_update_failed" }, { status: 502 });
+  }
   const saved = await getSavedBillingProfile(context.supabase, context.profile.id);
   return NextResponse.json({ session: serializeCheckoutSession(data, saved) });
 }

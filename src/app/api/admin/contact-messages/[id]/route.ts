@@ -5,6 +5,11 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  opaqueIdentifierSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ContactMessagesRepository } from "@/lib/repositories/contact-messages-repository";
@@ -13,7 +18,7 @@ import { CONTACT_MESSAGE_STATUSES } from "@/types/contact-message";
 const PatchSchema = z
   .object({
     status: z.enum(CONTACT_MESSAGE_STATUSES as readonly [string, ...string[]]).optional(),
-    internalNote: z.string().nullable().optional(),
+    internalNote: plainTextSchema(1, 2_000).nullable().optional(),
   })
   .strict();
 
@@ -30,16 +35,15 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-
-  let body: z.infer<typeof PatchSchema>;
-  try {
-    body = PatchSchema.parse(await request.json());
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body." },
-      { status: 400 },
-    );
+  if (!opaqueIdentifierSchema.safeParse(id).success) {
+    return NextResponse.json({ error: "Invalid message identifier." }, { status: 400 });
   }
+
+  const parsed = await validateRequest(PatchSchema, request, {
+    maxBytes: 8 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const supabase = createAdminSupabaseClient();
   const repo = new ContactMessagesRepository(supabase);
@@ -69,7 +73,7 @@ export async function PATCH(
   if (!updated.ok) {
     console.error("[admin/contact-messages] update failed:", updated.error);
     return NextResponse.json(
-      { error: updated.error.message },
+      { error: "Message update failed." },
       { status: 502 },
     );
   }

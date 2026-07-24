@@ -1,6 +1,6 @@
 import PricingContent from "./pricing-content";
 import { defaultOperationalSettings } from "@/lib/admin-data";
-import { getAdminOperationalSettingsFromDB } from "@/lib/admin-data-server";
+import { getPublicOperationalSettingsFromDB } from "@/lib/admin-data-server";
 import { dispatchTimingPricingMultipliers } from "@/lib/pricing";
 import { createLocalizedMetadata } from "@/lib/settings/metadata";
 
@@ -22,7 +22,7 @@ export async function generateMetadata() {
 }
 
 export default async function PricingPage() {
-  const settings = await getAdminOperationalSettingsFromDB();
+  const settings = await getPublicOperationalSettingsFromDB();
   const basePriceMinor =
     settings?.basePrice.amountMinor ?? defaultOperationalSettings.basePrice.amountMinor;
 

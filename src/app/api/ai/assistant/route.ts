@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { plainTextSchema } from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { buildAssistantRuntimeContext } from "@/lib/ai/skysend-assistant-context";
 import { getSkySendAssistantReply } from "@/lib/ai/skysend-assistant";
 import {
@@ -17,10 +19,10 @@ type StoredAssistantMessage = {
 };
 
 const assistantRequestSchema = z.object({
-  message: z.string().trim().min(1).max(2000),
+  message: plainTextSchema(1, 2000),
   language: z.enum(["ro", "en"]).optional().default("ro"),
   conversationId: z.string().uuid().optional(),
-});
+}).strict();
 
 const requestsByIp = new Map<string, number[]>();
 const requestWindowMs = 60_000;
@@ -54,9 +56,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null);
-  const parsed = assistantRequestSchema.safeParse(body);
-  if (!parsed.success) {
+  const parsed = await validateRequest(assistantRequestSchema, request, {
+    maxBytes: 8 * 1024,
+  });
+  if (!parsed.ok) {
     return NextResponse.json(
       {
         message:

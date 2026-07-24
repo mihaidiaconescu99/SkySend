@@ -1,14 +1,22 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { publicErrorCode, validateRequest } from "@/lib/api/validation";
+import { deliveryDraftPayloadSchema } from "@/lib/delivery-input-schemas";
 import { completeDeliveryDraft, getClientEvaluation, getOrCreateDeliveryDraft, saveDeliveryDraft } from "@/lib/parcel-evaluations/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
 const schema = z.object({
   id: z.string().uuid(),
   currentStep: z.enum(["route", "parcel", "options", "review"]),
-  payload: z.record(z.string(), z.unknown()),
-});
+  payload: deliveryDraftPayloadSchema,
+}).strict();
+
+const submitSchema = z.object({
+  id: z.string().uuid(),
+  action: z.literal("submit"),
+}).strict();
 
 async function identity() {
   const { userId } = await auth();
@@ -16,6 +24,8 @@ async function identity() {
 }
 
 export async function GET() {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const actor = await identity();
   if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   try {
@@ -27,19 +37,33 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const actor = await identity();
   if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  const parsed = await validateRequest(schema, request, {
+    maxBytes: 128 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   try { return NextResponse.json({ draft: await saveDeliveryDraft(actor, parsed.data) }); }
-  catch (error) { const reason = error instanceof Error ? error.message : "draft_unavailable"; return NextResponse.json({ error: reason }, { status: reason === "draft_not_found" ? 404 : 502 }); }
+  catch (error) {
+    const reason = publicErrorCode(error, ["draft_not_found"] as const, "draft_unavailable");
+    return NextResponse.json({ error: reason }, { status: reason === "draft_not_found" ? 404 : 502 });
+  }
 }
 
 export async function POST(request: Request) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const actor = await identity();
   if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const parsed = z.object({ id: z.string().uuid(), action: z.literal("submit") }).safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  const parsed = await validateRequest(submitSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   try { return NextResponse.json({ draft: await completeDeliveryDraft(actor, parsed.data.id) }); }
-  catch (error) { const reason = error instanceof Error ? error.message : "draft_unavailable"; return NextResponse.json({ error: reason }, { status: reason === "draft_not_found" ? 404 : 502 }); }
+  catch (error) {
+    const reason = publicErrorCode(error, ["draft_not_found"] as const, "draft_unavailable");
+    return NextResponse.json({ error: reason }, { status: reason === "draft_not_found" ? 404 : 502 });
+  }
 }

@@ -1,9 +1,13 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe/server";
 
-type DeleteAccountBody = { confirmation?: string };
+const deleteAccountSchema = z.object({
+  confirmation: z.literal("ȘTERGE"),
+}).strict();
 
 function escapeStripeSearch(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -13,10 +17,10 @@ export async function DELETE(request: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Autentificarea este necesară." }, { status: 401 });
 
-  const body = (await request.json().catch(() => null)) as DeleteAccountBody | null;
-  if (body?.confirmation !== "ȘTERGE") {
-    return NextResponse.json({ error: "Confirmarea ȘTERGE este necesară." }, { status: 400 });
-  }
+  const parsed = await validateRequest(deleteAccountSchema, request, {
+    maxBytes: 2 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
 
   const supabase = createAdminSupabaseClient();
   const { data: profile, error: profileError } = await supabase

@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, ShieldCheck, UserRound, Wrench } from "lucide-react";
+import { ArrowUpRight, ShieldCheck, Wrench } from "lucide-react";
 import { adminNavigationItems } from "@/constants/admin-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { cn } from "@/lib/utils";
 
 type AdminSidebarProps = {
   currentPath: string;
-  canManageStaffAccess: boolean;
   onNavigate?: () => void;
 };
 
@@ -27,11 +26,10 @@ function isActiveAdminItem(currentPath: string, href: string) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
-export function AdminSidebar({ currentPath, canManageStaffAccess, onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
   const workspaces = [
     { label: "Spațiu admin", href: "/admin", icon: ShieldCheck },
     { label: "Spațiu operator", href: "/operator", icon: Wrench },
-    { label: "Spațiu client", href: "/client", icon: UserRound },
   ] as const;
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-border/70 bg-sidebar/95">
@@ -58,7 +56,7 @@ export function AdminSidebar({ currentPath, canManageStaffAccess, onNavigate }: 
         </div>
 
         <nav aria-label="Navigație administrator" className="grid gap-1.5">
-          {adminNavigationItems.filter((item) => item.key !== "access" || canManageStaffAccess).map((item) => {
+          {adminNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActiveAdminItem(currentPath, item.href);
 

@@ -4,6 +4,7 @@ import { hasAdminSettingsAccess, isAdminSettingsCodeConfigured } from "@/lib/adm
 import { getAdminOperationalSettingsFromDB } from "@/lib/admin-data-server";
 import { getAdminOperationalSettings } from "@/lib/admin-settings";
 import { createPageMetadata } from "@/lib/metadata";
+import { requireAdminRoute } from "@/lib/protected-routes";
 
 export const metadata = createPageMetadata(
   "Setări",
@@ -11,6 +12,7 @@ export const metadata = createPageMetadata(
 );
 
 export default async function AdminSettingsPage() {
+  await requireAdminRoute();
   if (!(await hasAdminSettingsAccess())) {
     return <AdminSettingsAccessGate configured={isAdminSettingsCodeConfigured()} />;
   }

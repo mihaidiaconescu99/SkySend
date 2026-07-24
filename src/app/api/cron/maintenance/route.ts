@@ -40,8 +40,12 @@ export async function GET(request: Request) {
       : index === legacyJobs.length + 1
         ? "billing"
         : "checkout-finalization";
-  const jobs = settled.map((result, index) => result.status === "fulfilled"
-    ? { job: jobName(index), ok: true, result: result.value }
-    : { job: jobName(index), ok: false, error: result.reason instanceof Error ? result.reason.message : "failed" });
+  const jobs = settled.map((result, index) => {
+    if (result.status === "fulfilled") {
+      return { job: jobName(index), ok: true, result: result.value };
+    }
+    console.error("[cron/maintenance] job failed", jobName(index), result.reason);
+    return { job: jobName(index), ok: false, error: "job_failed" };
+  });
   return NextResponse.json({ ok: jobs.every((job) => job.ok), jobs, holds });
 }

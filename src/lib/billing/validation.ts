@@ -1,20 +1,24 @@
 import { z } from "zod";
+import {
+  normalizedEmailSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
 
-const optionalText = z.string().trim().max(160).nullable().optional();
+const optionalText = plainTextSchema(1, 160).nullable().optional();
 
 const billingFieldsSchema = z.object({
   customerType: z.enum(["individual", "company"]),
   fullName: optionalText,
   companyLegalName: optionalText,
   taxIdentifier: optionalText,
-  addressLine: z.string().trim().min(3).max(240),
-  city: z.string().trim().min(2).max(100),
-  region: z.string().trim().min(2).max(100),
+  addressLine: plainTextSchema(3, 240),
+  city: plainTextSchema(2, 100),
+  region: plainTextSchema(2, 100),
   countryCode: z.string().trim().toUpperCase().length(2),
   postalCode: optionalText,
-  invoiceEmail: z.string().trim().email().max(254),
+  invoiceEmail: normalizedEmailSchema,
   locale: z.enum(["ro", "en"]),
-});
+}).strict();
 
 function validateBillingIdentity(
   value: z.infer<typeof billingFieldsSchema>,

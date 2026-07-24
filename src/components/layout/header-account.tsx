@@ -7,12 +7,10 @@ import { AnimatePresence, m } from "motion/react";
 import { ChevronDown, Languages, LogOut, Settings as SettingsIcon, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { roleRoutingPaths } from "@/constants/roles";
-import { getRoleFromClerkMetadata } from "@/lib/auth";
 import { isClerkFrontendConfigured } from "@/lib/clerk-config";
 import { useSettings } from "@/lib/settings/settings-context";
 import { PreferencesControls } from "@/components/shared/preferences/preferences-controls";
 import { cn } from "@/lib/utils";
-import type { ClerkRoleMetadata, UserRole } from "@/types/roles";
 
 type HeaderAccountProps = {
   mobile?: boolean;
@@ -20,18 +18,6 @@ type HeaderAccountProps = {
 };
 
 const clerkEnabled = isClerkFrontendConfigured();
-
-function accountSettingsUrl(role: UserRole | null | undefined) {
-  switch (role) {
-    case "admin":
-      return "/admin/settings";
-    case "operator":
-      return "/operator";
-    case "client":
-    default:
-      return "/client/settings";
-  }
-}
 
 export function HeaderAccount({ mobile = false, onAction }: HeaderAccountProps) {
   if (!clerkEnabled) {
@@ -43,11 +29,6 @@ export function HeaderAccount({ mobile = false, onAction }: HeaderAccountProps) 
 function HeaderAccountInner({ mobile = false, onAction }: HeaderAccountProps) {
   const { user, isLoaded, isSignedIn } = useUser();
 
-  const role =
-    getRoleFromClerkMetadata(
-      (user?.publicMetadata ?? null) as ClerkRoleMetadata | null,
-    ) ?? "client";
-
   if (!isLoaded) {
     return <span aria-hidden="true" className="size-9" />;
   }
@@ -56,7 +37,7 @@ function HeaderAccountInner({ mobile = false, onAction }: HeaderAccountProps) {
     return <SignedOutControls mobile={mobile} onAction={onAction} />;
   }
 
-  return <SignedInMenu mobile={mobile} onAction={onAction} role={role} />;
+  return <SignedInMenu mobile={mobile} onAction={onAction} />;
 }
 
 function SignedOutControls({
@@ -104,8 +85,7 @@ function SignedOutControls({
 function SignedInMenu({
   mobile = false,
   onAction,
-  role,
-}: HeaderAccountProps & { role: UserRole }) {
+}: HeaderAccountProps) {
   const { user } = useUser();
   const { t } = useSettings();
   const [open, setOpen] = useState(false);
@@ -192,7 +172,7 @@ function SignedInMenu({
             >
               <div className="grid gap-2 rounded-2xl border border-border/65 bg-background/80 p-3">
                 <MenuLink
-                  href={accountSettingsUrl(role)}
+                  href={roleRoutingPaths.authContinue}
                   icon={<SettingsIcon className="size-4" />}
                   label={t("auth.accountSettings")}
                   onClick={() => {
@@ -277,7 +257,7 @@ function SignedInMenu({
             </div>
 
             <MenuLink
-              href={accountSettingsUrl(role)}
+              href={roleRoutingPaths.authContinue}
               icon={<SettingsIcon className="size-4" />}
               label={t("auth.accountSettings")}
               onClick={() => setOpen(false)}

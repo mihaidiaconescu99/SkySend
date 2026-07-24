@@ -1,13 +1,12 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
-
 import { AddressesRepository } from "@/lib/repositories/addresses-repository";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ParcelsRepository } from "@/lib/repositories/parcels-repository";
 import { PaymentRecordsRepository } from "@/lib/repositories/payment-records-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { authorizeServerRoles } from "@/lib/server-authorization";
 import {
   buildClientOrderDetail,
   mapOrderSummary,
@@ -33,12 +32,12 @@ type ClientOrdersData = {
 };
 
 async function getCurrentProfileContext() {
-  const { userId } = await auth();
-
-  if (!userId) {
+  const authorization = await authorizeServerRoles(["client"]);
+  if (!authorization.ok) {
     return null;
   }
 
+  const { userId } = authorization.context;
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
   const profile = await profiles.getByClerkUserId(userId);

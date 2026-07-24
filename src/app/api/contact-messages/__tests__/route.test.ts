@@ -87,7 +87,7 @@ describe("POST /api/contact-messages", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("validation_failed");
+    expect(body.error).toBe("ValidationError");
     expect(store.contactMessageRows.size).toBe(0);
   });
 
@@ -101,7 +101,7 @@ describe("POST /api/contact-messages", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("validation_failed");
+    expect(body.error).toBe("ValidationError");
     expect(store.contactMessageRows.size).toBe(0);
   });
 
@@ -115,6 +115,43 @@ describe("POST /api/contact-messages", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it("rejects HTML/JavaScript and unexpected protected-looking fields", async () => {
+    const response = await postJson({
+      email: "ana@example.com",
+      subject: "Subiect",
+      category: "support",
+      message: "<script>alert('x')</script>",
+      status: "resolved",
+    });
+
+    expect(response.status).toBe(400);
+    expect(store.contactMessageRows.size).toBe(0);
+  });
+
+  it("rejects a JSON payload above the contact form limit", async () => {
+    const response = await postJson({
+      email: "ana@example.com",
+      subject: "Subiect",
+      category: "support",
+      message: "x".repeat(17 * 1024),
+    });
+
+    expect(response.status).toBe(413);
+    expect((await response.json()).code).toBe("payload_too_large");
+  });
+
+  it("normalizes a legitimate email before persistence", async () => {
+    const response = await postJson({
+      email: " ANA@EXAMPLE.COM ",
+      subject: "Subiect valid",
+      category: "support",
+      message: "Mesaj valid",
+    });
+
+    expect(response.status).toBe(201);
+    expect([...store.contactMessageRows.values()][0]?.sender_email).toBe("ana@example.com");
   });
 
   it("returns 502 when the DB insert fails", async () => {
@@ -133,6 +170,7 @@ describe("POST /api/contact-messages", () => {
     expect(response.status).toBe(502);
     const body = await response.json();
     expect(body.error).toBe("db_insert_failed");
+    expect(JSON.stringify(body)).not.toContain("forced failure");
   });
 
   it("does not pretend the message was saved when the DB write fails", async () => {

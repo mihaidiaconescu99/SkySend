@@ -21,7 +21,14 @@ export default async function AccessDeniedPage({
     <AccessDeniedState
       requiredRole={isUserRole(required) ? required : null}
       currentRole={isUserRole(current) ? current : null}
-      reason={reason === "invalid-role" || reason === "no-role" ? reason : null}
+      reason={
+        reason === "invalid-role" ||
+        reason === "no-role" ||
+        reason === "authorization-not-configured" ||
+        reason === "authorization-unavailable"
+          ? reason
+          : null
+      }
     />
   );
 }

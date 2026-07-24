@@ -15,6 +15,7 @@ import { getAdminOperationalCenterData } from "@/lib/admin-operational-center";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ContactMessagesRepository } from "@/lib/repositories/contact-messages-repository";
 import { OperationalSettingsRepository } from "@/lib/repositories/operational-settings-repository";
+import { authorizeServerRoles } from "@/lib/server-authorization";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { AdminContactMessageDetail } from "@/types/admin-contact";
 import type { AdminFailedOrderDetail } from "@/types/admin-failed-orders";
@@ -97,7 +98,14 @@ function mapRepoSettingsToAdmin(
   };
 }
 
-export async function getAdminOrdersFromDB(): Promise<AdminOrder[]> {
+async function assertAdminDataAccess() {
+  const authorization = await authorizeServerRoles(["admin"]);
+  if (!authorization.ok) {
+    throw new Error(`Admin data access denied (${authorization.status}).`);
+  }
+}
+
+async function loadAdminOrdersFromDB(): Promise<AdminOrder[]> {
   const supabase = createAdminSupabaseClient();
   const repo = new OrdersRepository(supabase);
   const result = await repo.listAll({ limit: 200 });
@@ -110,7 +118,7 @@ export async function getAdminOrdersFromDB(): Promise<AdminOrder[]> {
   return result.data.map(mapRepoOrderToAdminOrder);
 }
 
-export async function getAdminContactMessagesFromDB(): Promise<AdminContactMessage[]> {
+async function loadAdminContactMessagesFromDB(): Promise<AdminContactMessage[]> {
   const supabase = createAdminSupabaseClient();
   const repo = new ContactMessagesRepository(supabase);
   const result = await repo.list({ limit: 200 });
@@ -123,7 +131,7 @@ export async function getAdminContactMessagesFromDB(): Promise<AdminContactMessa
   return result.data.map(mapRepoContactMessageToAdmin);
 }
 
-export async function getAdminOperationalSettingsFromDB(): Promise<AdminOperationalSettings | null> {
+async function loadOperationalSettingsFromDB(): Promise<AdminOperationalSettings | null> {
   const supabase = createAdminSupabaseClient();
   const repo = new OperationalSettingsRepository(supabase);
   const result = await repo.getCurrent();
@@ -136,31 +144,55 @@ export async function getAdminOperationalSettingsFromDB(): Promise<AdminOperatio
   return mapRepoSettingsToAdmin(result.data);
 }
 
+export async function getAdminOrdersFromDB(): Promise<AdminOrder[]> {
+  await assertAdminDataAccess();
+  return loadAdminOrdersFromDB();
+}
+
+export async function getAdminContactMessagesFromDB(): Promise<AdminContactMessage[]> {
+  await assertAdminDataAccess();
+  return loadAdminContactMessagesFromDB();
+}
+
+export async function getAdminOperationalSettingsFromDB(): Promise<AdminOperationalSettings | null> {
+  await assertAdminDataAccess();
+  return loadOperationalSettingsFromDB();
+}
+
+export function getPublicOperationalSettingsFromDB(): Promise<AdminOperationalSettings | null> {
+  return loadOperationalSettingsFromDB();
+}
+
 export async function getAdminContactMessageDetailsFromDB(): Promise<AdminContactMessageDetail[]> {
-  const messages = await getAdminContactMessagesFromDB();
+  await assertAdminDataAccess();
+  const messages = await loadAdminContactMessagesFromDB();
   return getAdminContactMessageDetails(messages);
 }
 
 export async function getAdminStatisticsSnapshotFromDB(): Promise<AdminStatisticsSnapshot> {
-  const orders = await getAdminOrdersFromDB();
+  await assertAdminDataAccess();
+  const orders = await loadAdminOrdersFromDB();
   return getAdminStatisticsSnapshot(orders);
 }
 
 export async function getAdminFailedOrderDetailsFromDB(): Promise<AdminFailedOrderDetail[]> {
-  const orders = await getAdminOrdersFromDB();
+  await assertAdminDataAccess();
+  const orders = await loadAdminOrdersFromDB();
   return getAdminFailedOrderDetails(orders);
 }
 
 export async function getAdminLockerRecoveryDetailsFromDB(): Promise<AdminLockerRecoveryDetail[]> {
-  const orders = await getAdminOrdersFromDB();
+  await assertAdminDataAccess();
+  const orders = await loadAdminOrdersFromDB();
   return getAdminLockerRecoveryDetails(orders);
 }
 
 export async function getAdminOperationalCenterDataFromDB(): Promise<OperationalCenterData> {
+  await assertAdminDataAccess();
   const [orders, rawMessages, settings] = await Promise.all([
-    getAdminOrdersFromDB(),
-    getAdminContactMessagesFromDB(),
-    getAdminOperationalSettingsFromDB(),
+    loadAdminOrdersFromDB(),
+    loadAdminContactMessagesFromDB(),
+    loadOperationalSettingsFromDB(),
   ]);
 
   const contactMessages = getAdminContactMessageDetails(rawMessages);

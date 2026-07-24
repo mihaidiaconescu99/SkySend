@@ -9,7 +9,7 @@ import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-export function AdminShell({ children, canManageStaffAccess }: { children: ReactNode; canManageStaffAccess: boolean }) {
+export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const activeItem = getAdminNavigationItem(pathname);
@@ -21,7 +21,7 @@ export function AdminShell({ children, canManageStaffAccess }: { children: React
       <div className="grid min-h-screen min-w-0 lg:h-full lg:min-h-0 lg:grid-cols-[18.5rem_minmax(0,1fr)]">
         <div className="hidden min-h-screen lg:block lg:h-dvh lg:min-h-0">
           <div className="h-full">
-            <AdminSidebar currentPath={pathname} canManageStaffAccess={canManageStaffAccess} />
+            <AdminSidebar currentPath={pathname} />
           </div>
         </div>
 
@@ -68,7 +68,6 @@ export function AdminShell({ children, canManageStaffAccess }: { children: React
           </button>
           <AdminSidebar
             currentPath={pathname}
-            canManageStaffAccess={canManageStaffAccess}
             onNavigate={() => setIsMenuOpen(false)}
           />
         </div>

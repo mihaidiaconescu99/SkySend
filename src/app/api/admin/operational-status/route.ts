@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const schema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("set_manual_status"), status: z.enum(["active", "maintenance"]) }),
-  z.object({ action: z.literal("cancel_override") }),
+  z.object({ action: z.literal("set_manual_status"), status: z.enum(["active", "maintenance"]) }).strict(),
+  z.object({ action: z.literal("cancel_override") }).strict(),
 ]);
 
 export async function GET() {
@@ -19,8 +20,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+  const parsed = await validateRequest(schema, request, { maxBytes: 2 * 1024 });
+  if (!parsed.ok) return parsed.response;
   const supabase = createAdminSupabaseClient() as any;
   const now = new Date();
 

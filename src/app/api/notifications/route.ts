@@ -4,16 +4,21 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  internalActionUrlSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { NotificationsRepository } from "@/lib/repositories/notifications-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const bodySchema = z.object({
-  title: z.string().min(1),
-  message: z.string().min(1),
+  title: plainTextSchema(1, 160),
+  message: plainTextSchema(1, 2_000),
   type: z.enum(["order", "mission", "payment", "system"]),
-  actionUrl: z.string().nullable().optional(),
-});
+  actionUrl: internalActionUrlSchema.nullable().optional(),
+}).strict();
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -22,13 +27,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  let body: z.infer<typeof bodySchema>;
-
-  try {
-    body = bodySchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
+  const parsed = await validateRequest(bodySchema, request, {
+    maxBytes: 8 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
@@ -47,7 +50,8 @@ export async function POST(request: Request) {
   });
 
   if (!created.ok) {
-    return NextResponse.json({ error: created.error.message }, { status: 502 });
+    console.error("[notifications] create failed", created.error);
+    return NextResponse.json({ error: "notification_create_failed" }, { status: 502 });
   }
 
   return NextResponse.json({ notification: created.data });

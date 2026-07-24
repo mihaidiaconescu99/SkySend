@@ -1,6 +1,10 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  isoDateTimeSchema,
+  plainTextSchema,
+} from "@/lib/api/input-schemas";
 import { estimateParcelForDispatch } from "@/lib/ai";
 import { validateRequest } from "@/lib/api/validation";
 import { prepareParcelAiImagesForAnalysis } from "@/lib/parcel-ai-images/server";
@@ -40,39 +44,41 @@ const fragileLevelEnum = z.enum(["low", "moderate", "high"]);
 
 const naturalDescriptionSchema = z
   .union([
-    z.string().trim().min(1).max(2000),
+    plainTextSchema(1, 2000),
     z.object({
-      text: z.string().trim().min(1).max(2000),
-      locale: z.string().optional(),
+      text: plainTextSchema(1, 2000),
+      locale: z.string().trim().max(20).regex(/^[A-Za-z]{2}(?:-[A-Za-z]{2})?$/u).optional(),
       source: z
         .enum(["customer", "operator", "repeat_delivery", "system_prefill"])
         .optional(),
-      capturedAt: z.string().nullish(),
-    }),
+      capturedAt: isoDateTimeSchema.nullish(),
+    }).strict(),
   ])
   .optional();
 
 const declaredDimensionsSchema = z
   .object({
-    lengthCm: z.number().positive(),
-    widthCm: z.number().positive(),
-    heightCm: z.number().positive(),
+    lengthCm: z.number().finite().positive().max(300),
+    widthCm: z.number().finite().positive().max(300),
+    heightCm: z.number().finite().positive().max(300),
   })
+  .strict()
   .optional();
 
 const advancedDetailsSchema = z
   .object({
     packagingType: packagingEnum.optional(),
-    declaredWeightKg: z.number().positive().nullable().optional(),
+    declaredWeightKg: z.number().finite().positive().max(12).nullable().optional(),
     declaredDimensionsCm: declaredDimensionsSchema.nullable(),
-    declaredItemCount: z.number().positive().nullable().optional(),
-    declaredValueMinor: z.number().positive().nullable().optional(),
+    declaredItemCount: z.number().int().positive().max(1_000).nullable().optional(),
+    declaredValueMinor: z.number().int().positive().max(100_000_000).nullable().optional(),
     temperatureControlled: z.boolean().nullable().optional(),
     perishable: z.boolean().nullable().optional(),
     sealed: z.boolean().nullable().optional(),
     stackable: z.boolean().nullable().optional(),
-    notes: z.string().max(2000).nullable().optional(),
+    notes: plainTextSchema(1, 2000).nullable().optional(),
   })
+  .strict()
   .nullable()
   .optional();
 
@@ -89,20 +95,20 @@ const clarificationAnswerFieldEnum = z.enum([
 ]);
 
 const clarificationAnswerSchema = z.object({
-  questionId: z.string().trim().min(1),
+  questionId: z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/u),
   field: clarificationAnswerFieldEnum.optional(),
   answer: z.union([
-    z.string(),
-    z.number(),
+    plainTextSchema(1, 1_000),
+    z.number().finite().min(-1_000_000).max(1_000_000),
     z.boolean(),
-    z.array(z.string()),
+    z.array(plainTextSchema(1, 200)).max(20),
   ]),
-});
+}).strict();
 
 export const parcelEstimateRequestSchema = z
   .object({
-    contents: z.string().trim().min(1).max(2000).optional(),
-    contentDescription: z.string().trim().min(1).max(2000).optional(),
+    contents: plainTextSchema(1, 2000).optional(),
+    contentDescription: plainTextSchema(1, 2000).optional(),
     naturalDescription: naturalDescriptionSchema,
     advancedDetails: advancedDetailsSchema,
     previousClarificationAnswers: z.array(clarificationAnswerSchema).max(8).optional(),
@@ -112,6 +118,7 @@ export const parcelEstimateRequestSchema = z
     currentFragileLevel: fragileLevelEnum.nullable().optional(),
     parcelAiImageIds: z.array(z.string().uuid()).max(2).optional(),
   })
+  .strict()
   .refine(
     (data) => {
       const desc =

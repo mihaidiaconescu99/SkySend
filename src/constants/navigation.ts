@@ -88,8 +88,6 @@ export const clientDashboardNavigation = {
   ],
   workspaces: [
     workspaceItems.client,
-    workspaceItems.admin,
-    workspaceItems.operator,
   ],
   mobile: [
     {
@@ -185,7 +183,6 @@ export const adminDashboardNavigation = {
   ],
   workspaces: [
     workspaceItems.admin,
-    workspaceItems.client,
     workspaceItems.operator,
   ],
 } as const;
@@ -220,9 +217,7 @@ export const operatorDashboardNavigation = {
     },
   ],
   workspaces: [
-    workspaceItems.admin,
     workspaceItems.operator,
-    workspaceItems.client,
   ],
 } as const;
 

@@ -4,13 +4,14 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 
 const bodySchema = z.object({
   popup: z.boolean(),
   email: z.boolean(),
-});
+}).strict();
 
 export async function PATCH(request: Request) {
   const { userId } = await auth();
@@ -19,13 +20,9 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  let body: z.infer<typeof bodySchema>;
-
-  try {
-    body = bodySchema.parse(await request.json());
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
+  const parsed = await validateRequest(bodySchema, request, { maxBytes: 2 * 1024 });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const profiles = new ProfilesRepository(createAdminSupabaseClient());
   const profile = await profiles.getByClerkUserId(userId);
@@ -39,7 +36,8 @@ export async function PATCH(request: Request) {
   });
 
   if (!updated.ok) {
-    return NextResponse.json({ error: updated.error.message }, { status: 502 });
+    console.error("[notification-preferences] update failed", updated.error);
+    return NextResponse.json({ error: "preferences_update_failed" }, { status: 502 });
   }
 
   return NextResponse.json({ profile: updated.data });

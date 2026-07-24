@@ -1,6 +1,7 @@
 import { AdminOperationalCenterView } from "@/components/admin/admin-operational-center";
 import { getAdminOperationalCenterDataFromDB } from "@/lib/admin-data-server";
 import { createPageMetadata } from "@/lib/metadata";
+import { requireAdminRoute } from "@/lib/protected-routes";
 
 export const metadata = createPageMetadata(
   "Privire generală",
@@ -8,6 +9,7 @@ export const metadata = createPageMetadata(
 );
 
 export default async function AdminOverviewPage() {
+  await requireAdminRoute();
   const data = await getAdminOperationalCenterDataFromDB();
 
   return <AdminOperationalCenterView initialData={data} />;

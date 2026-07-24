@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { deleteR2Objects } from "@/lib/storage/r2";
-import { processExpiredAndPendingStaffAccess } from "@/lib/staff-access/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -54,13 +53,10 @@ export async function GET(request: Request) {
     if (parcelImageDeleteError) return NextResponse.json({ error: "parcel_image_cleanup_database_failed" }, { status: 500 });
   }
 
-  const staffAccess = await processExpiredAndPendingStaffAccess();
-
   return NextResponse.json({
     ok: true,
     deleted: deletedIds.length,
     failed: (expired?.length ?? 0) - deletedIds.length,
     deletedParcelAiImages: expiredParcelImages?.length ?? 0,
-    staffAccess,
   });
 }

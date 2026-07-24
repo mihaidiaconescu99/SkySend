@@ -5,12 +5,15 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { mapOrderSummary, mapOrderToCreatedDelivery } from "@/lib/client-orders-mappers";
 
 export async function GET() {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const { userId } = await auth();
 
   if (!userId) {
@@ -27,7 +30,7 @@ export async function GET() {
   if (!profileResult.ok) {
     console.error("[client/orders] profile lookup failed:", profileResult.error);
     return NextResponse.json(
-      { error: profileResult.error.message },
+      { error: "Profile lookup failed." },
       { status: 502 },
     );
   }
@@ -47,7 +50,7 @@ export async function GET() {
   if (!ordersResult.ok) {
     console.error("[client/orders] list failed:", ordersResult.error);
     return NextResponse.json(
-      { error: ordersResult.error.message },
+      { error: "Orders could not be loaded." },
       { status: 502 },
     );
   }

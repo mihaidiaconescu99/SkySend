@@ -16,6 +16,15 @@ vi.mock("@clerk/nextjs/server", () => ({
   currentUser: clerkMock.currentUser,
 }));
 
+const authorizationMock = vi.hoisted(() => ({
+  getServerAuthorizationContext: vi.fn(),
+}));
+
+vi.mock("@/lib/server-authorization", () => ({
+  getServerAuthorizationContext:
+    authorizationMock.getServerAuthorizationContext,
+}));
+
 const adminMock = vi.hoisted(() => ({
   createAdminSupabaseClient: vi.fn(),
 }));
@@ -49,7 +58,7 @@ function attachFakeSupabase(options: AttachOptions = {}): void {
         args: Record<string, unknown>,
       ) => Promise<{ data: string | null; error: { code: string; message: string } | null }>;
     }
-  ).rpc = vi.fn(async (_name, _args) => {
+  ).rpc = vi.fn(async () => {
     if (options.rpcError) {
       return { data: null, error: options.rpcError };
     }
@@ -60,12 +69,14 @@ function attachFakeSupabase(options: AttachOptions = {}): void {
 }
 
 function clerkUser(overrides: {
+  id?: string;
   email?: string | null;
   fullName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
 } = {}) {
   return {
+    id: overrides.id ?? "user_x",
     emailAddresses:
       overrides.email === null
         ? []
@@ -80,13 +91,33 @@ beforeEach(() => {
   clerkMock.auth.mockReset();
   clerkMock.currentUser.mockReset();
   adminMock.createAdminSupabaseClient.mockReset();
+  authorizationMock.getServerAuthorizationContext.mockImplementation(
+    async () => {
+      const { userId } = await clerkMock.auth();
+      return {
+        userId: userId ?? null,
+        sessionId: userId ? "session_test" : null,
+        role: userId ? "client" : null,
+        internalOrganizationId: "org_test",
+        internalMembershipRole: null,
+        activeOrganizationId: null,
+        activeOrganizationRole: null,
+        needsOrganizationActivation: false,
+        resolution: "resolved",
+      };
+    },
+  );
 });
 
 describe("POST /api/auth/sync-profile", () => {
   it("returns 200 and the mapped Profile when ensure_profile_exists creates a new row", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_new" });
     clerkMock.currentUser.mockResolvedValue(
-      clerkUser({ email: "new@example.com", fullName: "New User" }),
+      clerkUser({
+        id: "user_new",
+        email: "new@example.com",
+        fullName: "New User",
+      }),
     );
 
     const profileId = "11111111-1111-1111-1111-111111111111";
@@ -117,7 +148,11 @@ describe("POST /api/auth/sync-profile", () => {
   it("returns 200 when ensure_profile_exists finds an existing row (idempotent)", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_existing" });
     clerkMock.currentUser.mockResolvedValue(
-      clerkUser({ email: "exist@example.com", fullName: "Exist" }),
+      clerkUser({
+        id: "user_existing",
+        email: "exist@example.com",
+        fullName: "Exist",
+      }),
     );
 
     const profileId = "22222222-2222-2222-2222-222222222222";
@@ -147,6 +182,25 @@ describe("POST /api/auth/sync-profile", () => {
     expect(adminMock.createAdminSupabaseClient).not.toHaveBeenCalled();
   });
 
+  it("does not initialize service-role access when authorization is unavailable", async () => {
+    authorizationMock.getServerAuthorizationContext.mockResolvedValue({
+      userId: "user_x",
+      sessionId: "session_x",
+      role: null,
+      internalOrganizationId: "org_test",
+      internalMembershipRole: null,
+      activeOrganizationId: null,
+      activeOrganizationRole: null,
+      needsOrganizationActivation: false,
+      resolution: "unavailable",
+    });
+
+    const response = await POST();
+
+    expect(response.status).toBe(503);
+    expect(adminMock.createAdminSupabaseClient).not.toHaveBeenCalled();
+  });
+
   it("returns 401 user_not_found when auth() returned a userId but currentUser() resolves null", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_phantom" });
     clerkMock.currentUser.mockResolvedValue(null);
@@ -169,6 +223,7 @@ describe("POST /api/auth/sync-profile", () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_compose" });
     clerkMock.currentUser.mockResolvedValue(
       clerkUser({
+        id: "user_compose",
         email: "compose@example.com",
         fullName: null,
         firstName: "Ana",
@@ -201,6 +256,44 @@ describe("POST /api/auth/sync-profile", () => {
     });
   });
 
+  it("projects the verified Clerk organization role into profiles.role", async () => {
+    clerkMock.auth.mockResolvedValue({ userId: "user_admin" });
+    clerkMock.currentUser.mockResolvedValue(
+      clerkUser({
+        id: "user_admin",
+        email: "admin@example.com",
+        fullName: "Admin SkySend",
+      }),
+    );
+    authorizationMock.getServerAuthorizationContext.mockResolvedValue({
+      userId: "user_admin",
+      sessionId: "session_admin",
+      role: "admin",
+      internalOrganizationId: "org_test",
+      internalMembershipRole: "org:admin",
+      activeOrganizationId: "org_test",
+      activeOrganizationRole: "org:admin",
+      needsOrganizationActivation: false,
+      resolution: "resolved",
+    });
+    const profileId = "44444444-4444-4444-4444-444444444444";
+    attachFakeSupabase({ rpcProfileId: profileId });
+    store.seedProfile(
+      buildProfileRow({
+        id: profileId,
+        clerk_user_id: "user_admin",
+        email: "admin@example.com",
+        role: "client",
+      }),
+    );
+
+    const response = await POST();
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).profile.role).toBe("admin");
+    expect(store.rows.get(profileId)?.role).toBe("admin");
+  });
+
   it("returns 500 sync_failed when ensure_profile_exists RPC errors out", async () => {
     clerkMock.auth.mockResolvedValue({ userId: "user_x" });
     clerkMock.currentUser.mockResolvedValue(clerkUser());
@@ -212,7 +305,8 @@ describe("POST /api/auth/sync-profile", () => {
     expect(response.status).toBe(500);
     const body = await response.json();
     expect(body.error).toBe("sync_failed");
-    expect(body.details).toBe("clerk_user_id required");
+    expect(body.details).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("clerk_user_id required");
   });
 
   it("returns 500 sync_inconsistent when RPC returns an id but the row is not visible afterwards", async () => {

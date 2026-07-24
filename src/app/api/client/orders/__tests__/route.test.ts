@@ -11,8 +11,40 @@ const clerkMock = vi.hoisted(() => ({
   auth: vi.fn(),
 }));
 
+const roleGuardMock = vi.hoisted(() => ({
+  role: "client" as "client" | "operator" | "admin",
+}));
+
 vi.mock("@clerk/nextjs/server", () => ({
   auth: clerkMock.auth,
+}));
+
+vi.mock("@/lib/api/role-guard", () => ({
+  authorizeApiRequest: vi.fn(async (allowedRoles: string[]) => {
+    const { userId } = await clerkMock.auth();
+    if (!userId) {
+      return {
+        ok: false,
+        response: Response.json(
+          { error: "Authentication required." },
+          { status: 401 },
+        ),
+      };
+    }
+    if (!allowedRoles.includes(roleGuardMock.role)) {
+      return {
+        ok: false,
+        response: Response.json(
+          { error: "Insufficient permissions." },
+          { status: 403 },
+        ),
+      };
+    }
+    return {
+      ok: true,
+      context: { userId, role: roleGuardMock.role },
+    };
+  }),
 }));
 
 const adminMock = vi.hoisted(() => ({
@@ -33,6 +65,7 @@ beforeEach(() => {
   const fake = createFakeSupabase();
   store = fake.store;
   adminMock.createAdminSupabaseClient.mockReturnValue(fake.client);
+  roleGuardMock.role = "client";
 });
 
 afterEach(() => {
@@ -71,6 +104,16 @@ describe("GET /api/client/orders", () => {
     const response = await GET();
 
     expect(response.status).toBe(401);
+  });
+
+  it("returns 403 when an Operator calls a Client API directly", async () => {
+    roleGuardMock.role = "operator";
+    clerkMock.auth.mockResolvedValue({ userId: "user_operator" });
+
+    const response = await GET();
+
+    expect(response.status).toBe(403);
+    expect(adminMock.createAdminSupabaseClient).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the profile is missing", async () => {

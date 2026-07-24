@@ -1,15 +1,11 @@
 import {
   adminPanelRoles,
-  roleBindingStrategy,
   roleHomePaths,
   roleRoutingPaths,
   userRoles,
 } from "@/constants/roles";
 import type {
-  ClerkRoleMetadata,
   DashboardRole,
-  RoleResolution,
-  RoleResolutionInput,
   UserRole,
 } from "@/types/roles";
 
@@ -28,27 +24,6 @@ export function isDashboardRole(value: unknown): value is DashboardRole {
     typeof value === "string" &&
     dashboardRoles.includes(value as DashboardRole)
   );
-}
-
-export function getRoleFromClerkMetadata(
-  publicMetadata: ClerkRoleMetadata | null | undefined,
-  privateMetadata?: ClerkRoleMetadata | null | undefined,
-) {
-  if (isUserRole(privateMetadata?.role)) {
-    return privateMetadata.role;
-  }
-
-  return isUserRole(publicMetadata?.role) ? publicMetadata.role : null;
-}
-
-export function isDevelopmentRoleFallbackEnabled() {
-  return process.env.NODE_ENV !== "production";
-}
-
-export function getDevelopmentRoleFallback() {
-  return isDevelopmentRoleFallbackEnabled()
-    ? roleBindingStrategy.developmentFallbackRole
-    : null;
 }
 
 export function hasRole(currentRole: UserRole | null | undefined, role: UserRole) {
@@ -87,58 +62,10 @@ export function canAccessRoleRoute(
   targetRole: UserRole,
 ) {
   if (!currentRole) return false;
-  if (currentRole === "admin") return true;
-  if (currentRole === "operator") {
-    return targetRole === "operator" || targetRole === "client";
+  if (currentRole === "admin") {
+    return targetRole === "admin" || targetRole === "operator";
   }
-  return currentRole === "client" && targetRole === "client";
-}
-
-export function resolveUserRole({
-  clerkRole,
-  databaseRole,
-  fallbackRole = roleBindingStrategy.fallbackRole,
-}: RoleResolutionInput): RoleResolution {
-  const effectiveFallbackRole =
-    fallbackRole ?? getDevelopmentRoleFallback();
-
-  if (databaseRole && clerkRole) {
-    return {
-      role: databaseRole,
-      source: "database",
-      isMismatch: databaseRole !== clerkRole,
-      shouldSyncClerkMetadata: databaseRole !== clerkRole,
-      shouldPersistToDatabase: false,
-    };
-  }
-
-  if (databaseRole) {
-    return {
-      role: databaseRole,
-      source: "database",
-      isMismatch: false,
-      shouldSyncClerkMetadata: true,
-      shouldPersistToDatabase: false,
-    };
-  }
-
-  if (clerkRole) {
-    return {
-      role: clerkRole,
-      source: "clerk_metadata",
-      isMismatch: false,
-      shouldSyncClerkMetadata: false,
-      shouldPersistToDatabase: true,
-    };
-  }
-
-  return {
-    role: effectiveFallbackRole,
-    source: effectiveFallbackRole ? "fallback" : null,
-    isMismatch: false,
-    shouldSyncClerkMetadata: Boolean(effectiveFallbackRole),
-    shouldPersistToDatabase: Boolean(effectiveFallbackRole),
-  };
+  return currentRole === targetRole;
 }
 
 export function getRequiredRoleForPath(pathname: string) {

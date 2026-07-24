@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
 
+import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -14,17 +15,17 @@ const settingsSchema = z.object({
   loadingTimerMinutes: z.number().int().min(1).max(60),
   unloadingTimerMinutes: z.number().int().min(1).max(60),
   manualStatus: z.enum(["active", "maintenance"]),
-});
+}).strict();
 
 export async function PUT(request: Request) {
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
-  const parsed = settingsSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "validation_failed", issues: parsed.error.issues }, { status: 400 });
-  }
+  const parsed = await validateRequest(settingsSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   const supabase = createAdminSupabaseClient() as any;
   const now = new Date().toISOString();
   const before = await getOperationalStatusSnapshot();

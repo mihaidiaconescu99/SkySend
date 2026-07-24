@@ -9,10 +9,7 @@ export function OperationalNotice() {
   const [status, setStatus] = useState<OperationalStatusSnapshot | null>(null);
 
   useEffect(() => {
-    if (pathname !== "/client/create-delivery") {
-      setStatus(null);
-      return;
-    }
+    if (pathname !== "/client/create-delivery") return;
 
     void fetch("/api/operational-status", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))

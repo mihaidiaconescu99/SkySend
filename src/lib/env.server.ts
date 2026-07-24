@@ -76,36 +76,6 @@ export const serverEnv = {
     "",
   ),
 
-  STAFF_ACCESS_ENFORCEMENT: opt(
-    process.env.STAFF_ACCESS_ENFORCEMENT,
-    "database",
-  ),
-
-  CLOUDFLARE_ACCESS_ENFORCED: opt(
-    process.env.CLOUDFLARE_ACCESS_ENFORCED,
-    "false",
-  ),
-
-  CLOUDFLARE_ACCESS_ACCOUNT_ID: opt(
-    process.env.CLOUDFLARE_ACCESS_ACCOUNT_ID,
-    "",
-  ),
-
-  CLOUDFLARE_ACCESS_GROUP_ID: opt(process.env.CLOUDFLARE_ACCESS_GROUP_ID, ""),
-
-  CLOUDFLARE_ACCESS_API_TOKEN: opt(process.env.CLOUDFLARE_ACCESS_API_TOKEN, ""),
-
-  CLOUDFLARE_ACCESS_TEAM_DOMAIN: opt(
-    process.env.CLOUDFLARE_ACCESS_TEAM_DOMAIN,
-    "",
-  ),
-
-  CLOUDFLARE_ACCESS_AUD: opt(process.env.CLOUDFLARE_ACCESS_AUD, ""),
-
-  ACCESS_TOTP_ENCRYPTION_KEY: opt(process.env.ACCESS_TOTP_ENCRYPTION_KEY, ""),
-
-  ACCESS_RECOVERY_CODE_PEPPER: opt(process.env.ACCESS_RECOVERY_CODE_PEPPER, ""),
-
   OVERPASS_API_URL: opt(
     process.env.OVERPASS_API_URL,
     "https://overpass-api.de/api/interpreter",

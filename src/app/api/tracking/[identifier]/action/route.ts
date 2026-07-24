@@ -3,6 +3,7 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
@@ -26,7 +27,14 @@ type Context = { params: Promise<{ identifier: string }> };
 const bodySchema = z.object({
   action: z.enum(["confirm_position", "next_point", "parcel_loaded", "parcel_delivered"]),
   expectedVersion: z.number().int().nonnegative().optional(),
-});
+}).strict();
+
+const trackingIdentifierSchema = z
+  .string()
+  .trim()
+  .min(6)
+  .max(256)
+  .regex(/^[A-Za-z0-9_-]+$/u);
 
 type RuntimeState = {
   meetingPointAttempts?: {
@@ -175,10 +183,13 @@ function setActiveFlight(
 
 export async function POST(request: Request, { params }: Context) {
   const { identifier } = await params;
-  const parsed = bodySchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Invalid action." }, { status: 400 });
+  if (!trackingIdentifierSchema.safeParse(identifier).success) {
+    return NextResponse.json({ error: "Invalid tracking identifier." }, { status: 400 });
+  }
+  const parsed = await validateRequest(bodySchema, request, { maxBytes: 2 * 1024 });
+  if (!parsed.ok) return parsed.response;
 
-  const resolved = await resolveOrder(decodeURIComponent(identifier));
+  const resolved = await resolveOrder(identifier);
   if (!resolved.order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
   if (isOrderTerminal(resolved.order)) {
     return NextResponse.json({ error: "Terminal orders are read-only." }, { status: 409 });
@@ -313,7 +324,10 @@ export async function POST(request: Request, { params }: Context) {
     completedAt: nextStatus === "delivery_completed" || failureCode ? now.toISOString() : undefined,
     runtimeState: runtime as Json,
   });
-  if (!updated.ok) return NextResponse.json({ error: updated.error.message }, { status: 409 });
+  if (!updated.ok) {
+    console.error("[tracking/action] mission update failed", updated.error);
+    return NextResponse.json({ error: "Mission update failed." }, { status: 409 });
+  }
 
   if (failureCode) {
     await resolved.orders.updateById(resolved.order.id, {

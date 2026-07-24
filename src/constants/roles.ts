@@ -1,6 +1,5 @@
 import type {
   DashboardRole,
-  RoleBindingStrategy,
   RoleConfig,
   RoleHomePath,
   UserRole,
@@ -32,6 +31,10 @@ export const roleRoutingPaths = {
   authContinue: "/auth/continue",
   invalidRole: "/access-denied?reason=invalid-role",
   noRole: "/access-denied?reason=no-role",
+  authorizationNotConfigured:
+    "/access-denied?reason=authorization-not-configured",
+  authorizationUnavailable:
+    "/access-denied?reason=authorization-unavailable",
 } as const;
 
 export const protectedRoleRoutePatterns = [
@@ -106,7 +109,7 @@ export const roleConfigs: Record<DashboardRole, RoleConfig> = {
       },
     ],
     priorities: [
-      "Role management, permissions, and commercial governance.",
+      "Commercial governance and platform-wide operational controls.",
       "City coverage, fleet-level performance, and SLA health.",
       "Compliance reporting, exception review, and audit readiness.",
     ],
@@ -142,19 +145,4 @@ export const roleConfigs: Record<DashboardRole, RoleConfig> = {
       "Operator alerts, weather risk, and fallback procedures.",
     ],
   },
-};
-
-export const roleBindingStrategy: RoleBindingStrategy = {
-  sourceOfTruth: "database",
-  clerkMetadataField: "publicMetadata.role",
-  fallbackRole: "client",
-  developmentFallbackRole: "client",
-  notes: [
-    "Persist the effective role in the application database and treat it as the source of truth for authorization.",
-    "Mirror the same role into Clerk publicMetadata.role so the UI and middleware can resolve role context quickly.",
-    "Admin panel access is reserved for active admin assignments; Operators can request temporary access.",
-    "On sign-in or webhook sync, if database and Clerk disagree, prefer the database role and update Clerk metadata.",
-    "Only bootstrap from Clerk metadata when the database has no role record yet for that user.",
-    "New authenticated users without a persisted role start in the client workspace by default.",
-  ],
 };

@@ -3,6 +3,9 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { opaqueIdentifierSchema } from "@/lib/api/input-schemas";
+import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
@@ -18,9 +21,15 @@ type RouteContext = { params: Promise<{ orderId: string }> };
 const patchSchema = z.object({
   publicCodeAccessMode: z.enum(["view", "control"]).optional(),
   rotateScope: z.enum(["full", "pickup", "dropoff"]).optional(),
-});
+}).strict().refine(
+  (value) => value.publicCodeAccessMode !== undefined || value.rotateScope !== undefined,
+  { message: "empty_patch" },
+);
 
 async function getOwnedOrder(orderId: string) {
+  if (!opaqueIdentifierSchema.safeParse(orderId).success) {
+    return { error: "Invalid order identifier.", status: 400 } as const;
+  }
   const { userId } = await auth();
   if (!userId) return { error: "Authentication required.", status: 401 } as const;
 
@@ -64,6 +73,8 @@ function toResponse(
 }
 
 export async function GET(request: Request, { params }: RouteContext) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const { orderId } = await params;
   const owned = await getOwnedOrder(orderId);
   if ("error" in owned) {
@@ -75,6 +86,8 @@ export async function GET(request: Request, { params }: RouteContext) {
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const { orderId } = await params;
   const owned = await getOwnedOrder(orderId);
   if ("error" in owned) {
@@ -84,10 +97,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Terminal orders are read-only." }, { status: 409 });
   }
 
-  const parsed = patchSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-  }
+  const parsed = await validateRequest(patchSchema, request, { maxBytes: 4 * 1024 });
+  if (!parsed.ok) return parsed.response;
 
   let order = owned.order;
   if (parsed.data.publicCodeAccessMode) {
@@ -95,7 +106,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       publicCodeAccessMode: parsed.data.publicCodeAccessMode,
     });
     if (!updated.ok) {
-      return NextResponse.json({ error: updated.error.message }, { status: 502 });
+      console.error("[orders/sharing] update failed", updated.error);
+      return NextResponse.json({ error: "Sharing update failed." }, { status: 502 });
     }
     order = updated.data;
   }

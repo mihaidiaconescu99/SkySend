@@ -1,5 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { opaqueIdentifierSchema } from "@/lib/api/input-schemas";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { getStripeServer } from "@/lib/stripe/server";
@@ -10,9 +12,14 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ orderId: string }> },
 ) {
+  const authorization = await authorizeApiRequest(["client"]);
+  if (!authorization.ok) return authorization.response;
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const { orderId } = await context.params;
+  if (!opaqueIdentifierSchema.safeParse(orderId).success) {
+    return NextResponse.json({ error: "invalid_order_identifier" }, { status: 400 });
+  }
   const supabase = createAdminSupabaseClient();
   const db = supabase as any;
   const profile = await new ProfilesRepository(supabase).getByClerkUserId(userId);
@@ -31,7 +38,10 @@ export async function POST(
     p_order_id: order.id,
     p_profile_id: profile.data.id,
   });
-  if (claimError) return NextResponse.json({ error: claimError.message }, { status: 502 });
+  if (claimError) {
+    console.error("[predispatch-cancel] claim failed", claimError);
+    return NextResponse.json({ error: "cancellation_claim_failed" }, { status: 502 });
+  }
   if (!claimed) return NextResponse.json({ error: "dispatch_already_started" }, { status: 409 });
 
   const { data: requestRow, error: requestError } = await db.from("refund_requests").insert({

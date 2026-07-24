@@ -1,7 +1,7 @@
 import "server-only";
 
 import { serviceAreaConfig } from "@/constants/service-area";
-import { getAdminOperationalSettingsFromDB } from "@/lib/admin-data-server";
+import { getPublicOperationalSettingsFromDB } from "@/lib/admin-data-server";
 import { defaultOperationalSettings } from "@/lib/admin-data";
 import { normalizeAssistantText } from "@/lib/ai/skysend-assistant-knowledge";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
@@ -41,7 +41,7 @@ export async function buildAssistantRuntimeContext(input: {
   message: string;
   profileId?: string | null;
 }): Promise<AssistantRuntimeContext> {
-  const configured = await getAdminOperationalSettingsFromDB().catch(() => null);
+  const configured = await getPublicOperationalSettingsFromDB().catch(() => null);
   const operational = configured ?? defaultOperationalSettings;
   const context: AssistantRuntimeContext = {
     operational: {

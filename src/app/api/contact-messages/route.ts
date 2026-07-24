@@ -3,28 +3,15 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { validateRequest } from "@/lib/api/validation";
 import { createSiteMessage } from "@/lib/site-messages/server";
 import { publicContactSchema } from "@/lib/support/support-hub";
 
-
-function badRequest(reason: string) {
-  return NextResponse.json({ error: reason }, { status: 400 });
-}
-
 export async function POST(request: Request) {
-  let raw: unknown;
-
-  try {
-    raw = await request.json();
-  } catch {
-    return badRequest("invalid_body");
-  }
-
-  const parsed = publicContactSchema.safeParse(raw);
-
-  if (!parsed.success) {
-    return badRequest("validation_failed");
-  }
+  const parsed = await validateRequest(publicContactSchema, request, {
+    maxBytes: 16 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
 
   try {
     const message = await createSiteMessage(parsed.data);
