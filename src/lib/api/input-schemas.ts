@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const htmlTagPattern = /<\s*\/?\s*[a-z][^>]*>/iu;
 const javascriptSchemePattern = /javascript\s*:/iu;
-const unsafeControlCharacterPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/u;
+const unsafeControlCharacterPattern = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069\uFEFF]/u;
 const unsafeObjectKeys = new Set(["__proto__", "prototype", "constructor"]);
 
 export function isPlainUserText(value: string) {
@@ -29,7 +29,7 @@ export const normalizedEmailSchema = z
   .max(254)
   .transform((value) => value.toLowerCase());
 
-export const uuidSchema = z.string().uuid();
+export const uuidSchema = z.string().trim().toLowerCase().uuid();
 
 export const opaqueIdentifierSchema = z
   .string()
@@ -56,6 +56,7 @@ export const geoPointSchema = z
 export const localOrderIdSchema = z
   .string()
   .trim()
+  .toUpperCase()
   .regex(/^SKY-PT-\d{5}-\d{3}$/u);
 
 export const publicTrackingCodeSchema = z
@@ -69,11 +70,26 @@ export const recipientTrackingTokenSchema = z
   .trim()
   .regex(/^rpt_[A-Za-z0-9_-]{32}$/u);
 
+export const trackingIdentifierSchema = z
+  .string()
+  .trim()
+  .min(6)
+  .max(256)
+  .regex(/^[A-Za-z0-9_-]+$/u);
+
 export const internalActionUrlSchema = z
   .string()
   .trim()
   .max(500)
   .regex(/^\/(?!\/)[A-Za-z0-9/_?&=.%+#-]*$/u);
+
+export const uploadFileNameSchema = plainTextSchema(1, 255)
+  .refine((value) => value !== "." && value !== "..", {
+    message: "invalid_file_name",
+  })
+  .refine((value) => !/[\\/]/u.test(value), {
+    message: "invalid_file_name",
+  });
 
 type JsonLimits = {
   maxDepth?: number;

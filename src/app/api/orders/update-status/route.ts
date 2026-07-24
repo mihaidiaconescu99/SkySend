@@ -2,29 +2,16 @@ import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 
-import {
-  opaqueIdentifierSchema,
-  plainTextSchema,
-} from "@/lib/api/input-schemas";
 import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import {
+  isAllowedFulfillmentTransition,
+  updateOrderStatusBodySchema,
+} from "@/lib/orders/status-input";
 import type { OrderStatus, UpdateOrderInput } from "@/types/order";
-
-const updateOrderStatusBodySchema = z.object({
-  orderId: opaqueIdentifierSchema,
-  fulfillmentStatus: z.enum([
-    "active_mission",
-    "completed_mission",
-    "failed_mission",
-    "fallback_required",
-    "canceled",
-  ]).nullable().optional(),
-  fallbackReason: plainTextSchema(1, 1_000).nullable().optional(),
-}).strict();
 
 function mapFulfillmentStatus(status?: string | null): OrderStatus | null {
   switch (status) {
@@ -87,12 +74,25 @@ export async function POST(request: Request) {
     );
   }
 
+  if (
+    !isAllowedFulfillmentTransition(
+      order.fulfillmentStatus,
+      body.fulfillmentStatus,
+    )
+  ) {
+    return NextResponse.json(
+      { error: "invalid_fulfillment_transition" },
+      { status: 409 },
+    );
+  }
+  if (body.fulfillmentStatus === order.fulfillmentStatus) {
+    return NextResponse.json({ ok: true, order });
+  }
+
   const patch: UpdateOrderInput = {};
   const nextOrderStatus = mapFulfillmentStatus(body.fulfillmentStatus);
 
-  if (body.fulfillmentStatus !== undefined) {
-    patch.fulfillmentStatus = body.fulfillmentStatus;
-  }
+  patch.fulfillmentStatus = body.fulfillmentStatus;
 
   if (nextOrderStatus) {
     patch.status = nextOrderStatus;

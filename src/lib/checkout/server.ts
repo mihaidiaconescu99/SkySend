@@ -18,6 +18,11 @@ import type { Database } from "@/types/database";
 
 const database = (supabase: SupabaseClient<Database>) => supabase as any;
 
+type TrustedCheckoutDeliveryPayload = Omit<
+  CreateDeliveryPayload,
+  "estimatedPrice" | "pricingSnapshot"
+>;
+
 function buildSurcharges(pricing: SkySendPricingResult): PricingSurcharge[] {
   const values: Array<[string, number, string]> = [
     ["weight_surcharge", pricing.weightSurcharge.amountMinor, "Suprataxă greutate"],
@@ -62,7 +67,7 @@ function toStoredPoint(point: CreateDeliveryPayload["selectedPickupPoint"]): Sto
 
 export async function priceCheckoutPayload(
   supabase: SupabaseClient<Database>,
-  payload: CreateDeliveryPayload,
+  payload: TrustedCheckoutDeliveryPayload,
 ) {
   const { data: settings, error } = await database(supabase)
     .from("operational_settings")
@@ -108,7 +113,9 @@ export async function priceCheckoutPayload(
       pricingSnapshot: pricing,
     },
     orderPricingSnapshot: toOrderPricingSnapshot(pricing),
-    handoffPointsSnapshot: createCompleteHandoffSnapshot(payload),
+    handoffPointsSnapshot: createCompleteHandoffSnapshot(
+      payload as CreateDeliveryPayload,
+    ),
     selectedPickupHandoffPoint: toStoredPoint(payload.selectedPickupPoint),
     selectedDropoffHandoffPoint: toStoredPoint(payload.selectedDropoffPoint),
   };

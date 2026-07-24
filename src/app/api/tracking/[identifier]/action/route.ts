@@ -3,6 +3,7 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { trackingIdentifierSchema } from "@/lib/api/input-schemas";
 import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
@@ -28,13 +29,6 @@ const bodySchema = z.object({
   action: z.enum(["confirm_position", "next_point", "parcel_loaded", "parcel_delivered"]),
   expectedVersion: z.number().int().nonnegative().optional(),
 }).strict();
-
-const trackingIdentifierSchema = z
-  .string()
-  .trim()
-  .min(6)
-  .max(256)
-  .regex(/^[A-Za-z0-9_-]+$/u);
 
 type RuntimeState = {
   meetingPointAttempts?: {

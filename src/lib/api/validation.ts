@@ -19,6 +19,10 @@ type ValidationOptions = {
   maxBytes?: number;
 };
 
+type RawBodyOptions = ValidationOptions & {
+  acceptedContentTypes?: readonly string[];
+};
+
 function validationFailure(
   code: "invalid_json" | "payload_too_large" | "unsupported_media_type" | "validation_failed",
   status: 400 | 413 | 415,
@@ -42,38 +46,12 @@ export async function validateRequest<TSchema extends z.ZodTypeAny>(
   request: Request,
   options: ValidationOptions = {},
 ): Promise<ValidationResult<z.infer<TSchema>>> {
-  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
-  if (contentType !== "application/json") {
-    return validationFailure("unsupported_media_type", 415);
-  }
-
-  const maxBytes = options.maxBytes ?? DEFAULT_JSON_BODY_LIMIT_BYTES;
-  const declaredLength = request.headers.get("content-length");
-  if (declaredLength !== null) {
-    const parsedLength = Number(declaredLength);
-    if (Number.isFinite(parsedLength) && parsedLength > maxBytes) {
-      return validationFailure("payload_too_large", 413);
-    }
-  }
-
-  let bytes: ArrayBuffer;
-
-  try {
-    bytes = await request.arrayBuffer();
-  } catch {
-    return validationFailure("invalid_json", 400, {
-      formErrors: ["Invalid JSON body."],
-      fieldErrors: {},
-    });
-  }
-
-  if (bytes.byteLength > maxBytes) {
-    return validationFailure("payload_too_large", 413);
-  }
+  const raw = await readLimitedTextRequest(request, options);
+  if (!raw.ok) return raw;
 
   let rawBody: unknown;
   try {
-    rawBody = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+    rawBody = JSON.parse(raw.data) as unknown;
   } catch {
     return validationFailure("invalid_json", 400, {
       formErrors: ["Invalid JSON body."],
@@ -92,6 +70,80 @@ export async function validateRequest<TSchema extends z.ZodTypeAny>(
   }
 
   return { ok: true, data: parsed.data };
+}
+
+export async function readLimitedTextRequest(
+  request: Request,
+  options: RawBodyOptions = {},
+): Promise<ValidationResult<string>> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  const acceptedContentTypes = options.acceptedContentTypes ?? ["application/json"];
+  if (!contentType || !acceptedContentTypes.includes(contentType)) {
+    return validationFailure("unsupported_media_type", 415);
+  }
+
+  const maxBytes = options.maxBytes ?? DEFAULT_JSON_BODY_LIMIT_BYTES;
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null) {
+    if (!/^\d+$/u.test(declaredLength.trim())) {
+      return validationFailure("invalid_json", 400);
+    }
+    const parsedLength = Number(declaredLength);
+    if (!Number.isSafeInteger(parsedLength) || parsedLength > maxBytes) {
+      return validationFailure("payload_too_large", 413);
+    }
+  }
+
+  let bytes: Uint8Array;
+
+  try {
+    if (!request.body) {
+      return validationFailure("invalid_json", 400, {
+        formErrors: ["Invalid JSON body."],
+        fieldErrors: {},
+      });
+    }
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        return validationFailure("payload_too_large", 413);
+      }
+      chunks.push(value);
+    }
+    bytes = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  } catch {
+    return validationFailure("invalid_json", 400, {
+      formErrors: ["Invalid JSON body."],
+      fieldErrors: {},
+    });
+  }
+
+  if (bytes.byteLength > maxBytes) {
+    return validationFailure("payload_too_large", 413);
+  }
+
+  try {
+    return {
+      ok: true,
+      data: new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    };
+  } catch {
+    return validationFailure("invalid_json", 400, {
+      formErrors: ["Invalid JSON body."],
+      fieldErrors: {},
+    });
+  }
 }
 
 export function publicErrorCode<const TAllowed extends readonly string[]>(

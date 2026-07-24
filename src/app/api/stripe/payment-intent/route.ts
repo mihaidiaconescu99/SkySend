@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import {
   createStripePaymentIntentParams,
   getAuthenticatedStripeCustomer,
@@ -14,11 +14,10 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
 import { reconcilePaidCheckoutSession } from "@/lib/stripe/webhook-server";
 import type { StripePaymentIntentDraft } from "@/types/stripe";
-
-const schema = z.object({
-  checkoutSessionId: z.string().uuid(),
-  savePaymentMethod: z.boolean().default(false),
-});
+import {
+  paymentIntentRequestSchema,
+  stripePaymentIntentIdSchema,
+} from "@/lib/stripe/input-schemas";
 
 function idempotencyKey(sessionId: string, amount: number, currency: string) {
   return `skysend-checkout-${sessionId}-${amount}-${currency.toLowerCase()}`.slice(0, 255);
@@ -27,8 +26,10 @@ function idempotencyKey(sessionId: string, amount: number, currency: string) {
 export async function POST(request: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Authentication is required for checkout." }, { status: 401 });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid checkout request." }, { status: 400 });
+  const parsed = await validateRequest(paymentIntentRequestSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   try {
     const supabase = createAdminSupabaseClient();
     const db = supabase as any;
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
       status: intent.status,
     });
   } catch (error) {
-    if (error instanceof StripeAuthenticationError) return NextResponse.json({ error: error.message }, { status: 401 });
+    if (error instanceof StripeAuthenticationError) return NextResponse.json({ error: "Authentication is required for checkout." }, { status: 401 });
     console.error("[payment-intent]", error);
     return NextResponse.json({ error: "Stripe payment could not be prepared. Please retry." }, { status: 502 });
   }
@@ -106,10 +107,11 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const paymentIntentId = new URL(request.url).searchParams.get("paymentIntentId");
-  if (!paymentIntentId) return NextResponse.json({ error: "Payment intent id is required." }, { status: 400 });
+  const parsedId = stripePaymentIntentIdSchema.safeParse(paymentIntentId);
+  if (!parsedId.success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
   try {
     const { customer } = await getAuthenticatedStripeCustomer();
-    const intent = await getStripeServer().paymentIntents.retrieve(paymentIntentId);
+    const intent = await getStripeServer().paymentIntents.retrieve(parsedId.data);
     const owner = typeof intent.customer === "string" ? intent.customer : intent.customer?.id ?? null;
     if (owner !== customer.id) return NextResponse.json({ error: "Payment intent does not belong to this customer." }, { status: 403 });
     return NextResponse.json({ paymentIntentId: intent.id, status: intent.status });

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createR2DownloadUrl } from "@/lib/storage/r2";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -9,6 +10,9 @@ export async function GET(_request: Request, context: { params: Promise<{ docume
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const { documentId } = await context.params;
+  if (!z.string().uuid().safeParse(documentId).success) {
+    return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  }
   const supabase = createAdminSupabaseClient();
   const profile = await new ProfilesRepository(supabase).getByClerkUserId(userId);
   if (!profile.ok || !profile.data) return NextResponse.json({ error: "profile_not_found" }, { status: 404 });

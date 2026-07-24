@@ -94,4 +94,27 @@ describe("parcel-estimate POST schema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects HTML, JavaScript schemes, unknown fields, and non-finite values", () => {
+    for (const contents of [
+      "<img src=x onerror=alert(1)>",
+      "javascript:alert(1)",
+    ]) {
+      expect(parcelEstimateRequestSchema.safeParse({ contents }).success)
+        .toBe(false);
+    }
+    expect(parcelEstimateRequestSchema.safeParse({
+      contents: "colet valid",
+      role: "admin",
+    }).success).toBe(false);
+    for (const declaredWeightKg of [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(parcelEstimateRequestSchema.safeParse({
+        contents: "colet valid",
+        advancedDetails: { declaredWeightKg },
+      }).success).toBe(false);
+    }
+  });
 });

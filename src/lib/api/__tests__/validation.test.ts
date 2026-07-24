@@ -2,8 +2,11 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import {
+  localOrderIdSchema,
   normalizedEmailSchema,
   plainTextSchema,
+  trackingIdentifierSchema,
+  uploadFileNameSchema,
   uuidSchema,
 } from "@/lib/api/input-schemas";
 import { validateRequest } from "@/lib/api/validation";
@@ -84,6 +87,40 @@ describe("validateRequest", () => {
     }
   });
 
+  it("returns 415 when the content type is not JSON", async () => {
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ name: "Ana", age: 30 }),
+    });
+
+    const result = await validateRequest(PersonSchema, request);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(415);
+      expect((await result.response.json()).code).toBe(
+        "unsupported_media_type",
+      );
+    }
+  });
+
+  it("returns a controlled 400 for invalid UTF-8", async () => {
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: new Uint8Array([0x7b, 0x22, 0xff, 0x22, 0x7d]),
+    });
+
+    const result = await validateRequest(PersonSchema, request);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(400);
+      expect((await result.response.json()).code).toBe("invalid_json");
+    }
+  });
+
   it("rejects an incorrect type and a negative numeric value", async () => {
     const result = await validateRequest(
       PersonSchema,
@@ -160,6 +197,26 @@ describe("validateRequest", () => {
     }
   });
 
+  it("returns 413 before reading when Content-Length exceeds the limit", async () => {
+    const request = new Request("http://localhost/api/test", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "content-length": "513",
+      },
+      body: JSON.stringify({ name: "Ana", age: 30 }),
+    });
+    const result = await validateRequest(PersonSchema, request, {
+      maxBytes: 512,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(413);
+      expect((await result.response.json()).code).toBe("payload_too_large");
+    }
+  });
+
   it("normalizes legitimate email input without changing valid data", async () => {
     const result = await validateRequest(
       PersonSchema,
@@ -174,5 +231,29 @@ describe("validateRequest", () => {
         email: "ana@example.com",
       });
     }
+  });
+
+  it("normalizes canonical identifiers and rejects unsafe file names", () => {
+    expect(localOrderIdSchema.parse(" sky-pt-12345-000 "))
+      .toBe("SKY-PT-12345-000");
+    expect(uuidSchema.parse(" 00000000-0000-4000-8000-0000000000AA "))
+      .toBe("00000000-0000-4000-8000-0000000000aa");
+    expect(uploadFileNameSchema.safeParse("colet-foto.jpg").success).toBe(true);
+    expect(uploadFileNameSchema.safeParse("../secret.jpg").success).toBe(false);
+    expect(uploadFileNameSchema.safeParse("folder\\secret.jpg").success).toBe(false);
+  });
+
+  it("rejects dangerous invisible control characters", () => {
+    expect(plainTextSchema(1, 80).safeParse("factură\u202Egpj.exe").success)
+      .toBe(false);
+  });
+
+  it("rejects executable schemes and markup in public identifiers", () => {
+    expect(trackingIdentifierSchema.safeParse("SKY-PIT-12345-ABC").success)
+      .toBe(true);
+    expect(trackingIdentifierSchema.safeParse("javascript:alert(1)").success)
+      .toBe(false);
+    expect(trackingIdentifierSchema.safeParse("<script>alert(1)</script>").success)
+      .toBe(false);
   });
 });

@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
  * create an unpaid order. Paid orders are created only by the idempotent
  * checkout finalizer invoked from the verified Stripe webhook.
  */
-export async function POST(_request?: Request) {
+export async function POST(_request: Request) {
   void _request;
   const { userId } = await auth();
   if (!userId) {

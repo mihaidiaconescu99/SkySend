@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readLimitedTextRequest } from "@/lib/api/validation";
 import { getStripeServer } from "@/lib/stripe/server";
 import { processStripeEvent } from "@/lib/stripe/webhook-server";
 
@@ -8,9 +9,13 @@ export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   const signature = request.headers.get("stripe-signature");
   if (!secret || !signature) return NextResponse.json({ error: "webhook_not_configured" }, { status: 503 });
+  const rawBody = await readLimitedTextRequest(request, {
+    maxBytes: 256 * 1024,
+  });
+  if (!rawBody.ok) return rawBody.response;
   let event;
   try {
-    event = getStripeServer().webhooks.constructEvent(await request.text(), signature, secret);
+    event = getStripeServer().webhooks.constructEvent(rawBody.data, signature, secret);
   } catch {
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }

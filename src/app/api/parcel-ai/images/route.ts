@@ -1,12 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { plainTextSchema } from "@/lib/api/input-schemas";
+import { uploadFileNameSchema } from "@/lib/api/input-schemas";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { createParcelAiImageUpload, listParcelAiImages, removeParcelAiImage, removeParcelAiImagesForDraft } from "@/lib/parcel-ai-images/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
-const createSchema = z.object({ draftId: z.string().uuid(), slot: z.number().int().min(0).max(1), fileName: plainTextSchema(1, 255), contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024) }).strict();
+const createSchema = z.object({ draftId: z.string().uuid(), slot: z.number().int().min(0).max(1), fileName: uploadFileNameSchema, contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024) }).strict();
 async function identity() { const { userId } = await auth(); return userId ? getSupportIdentity(userId) : null; }
 export async function GET(request: Request) {
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });

@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { plainTextSchema } from "@/lib/api/input-schemas";
+import { uploadFileNameSchema } from "@/lib/api/input-schemas";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { completeAttachmentUpload } from "@/lib/attachments/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
@@ -10,7 +10,7 @@ const schema = z.object({
   scope: z.enum(["support", "evaluation"]),
   parentId: z.string().uuid(),
   objectKey: z.string().trim().min(1).max(1024).regex(/^[A-Za-z0-9/_\-.]+$/u),
-  fileName: plainTextSchema(1, 255),
+  fileName: uploadFileNameSchema,
   contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]),
   sizeBytes: z.number().int().positive().max(25 * 1024 * 1024),
 }).strict();

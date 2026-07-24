@@ -85,6 +85,14 @@ describe("rowToNotification", () => {
     expect(result.read).toBe(true);
     expect(result.readAt).toBe("2026-05-23T11:00:00Z");
   });
+
+  it("drops an unsafe action URL read from persisted data", () => {
+    expect(
+      rowToNotification(
+        buildNotificationRow({ action_url: "javascript:alert(1)" }),
+      ).actionUrl,
+    ).toBeNull();
+  });
 });
 
 describe("createInputToRow", () => {
@@ -154,6 +162,23 @@ describe("createInputToRow", () => {
         message: "X",
       }),
     ).toThrowError(RepositoryError);
+  });
+
+  it("rejects an external or JavaScript action URL", () => {
+    for (const actionUrl of [
+      "javascript:alert(1)",
+      "https://attacker.example/redirect",
+      "//attacker.example/redirect",
+    ]) {
+      expect(() =>
+        createInputToRow({
+          type: "system",
+          title: "Titlu",
+          message: "Mesaj",
+          actionUrl,
+        }),
+      ).toThrowError(RepositoryError);
+    }
   });
 });
 

@@ -304,6 +304,12 @@ export const createDeliveryPayloadSchema = z
   })
   .strict();
 
+export const checkoutDeliveryPayloadSchema = createDeliveryPayloadSchema.omit({
+  userId: true,
+  estimatedPrice: true,
+  pricingSnapshot: true,
+});
+
 export const parcelEvaluationSnapshotSchema = z
   .object({
     category: parcelCategorySchema,

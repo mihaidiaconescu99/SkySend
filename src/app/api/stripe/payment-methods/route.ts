@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
+import { validateRequest } from "@/lib/api/validation";
 import {
   assertStripePaymentMethodBelongsToCustomer,
   getAuthenticatedStripeCustomer,
   listStripeCustomerPaymentMethods,
   StripeAuthenticationError,
 } from "@/lib/stripe/server";
-
-type PaymentMethodMutationBody = {
-  paymentMethodId?: string;
-  action?: "set_default" | "clear_default";
-};
-
-async function readMutationBody(request: Request) {
-  try {
-    return (await request.json()) as PaymentMethodMutationBody;
-  } catch {
-    return null;
-  }
-}
+import {
+  paymentMethodDeleteSchema,
+  paymentMethodPatchSchema,
+} from "@/lib/stripe/input-schemas";
 
 export async function GET() {
   try {
@@ -41,14 +33,11 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const body = await readMutationBody(request);
-
-  if (!body?.paymentMethodId || !body.action) {
-    return NextResponse.json(
-      { error: "Metodă de plată id is required." },
-      { status: 400 },
-    );
-  }
+  const parsed = await validateRequest(paymentMethodPatchSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   try {
     const { stripe, customer } = await getAuthenticatedStripeCustomer();
@@ -96,14 +85,11 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const body = await readMutationBody(request);
-
-  if (!body?.paymentMethodId) {
-    return NextResponse.json(
-      { error: "Metodă de plată id is required." },
-      { status: 400 },
-    );
-  }
+  const parsed = await validateRequest(paymentMethodDeleteSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   try {
     const { stripe, customer } = await getAuthenticatedStripeCustomer();

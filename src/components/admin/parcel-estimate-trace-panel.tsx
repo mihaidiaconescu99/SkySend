@@ -5,6 +5,7 @@ import type {
 import type {
   ParcelIntelligenceConfidenceLevel,
 } from "@/types/parcel-intelligence";
+import { safeHttpUrl } from "@/lib/url-safety";
 
 type ParcelEstimateTracePanelProps = {
   estimateTrace: ParcelEstimateTraceSnapshot | null | undefined;
@@ -79,26 +80,35 @@ export function ParcelEstimateTracePanel({
 
       {hasResults ? (
         <ul className="grid min-w-0 gap-2">
-          {lookupTrace.results.map((result) => (
-            <li
-              key={result.url}
-              className="grid min-w-0 gap-1 rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-sm"
-            >
-              <a
-                href={result.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary break-words underline-offset-2 hover:underline"
+          {lookupTrace.results.map((result) => {
+            const safeUrl = safeHttpUrl(result.url);
+            return (
+              <li
+                key={result.url}
+                className="grid min-w-0 gap-1 rounded-2xl border border-border/60 bg-background/80 px-3 py-2.5 text-sm"
               >
-                {result.title}
-              </a>
-              {result.snippet ? (
-                <p className="text-xs leading-5 text-muted-foreground break-words">
-                  {result.snippet}
-                </p>
-              ) : null}
-            </li>
-          ))}
+                {safeUrl ? (
+                  <a
+                    href={safeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary break-words underline-offset-2 hover:underline"
+                  >
+                    {result.title}
+                  </a>
+                ) : (
+                  <p className="font-medium text-foreground break-words">
+                    {result.title}
+                  </p>
+                )}
+                {result.snippet ? (
+                  <p className="text-xs leading-5 text-muted-foreground break-words">
+                    {result.snippet}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
@@ -129,18 +139,27 @@ export function ParcelEstimateTracePanel({
                   </div>
                   {item.sourceUrls.length > 0 ? (
                     <ul className="grid gap-0.5">
-                      {item.sourceUrls.map((url) => (
-                        <li key={url}>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary underline-offset-2 hover:underline break-all"
-                          >
-                            {url}
-                          </a>
-                        </li>
-                      ))}
+                      {item.sourceUrls.map((url) => {
+                        const safeUrl = safeHttpUrl(url);
+                        return (
+                          <li key={url}>
+                            {safeUrl ? (
+                              <a
+                                href={safeUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary underline-offset-2 hover:underline break-all"
+                              >
+                                {url}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground break-all">
+                                Link invalid eliminat
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : null}
                 </li>

@@ -8,6 +8,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { AddressesRepository } from "@/lib/repositories/addresses-repository";
 import { normalizeTrackingIdentifier } from "@/lib/recipient-tracking";
+import { trackingIdentifierSchema } from "@/lib/api/input-schemas";
 import { resolveTrackingToken } from "@/lib/tracking-access-server";
 import type { TrackingAccessScope } from "@/lib/tracking-access-server";
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
@@ -26,8 +27,6 @@ import {
   storedPointToDeliveryPoint,
 } from "@/lib/meeting-point-snapshot";
 import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
-
-const MAX_IDENTIFIER_LENGTH = 200;
 
 function mapPaymentStatus(status: string): CreatedDeliveryPaymentStatus {
   const map: Record<string, CreatedDeliveryPaymentStatus> = {
@@ -183,14 +182,16 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const identifier = searchParams.get("identifier");
 
-  if (!identifier || identifier.trim() === "" || identifier.length > MAX_IDENTIFIER_LENGTH) {
+  const parsedIdentifier = trackingIdentifierSchema.safeParse(identifier);
+  if (!parsedIdentifier.success) {
     return NextResponse.json({ error: "invalid_identifier" }, { status: 400 });
   }
+  const safeIdentifier = parsedIdentifier.data;
 
   const supabase = createAdminSupabaseClient();
   const repo = new OrdersRepository(supabase);
 
-  const normalised = normalizeTrackingIdentifier(identifier);
+  const normalised = normalizeTrackingIdentifier(safeIdentifier);
   let scope: TrackingAccessScope = "view";
   let result = normalised.startsWith("SKY-PT-")
     ? await repo.getByLocalOrderId(normalised)
@@ -201,12 +202,12 @@ export async function GET(request: Request) {
   }
 
   if (!result.ok || result.data === null) {
-    result = await repo.getByRecipientTrackingToken(identifier);
+    result = await repo.getByRecipientTrackingToken(safeIdentifier);
     if (result.ok && result.data) scope = "full";
   }
 
   if (!result.ok || result.data === null) {
-    const link = await resolveTrackingToken(supabase, identifier);
+    const link = await resolveTrackingToken(supabase, safeIdentifier);
     if (link) {
       result = await repo.getById(link.order_id);
       scope = link.scope as TrackingAccessScope;
@@ -259,7 +260,7 @@ export async function GET(request: Request) {
     orderToTrackingShape(
       order,
       scope,
-      identifier,
+      safeIdentifier,
       mission.ok ? mission.data : null,
       pickupAddressResult.ok ? pickupAddressResult.data : null,
       dropoffAddressResult.ok ? dropoffAddressResult.data : null,

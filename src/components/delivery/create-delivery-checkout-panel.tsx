@@ -308,11 +308,15 @@ export function CreateDeliveryCheckoutPanel({
     setBusy(true);
     setMessage(null);
     try {
+      const clientPayload: Partial<CreateDeliveryPayload> = { ...payload };
+      delete clientPayload.userId;
+      delete clientPayload.estimatedPrice;
+      delete clientPayload.pricingSnapshot;
       const response = await fetch("/api/client/delivery-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          payload,
+          payload: clientPayload,
           localOrderId,
           publicTrackingCode: generatePublicTrackingCode(),
           recipientTrackingToken: generateRecipientTrackingToken(),

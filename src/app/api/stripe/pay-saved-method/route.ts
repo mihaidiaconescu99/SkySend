@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import {
   assertStripePaymentMethodBelongsToCustomer,
   getAuthenticatedStripeCustomer,
@@ -8,17 +8,14 @@ import {
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
+import { paySavedMethodRequestSchema } from "@/lib/stripe/input-schemas";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const schema = z.object({
-  checkoutSessionId: z.string().uuid(),
-  paymentIntentId: z.string().min(1),
-  paymentMethodId: z.string().min(1),
-});
-
 export async function POST(request: Request) {
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid saved payment request." }, { status: 400 });
+  const parsed = await validateRequest(paySavedMethodRequestSchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   try {
     const supabase = createAdminSupabaseClient();
     const db = supabase as any;

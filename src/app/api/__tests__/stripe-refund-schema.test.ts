@@ -15,7 +15,7 @@ vi.mock("@/lib/repositories/profiles-repository", () => ({
   ProfilesRepository: vi.fn(),
 }));
 
-const { refundBodySchema } = await import("@/app/api/stripe/refund/route");
+const { refundBodySchema } = await import("@/lib/stripe/input-schemas");
 
 describe("stripe/refund POST schema", () => {
   it("accepts a valid request with an audit reason", () => {
@@ -33,7 +33,7 @@ describe("stripe/refund POST schema", () => {
 
   it("accepts a UUID-format orderId", () => {
     const result = refundBodySchema.safeParse({
-      orderId: "00000000-0000-0000-0000-000000000001", reason: "Cerere administrativă",
+      orderId: "00000000-0000-4000-8000-000000000001", reason: "Cerere administrativă",
     });
     expect(result.success).toBe(true);
   });

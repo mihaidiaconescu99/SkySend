@@ -17,7 +17,7 @@ import {
   serializeCheckoutSession,
 } from "@/lib/checkout/server";
 import { assertOperationsAvailable } from "@/lib/operational-status-server";
-import { createDeliveryPayloadSchema } from "@/lib/delivery-input-schemas";
+import { checkoutDeliveryPayloadSchema } from "@/lib/delivery-input-schemas";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe/server";
@@ -26,7 +26,7 @@ import type { CreateDeliveryPayload } from "@/types/create-delivery";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const createSchema = z.object({
-  payload: createDeliveryPayloadSchema,
+  payload: checkoutDeliveryPayloadSchema,
   localOrderId: localOrderIdSchema,
   publicTrackingCode: publicTrackingCodeSchema,
   recipientTrackingToken: recipientTrackingTokenSchema,
@@ -71,6 +71,9 @@ export async function GET(request: Request) {
   const context = await actor();
   if (!context) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const sessionId = new URL(request.url).searchParams.get("sessionId");
+  if (sessionId && !z.string().uuid().safeParse(sessionId).success) {
+    return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  }
   let row = await getOwnedCheckoutSession(context.supabase, context.profile.id, sessionId);
   if (row && ["active", "payment_processing"].includes(row.status) && Date.parse(row.expires_at) <= Date.now()) {
     const cancellation = await cancelIntent(row.stripe_payment_intent_id);
@@ -144,7 +147,10 @@ export async function POST(request: Request) {
     const trustedPayload = {
       ...parsed.data.payload,
       userId: context.profile.clerkUserId,
-    } as unknown as CreateDeliveryPayload;
+    } as unknown as Omit<
+      CreateDeliveryPayload,
+      "estimatedPrice" | "pricingSnapshot"
+    >;
     const priced = await priceCheckoutPayload(context.supabase, trustedPayload);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const checkoutRow = {

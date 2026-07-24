@@ -97,7 +97,7 @@ export async function POST() {
 
     if (!profileId) {
       return NextResponse.json(
-        { error: "sync_failed", details: "No profile ID returned." },
+        { error: "sync_failed" },
         { status: 500 },
       );
     }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { handoffPointRequestSchema } from "@/app/api/handoff-points/route";
+import { handoffPointRequestSchema } from "@/lib/handoff-point-input-schema";
 
 describe("handoff-points POST schema", () => {
   const validPayload = {
@@ -54,5 +54,28 @@ describe("handoff-points POST schema", () => {
       address: { ...validPayload.address, formattedAddress: "" },
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects unsafe text, unknown properties, and non-finite coordinates", () => {
+    expect(handoffPointRequestSchema.safeParse({
+      ...validPayload,
+      address: {
+        ...validPayload.address,
+        formattedAddress: "<script>alert(1)</script>",
+      },
+    }).success).toBe(false);
+    expect(handoffPointRequestSchema.safeParse({
+      ...validPayload,
+      profileId: "00000000-0000-4000-8000-000000000001",
+    }).success).toBe(false);
+    for (const latitude of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(handoffPointRequestSchema.safeParse({
+        ...validPayload,
+        address: {
+          ...validPayload.address,
+          location: { ...validPayload.address.location, latitude },
+        },
+      }).success).toBe(false);
+    }
   });
 });

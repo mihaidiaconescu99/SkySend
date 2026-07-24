@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -12,6 +13,9 @@ export async function POST(
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
   const { documentId } = await context.params;
+  if (!z.string().uuid().safeParse(documentId).success) {
+    return NextResponse.json({ error: "validation_failed" }, { status: 400 });
+  }
   const { data, error } = await (createAdminSupabaseClient() as any)
     .from("billing_documents")
     .update({

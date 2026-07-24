@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { plainTextSchema } from "@/lib/api/input-schemas";
 import { validateRequest } from "@/lib/api/validation";
 import type { CreateDeliveryAddressField } from "@/lib/create-delivery-addresses";
+import { handoffPointRequestSchema } from "@/lib/handoff-point-input-schema";
 import {
   buildHandoffPointResponse,
   enrichHandoffPointNamesWithGeoapify,
@@ -11,56 +10,6 @@ import {
   fetchOverpassHandoffPoints,
 } from "@/lib/handoff-points";
 import type { HandoffPointRequest } from "@/types/handoff-points";
-
-const ROMANIA_LAT_MIN = 43;
-const ROMANIA_LAT_MAX = 48;
-const ROMANIA_LON_MIN = 20;
-const ROMANIA_LON_MAX = 30;
-
-const geoPointSchema = z.object({
-  latitude: z
-    .number()
-    .finite()
-    .min(ROMANIA_LAT_MIN, { message: "latitude out of Romania bounds" })
-    .max(ROMANIA_LAT_MAX, { message: "latitude out of Romania bounds" }),
-  longitude: z
-    .number()
-    .finite()
-    .min(ROMANIA_LON_MIN, { message: "longitude out of Romania bounds" })
-    .max(ROMANIA_LON_MAX, { message: "longitude out of Romania bounds" }),
-}).strict();
-
-const geocodedAddressSchema = z.object({
-  formattedAddress: plainTextSchema(1, 500),
-  location: geoPointSchema,
-  city: plainTextSchema(1, 200).nullish(),
-  county: plainTextSchema(1, 200).nullish(),
-  country: plainTextSchema(1, 200).nullish(),
-  postalCode: plainTextSchema(1, 40).nullish(),
-}).strict();
-
-const handoffSuggestionSchema = z
-  .object({
-    id: plainTextSchema(1, 200),
-    label: plainTextSchema(1, 500),
-    secondaryLabel: plainTextSchema(1, 500).optional(),
-    placeId: plainTextSchema(1, 200).optional(),
-    resultType: plainTextSchema(1, 100).optional(),
-    categories: z.array(plainTextSchema(1, 100)).max(30).optional(),
-    distanceMeters: z.number().finite().nonnegative().max(1_000_000).optional(),
-    geocodedAddress: geocodedAddressSchema,
-  })
-  .strict()
-  .nullish();
-
-const handoffPointRequestSchema = z.object({
-  field: z.enum(["pickup", "dropoff"]),
-  address: geocodedAddressSchema,
-  isAddressEligible: z.boolean(),
-  suggestion: handoffSuggestionSchema,
-}).strict();
-
-export type HandoffPointRequestInput = z.infer<typeof handoffPointRequestSchema>;
 
 function getGeoapifyServerApiKey() {
   return (
@@ -109,4 +58,3 @@ export async function POST(request: Request) {
   return NextResponse.json(namedResponse);
 }
 
-export { handoffPointRequestSchema };

@@ -5,6 +5,7 @@ import {
   type DBUpdate,
 } from "@/lib/repositories/types";
 import type { Json } from "@/types/database";
+import { safeInternalPath } from "@/lib/url-safety";
 import {
   NOTIFICATION_TYPES,
   type CreateNotificationInput,
@@ -61,7 +62,7 @@ export function rowToNotification(
     title: requireString(row.title, "title"),
     message: requireString(row.message, "message"),
     metadata: parseNotificationMetadata(row.metadata),
-    actionUrl: row.action_url ?? null,
+    actionUrl: safeInternalPath(row.action_url),
     read: row.read === true,
     readAt: row.read_at ?? null,
     createdAt: requireString(row.created_at, "created_at"),
@@ -89,7 +90,18 @@ export function createInputToRow(
     row.profile_id = input.profileId;
   }
   if (input.actionUrl !== undefined) {
-    row.action_url = input.actionUrl;
+    if (input.actionUrl === null) {
+      row.action_url = null;
+    } else {
+      const actionUrl = safeInternalPath(input.actionUrl);
+      if (!actionUrl) {
+        throw new RepositoryError(
+          "validation_error",
+          "Notification action URL must be an internal application path.",
+        );
+      }
+      row.action_url = actionUrl;
+    }
   }
   return row;
 }

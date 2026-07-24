@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server";
+import { readLimitedTextRequest } from "@/lib/api/validation";
 import { ingestResendInbound, verifyResendWebhook } from "@/lib/site-messages/server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const declaredLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > 256 * 1024) {
-    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
-  }
-  const payload = await request.text();
-  if (new TextEncoder().encode(payload).byteLength > 256 * 1024) {
-    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
-  }
+  const rawBody = await readLimitedTextRequest(request, {
+    maxBytes: 256 * 1024,
+  });
+  if (!rawBody.ok) return rawBody.response;
   try {
-    const event = verifyResendWebhook(payload, request.headers);
+    const event = verifyResendWebhook(rawBody.data, request.headers);
     if (event.type !== "email.received") return NextResponse.json({ ok: true, ignored: true });
     const result = await ingestResendInbound(event);
     return NextResponse.json({ ok: true, ...result });

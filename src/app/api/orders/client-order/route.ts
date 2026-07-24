@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
+import { orderLookupIdSchema } from "@/lib/stripe/input-schemas";
 import type {
   CreatedDeliveryFulfillmentStatus,
   CreatedDeliveryOrder,
@@ -128,10 +129,8 @@ export async function GET(request: Request) {
   }
 
   const orderId = new URL(request.url).searchParams.get("orderId");
-
-  if (!orderId) {
-    return NextResponse.json({ error: "Missing orderId." }, { status: 400 });
-  }
+  const parsedOrderId = orderLookupIdSchema.safeParse(orderId);
+  if (!parsedOrderId.success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
 
   const supabase = createAdminSupabaseClient();
   const profiles = new ProfilesRepository(supabase);
@@ -142,10 +141,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 
-  let orderResult = await orders.getByLocalOrderId(orderId);
+  let orderResult = await orders.getByLocalOrderId(parsedOrderId.data);
 
   if (orderResult.ok && !orderResult.data) {
-    orderResult = await orders.getById(orderId);
+    orderResult = await orders.getById(parsedOrderId.data);
   }
 
   if (!orderResult.ok) {

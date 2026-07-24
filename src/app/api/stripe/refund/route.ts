@@ -2,27 +2,22 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getStripeServer } from "@/lib/stripe/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
-
-export const refundBodySchema = z.object({
-  orderId: z.string().min(1),
-  amountMinor: z.number().int().positive().optional(),
-  reason: z.string().trim().min(3).max(300),
-});
+import { refundBodySchema } from "@/lib/stripe/input-schemas";
 
 export async function POST(request: Request) {
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
-  const parsed = refundBodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_refund_request", issues: parsed.error.issues }, { status: 400 });
-  }
+  const parsed = await validateRequest(refundBodySchema, request, {
+    maxBytes: 4 * 1024,
+  });
+  if (!parsed.ok) return parsed.response;
   const supabase = createAdminSupabaseClient() as any;
   const { data: order } = await supabase.from("orders").select("*")
     .eq(getOrderIdentifierColumn(parsed.data.orderId), parsed.data.orderId)
