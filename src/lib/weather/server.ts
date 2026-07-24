@@ -1,4 +1,9 @@
 import "server-only";
+
+import {
+  fetchWithTimeout,
+  readLimitedJsonResponse,
+} from "@/lib/api/upstream";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -95,9 +100,12 @@ export async function evaluateAndPersistWeather(
     url.searchParams.set("forecast_hours", "3");
     url.searchParams.set("wind_speed_unit", "kmh");
     url.searchParams.set("timezone", "UTC");
-    const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    const response = await fetchWithTimeout(url, {}, { timeoutMs: 12_000 });
     if (!response.ok) throw new Error(`open_meteo_http_${response.status}`);
-    const payload = await response.json();
+    const payload = await readLimitedJsonResponse<any>(
+      response,
+      512 * 1024,
+    );
     const responses = Array.isArray(payload) ? payload : [payload];
     if (responses.length !== points.length) throw new Error("open_meteo_incomplete_points");
 
@@ -130,4 +138,3 @@ export async function evaluateAndPersistWeather(
 }
 
 export { pointIds };
-

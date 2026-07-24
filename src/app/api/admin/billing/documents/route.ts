@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
 import { orderLookupIdSchema } from "@/lib/stripe/input-schemas";
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "admin-read");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   const orderId = new URL(request.url).searchParams.get("orderId");

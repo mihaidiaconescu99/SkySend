@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { listParcelEvaluations } from "@/lib/parcel-evaluations/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "admin-read");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["operator", "admin"]);
   if (!authorization.ok) return authorization.response;
   const identity = await getSupportIdentity(authorization.context.userId);

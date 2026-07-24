@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { finalizeParcelEvaluation, releaseParcelEvaluation } from "@/lib/parcel-evaluations/server";
@@ -10,6 +11,8 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("finalize"), weightKg: z.number().finite().positive().max(12), lengthCm: z.number().finite().positive().max(300), widthCm: z.number().finite().positive().max(300), heightCm: z.number().finite().positive().max(300), warnings: z.array(z.enum(["fragile", "temperature", "liquid", "humidity", "orientation"])).max(5) }).strict(),
 ]);
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["operator", "admin"]);
   if (!authorization.ok) return authorization.response;
   const identity = await getSupportIdentity(authorization.context.userId);

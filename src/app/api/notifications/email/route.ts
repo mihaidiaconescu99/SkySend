@@ -4,6 +4,7 @@ import {
   localOrderIdSchema,
   normalizedEmailSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { bearerSecretMatches } from "@/lib/api/request-security";
 import { validateRequest } from "@/lib/api/validation";
 import {
@@ -46,6 +47,10 @@ export async function POST(request: Request) {
   if (!bearerSecretMatches(request.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const rateLimit = await enforceRateLimit(request, "email", {
+    userId: "internal-email-service",
+  });
+  if (rateLimit) return rateLimit;
   try {
     const parsed = await validateRequest(emailRequestSchema, request, {
       maxBytes: 8 * 1024,

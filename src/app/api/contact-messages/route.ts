@@ -3,11 +3,15 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { createSiteMessage } from "@/lib/site-messages/server";
 import { publicContactSchema } from "@/lib/support/support-hub";
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "public-contact");
+  if (rateLimit) return rateLimit;
+
   const parsed = await validateRequest(publicContactSchema, request, {
     maxBytes: 16 * 1024,
   });

@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { listBillingDocumentsForOwnedOrder } from "@/lib/billing/server";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -7,6 +8,8 @@ import { orderLookupIdSchema } from "@/lib/stripe/input-schemas";
 
 export async function GET(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "download", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const orderId = new URL(request.url).searchParams.get("orderId");
   const parsedOrderId = orderLookupIdSchema.safeParse(orderId);

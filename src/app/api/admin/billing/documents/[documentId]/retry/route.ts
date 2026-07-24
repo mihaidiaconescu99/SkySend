@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -11,6 +12,8 @@ export async function POST(
 ) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });

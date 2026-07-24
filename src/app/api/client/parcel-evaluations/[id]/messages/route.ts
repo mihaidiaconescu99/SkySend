@@ -3,12 +3,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { plainTextSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { answerParcelEvaluation } from "@/lib/parcel-evaluations/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
 const schema = z.object({ body: plainTextSchema(1, 10_000), replyToMessageId: z.string().uuid() }).strict();
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await enforceRateLimit(request, "support");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const { userId } = await auth();

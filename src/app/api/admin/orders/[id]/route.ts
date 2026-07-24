@@ -9,6 +9,7 @@ import {
   opaqueIdentifierSchema,
   plainTextSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -68,6 +69,8 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) {
     return NextResponse.json(

@@ -8,6 +8,10 @@ import {
 import type { DroneClass } from "@/types/domain";
 import type { ParcelEstimatorRequest } from "@/types/parcel-estimator";
 import type { ProductLookupResult } from "@/types/parcel-intelligence";
+import {
+  fetchWithTimeout,
+  readLimitedJsonResponse,
+} from "@/lib/api/upstream";
 
 const OPENROUTER_CHAT_COMPLETIONS_URL =
   "https://openrouter.ai/api/v1/chat/completions";
@@ -411,8 +415,15 @@ async function getOpenRouterModelCandidates(hasImages: boolean) {
     return visionModelCache.models;
   }
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/models", { next: { revalidate: 3600 } });
-    const payload = await response.json() as { data?: OpenRouterModelRecord[] };
+    const response = await fetchWithTimeout(
+      "https://openrouter.ai/api/v1/models",
+      { next: { revalidate: 3600 } },
+      { timeoutMs: 5_000 },
+    );
+    if (!response.ok) throw new Error("openrouter_models_unavailable");
+    const payload = await readLimitedJsonResponse<{
+      data?: OpenRouterModelRecord[];
+    }>(response, 2 * 1024 * 1024);
     const compatible = (payload.data ?? []).filter((model) => {
       const modalities = model.architecture?.input_modalities ?? [];
       const supported = model.supported_parameters ?? [];
@@ -603,7 +614,10 @@ export async function estimateParcelWithOpenRouter(
           continue;
         }
 
-        const payload = (await response.json()) as OpenRouterChatCompletionResponse;
+        const payload = await readLimitedJsonResponse<OpenRouterChatCompletionResponse>(
+          response,
+          512 * 1024,
+        );
         const message = payload.choices?.[0]?.message;
         const content = message?.content ?? message?.reasoning;
 
@@ -632,15 +646,17 @@ function createOpenRouterRequest(
   model: string,
   lookupEvidence: ProductLookupResult[],
 ) {
-  return fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": getOpenRouterSiteUrl(),
-      "X-OpenRouter-Title": getOpenRouterAppName(),
-    },
-    body: JSON.stringify({
+  return fetchWithTimeout(
+    OPENROUTER_CHAT_COMPLETIONS_URL,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": getOpenRouterSiteUrl(),
+        "X-OpenRouter-Title": getOpenRouterAppName(),
+      },
+      body: JSON.stringify({
       model,
       temperature: 0.2,
       max_tokens: 1800,
@@ -665,6 +681,8 @@ function createOpenRouterRequest(
             : JSON.stringify(buildPromptInput(input, lookupEvidence)),
         },
       ],
-    }),
-  });
+      }),
+    },
+    { timeoutMs: 12_000 },
+  );
 }

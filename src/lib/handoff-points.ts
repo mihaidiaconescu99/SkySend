@@ -1,5 +1,9 @@
 import { isPointInPolygon } from "@/lib/geo/polygon";
 import {
+  fetchWithTimeout,
+  readLimitedJsonResponse,
+} from "@/lib/api/upstream";
+import {
   getDistanceKm,
   getServiceAreaUnavailableMessage,
   isPointInServiceArea,
@@ -1560,29 +1564,28 @@ function providerPointsFromOverpassElement(
 
 async function fetchJsonWithTimeout<T>(
   url: string,
-  options: RequestInit & { timeoutMs?: number } = {},
+  options: RequestInit & { timeoutMs?: number; maxResponseBytes?: number } = {},
 ) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 2200);
-
-  try {
-    const response = await fetch(url, {
+  const response = await fetchWithTimeout(
+    url,
+    {
       ...options,
-      signal: controller.signal,
       headers: {
         Accept: "application/json",
         ...options.headers,
       },
-    });
+    },
+    { timeoutMs: options.timeoutMs ?? 2200 },
+  );
 
-    if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
-    }
-
-    return (await response.json()) as T;
-  } finally {
-    clearTimeout(timeout);
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
   }
+
+  return readLimitedJsonResponse<T>(
+    response,
+    options.maxResponseBytes ?? 2 * 1024 * 1024,
+  );
 }
 
 const overpassCache = new Map<

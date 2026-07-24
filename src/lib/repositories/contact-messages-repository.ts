@@ -13,6 +13,7 @@ import {
   type RepositoryResult,
 } from "@/lib/repositories/types";
 import type { Database } from "@/types/database";
+import { resolveAllowedColumn } from "@/lib/supabase/query-safety";
 import type {
   ContactMessage,
   ContactMessageCategory,
@@ -24,6 +25,7 @@ import type {
 const DEFAULT_LIST_LIMIT = 50;
 
 type ListOrderBy = "created_at" | "status";
+const listOrderColumns = ["created_at", "status"] as const;
 
 export class ContactMessagesRepository extends BaseRepository<"contact_messages"> {
   protected readonly tableName = "contact_messages" as const;
@@ -95,7 +97,11 @@ export class ContactMessagesRepository extends BaseRepository<"contact_messages"
     } = {},
   ): Promise<RepositoryResult<ContactMessage[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
-    const orderColumn = options.orderBy ?? "created_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "created_at",
+    );
 
     try {
       let query = this.supabase.from("contact_messages").select("*");

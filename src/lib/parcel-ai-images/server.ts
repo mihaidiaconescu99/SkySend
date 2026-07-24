@@ -13,6 +13,7 @@ import {
   parcelAiImageMaxBytes,
   uploadR2Object,
 } from "@/lib/storage/r2";
+import { imageSignatureMatches } from "@/lib/uploads/image-signature";
 import type { SupportIdentity } from "@/lib/support/support-hub";
 import type { ParcelAiImageInput } from "@/types/parcel-intelligence";
 
@@ -72,6 +73,26 @@ export async function createParcelAiImageUpload(identity: SupportIdentity, input
   const { data: existing } = await db().from("parcel_ai_images")
     .select("id,slot,original_name,content_type,size_bytes,r2_original_key,r2_normalized_key,normalized_content_type,status,expires_at")
     .eq("delivery_draft_id", input.draftId).eq("slot", input.slot).maybeSingle();
+  if (
+    existing &&
+    existing.original_name === input.fileName &&
+    existing.content_type === input.contentType &&
+    existing.size_bytes === input.sizeBytes &&
+    existing.status === "uploaded" &&
+    Date.parse(existing.expires_at) > Date.now()
+  ) {
+    return {
+      id: existing.id as string,
+      objectKey: existing.r2_original_key as string,
+      expiresAt: existing.expires_at as string,
+      uploadUrl: await createR2UploadUrl({
+        objectKey: existing.r2_original_key,
+        contentType: input.contentType,
+        sizeBytes: input.sizeBytes,
+        retentionHours: 24,
+      }),
+    };
+  }
   if (existing) await deleteRecord(existing as ParcelAiImageRecord);
   const objectKey = createParcelAiR2ObjectKey(input.draftId, identity.profileId, input.fileName);
   const { data, error } = await db().from("parcel_ai_images").insert({
@@ -114,6 +135,13 @@ async function normalizeForAnalysis(image: ParcelAiImageRecord, ownerId: string,
   }
   const source = await getR2Object({ objectKey: image.r2_original_key, maxBytes: parcelAiImageMaxBytes });
   try {
+    if (
+      source.contentType !== image.content_type ||
+      source.bytes.byteLength !== image.size_bytes ||
+      !imageSignatureMatches(source.bytes, image.content_type)
+    ) {
+      throw new Error("invalid_image_signature");
+    }
     const normalized = await sharp(Buffer.from(source.bytes), { limitInputPixels: 24_000_000, failOn: "warning" })
       .rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
       .webp({ quality: 82 }).toBuffer();

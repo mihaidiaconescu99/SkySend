@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
@@ -11,13 +12,19 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("cancel_override") }).strict(),
 ]);
 
-export async function GET() {
+export async function GET(
+  request = new Request("http://localhost/api/admin/operational-status"),
+) {
+  const rateLimit = await enforceRateLimit(request, "admin-read");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   return NextResponse.json(await getOperationalStatusSnapshot());
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   const parsed = await validateRequest(schema, request, { maxBytes: 2 * 1024 });

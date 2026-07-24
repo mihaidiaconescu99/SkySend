@@ -6,6 +6,7 @@ import {
   normalizedEmailSchema,
   plainTextSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { getServerAuthorizationContext } from "@/lib/server-authorization";
@@ -24,6 +25,8 @@ export async function POST(
 ) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "sync-profile");
+  if (rateLimit) return rateLimit;
   try {
 
     const authorization = await getServerAuthorizationContext();

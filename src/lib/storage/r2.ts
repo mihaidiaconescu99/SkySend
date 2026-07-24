@@ -141,7 +141,47 @@ export async function getR2Object(input: { objectKey: string; maxBytes?: number 
   }
   if (!response.Body) throw new Error("object_missing_body");
   const bytes = await response.Body.transformToByteArray();
+  if (input.maxBytes && bytes.byteLength > input.maxBytes) {
+    throw new Error("object_too_large");
+  }
   return { bytes, contentType: response.ContentType ?? "application/octet-stream" };
+}
+
+export async function inspectR2Object(input: {
+  objectKey: string;
+  maxBytes: number;
+  sniffBytes?: number;
+}) {
+  const config = getR2Config();
+  const head = await getR2Client().send(
+    new HeadObjectCommand({ Bucket: config.bucket, Key: input.objectKey }),
+  );
+  const sizeBytes = Number(head.ContentLength);
+  if (
+    !Number.isSafeInteger(sizeBytes) ||
+    sizeBytes < 1 ||
+    sizeBytes > input.maxBytes
+  ) {
+    throw new Error("object_size_invalid");
+  }
+  const sniffBytes = Math.min(Math.max(input.sniffBytes ?? 32, 12), 512);
+  const response = await getR2Client().send(
+    new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: input.objectKey,
+      Range: `bytes=0-${sniffBytes - 1}`,
+    }),
+  );
+  if (!response.Body) throw new Error("object_missing_body");
+  const signature = await response.Body.transformToByteArray();
+  if (signature.byteLength > sniffBytes) {
+    throw new Error("object_signature_invalid");
+  }
+  return {
+    sizeBytes,
+    contentType: head.ContentType ?? "application/octet-stream",
+    signature,
+  };
 }
 
 export async function r2ObjectExists(objectKey: string) {

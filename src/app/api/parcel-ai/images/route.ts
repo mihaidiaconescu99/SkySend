@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { uploadFileNameSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { createParcelAiImageUpload, listParcelAiImages, removeParcelAiImage, removeParcelAiImagesForDraft } from "@/lib/parcel-ai-images/server";
@@ -10,11 +11,15 @@ import { getSupportIdentity } from "@/lib/support/support-hub";
 const createSchema = z.object({ draftId: z.string().uuid(), slot: z.number().int().min(0).max(1), fileName: uploadFileNameSchema, contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]), sizeBytes: z.number().int().positive().max(10 * 1024 * 1024) }).strict();
 async function identity() { const { userId } = await auth(); return userId ? getSupportIdentity(userId) : null; }
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "download");
+  if (rateLimit) return rateLimit;
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const draftId = new URL(request.url).searchParams.get("draftId"); if (!z.string().uuid().safeParse(draftId).success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
   try { return NextResponse.json({ images: await listParcelAiImages(actor, draftId as string) }); } catch { return NextResponse.json({ error: "images_unavailable" }, { status: 404 }); }
 }
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "upload");
+  if (rateLimit) return rateLimit;
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const parsed = await validateRequest(createSchema, request, { maxBytes: 4 * 1024 }); if (!parsed.ok) return parsed.response;
   try { return NextResponse.json(await createParcelAiImageUpload(actor, parsed.data)); } catch (error) {
@@ -24,6 +29,8 @@ export async function POST(request: Request) {
 }
 export async function DELETE(request: Request) {
   const originFailure = requireSameOrigin(request); if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "upload");
+  if (rateLimit) return rateLimit;
   const actor = await identity(); if (!actor) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const searchParams = new URL(request.url).searchParams;
   const imageId = searchParams.get("imageId");

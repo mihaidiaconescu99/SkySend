@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import type { CreateDeliveryAddressField } from "@/lib/create-delivery-addresses";
 import { handoffPointRequestSchema } from "@/lib/handoff-point-input-schema";
@@ -20,8 +21,12 @@ function getGeoapifyServerApiKey() {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "handoff");
+  if (rateLimit) return rateLimit;
 
-  const validation = await validateRequest(handoffPointRequestSchema, request);
+  const validation = await validateRequest(handoffPointRequestSchema, request, {
+    maxBytes: 24 * 1024,
+  });
 
   if (!validation.ok) {
     return validation.response;

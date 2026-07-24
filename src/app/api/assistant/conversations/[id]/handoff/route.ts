@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode } from "@/lib/api/validation";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { getSupportIdentity, handoffConversation } from "@/lib/support/support-hub";
@@ -9,6 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "support", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const identity = await getSupportIdentity(userId);
   if (!identity) return NextResponse.json({ error: "profile_not_found" }, { status: 401 });

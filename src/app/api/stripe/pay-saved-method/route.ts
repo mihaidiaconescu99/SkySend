@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import {
@@ -13,6 +14,8 @@ import { paySavedMethodRequestSchema } from "@/lib/stripe/input-schemas";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const parsed = await validateRequest(paySavedMethodRequestSchema, request, {
     maxBytes: 4 * 1024,
   });

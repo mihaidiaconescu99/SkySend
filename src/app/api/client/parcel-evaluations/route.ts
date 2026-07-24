@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { boundedJsonValueSchema, plainTextSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { parcelEvaluationSnapshotSchema } from "@/lib/delivery-input-schemas";
 import { createParcelEvaluation, getClientEvaluation } from "@/lib/parcel-evaluations/server";
@@ -23,6 +24,8 @@ const schema = z.object({
 async function actor() { const { userId } = await auth(); return userId ? getSupportIdentity(userId) : null; }
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "support");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const identity = await actor();
@@ -37,6 +40,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "support");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const identity = await actor();

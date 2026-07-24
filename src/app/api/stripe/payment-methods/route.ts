@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import {
   assertStripePaymentMethodBelongsToCustomer,
@@ -11,7 +12,11 @@ import {
   paymentMethodPatchSchema,
 } from "@/lib/stripe/input-schemas";
 
-export async function GET() {
+export async function GET(
+  request = new Request("http://localhost/api/stripe/payment-methods"),
+) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   try {
     const { stripe, customer } = await getAuthenticatedStripeCustomer();
     const paymentMethods = await listStripeCustomerPaymentMethods(stripe, customer);
@@ -33,6 +38,8 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const parsed = await validateRequest(paymentMethodPatchSchema, request, {
     maxBytes: 4 * 1024,
   });
@@ -85,6 +92,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const parsed = await validateRequest(paymentMethodDeleteSchema, request, {
     maxBytes: 4 * 1024,
   });

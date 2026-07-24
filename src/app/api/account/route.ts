@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe/server";
@@ -15,6 +16,8 @@ function escapeStripeSearch(value: string) {
 
 export async function DELETE(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "admin-write", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "Autentificarea este necesară." }, { status: 401 });
 
   const parsed = await validateRequest(deleteAccountSchema, request, {
@@ -64,13 +67,27 @@ export async function DELETE(request: Request) {
     }
 
     const retainedAddressIds = Array.from(new Set((orders ?? []).flatMap((order) => [order.pickup_address_id, order.dropoff_address_id])));
+    const retainedAddressIdSet = new Set(retainedAddressIds);
+    const { data: profileAddresses, error: addressesError } = await supabase
+      .from("addresses")
+      .select("id")
+      .eq("profile_id", profile.id);
+    if (addressesError) {
+      return NextResponse.json(
+        { error: "Adresele contului nu au putut fi verificate." },
+        { status: 500 },
+      );
+    }
+    const deletableAddressIds = (profileAddresses ?? [])
+      .map((address) => address.id)
+      .filter((addressId) => !retainedAddressIdSet.has(addressId));
     const cleanupResults = await Promise.all([
       supabase.from("notifications").delete().eq("profile_id", profile.id),
       supabase.from("delivery_drafts").delete().eq("profile_id", profile.id),
       supabase.from("assistant_conversations").delete().eq("profile_id", profile.id),
-      retainedAddressIds.length
-        ? supabase.from("addresses").delete().eq("profile_id", profile.id).not("id", "in", `(${retainedAddressIds.join(",")})`)
-        : supabase.from("addresses").delete().eq("profile_id", profile.id),
+      deletableAddressIds.length
+        ? supabase.from("addresses").delete().eq("profile_id", profile.id).in("id", deletableAddressIds)
+        : Promise.resolve({ error: null }),
     ]);
     if (cleanupResults.some((result) => result.error)) {
       console.error("[account-delete] personal data cleanup failed", cleanupResults.map((result) => result.error));

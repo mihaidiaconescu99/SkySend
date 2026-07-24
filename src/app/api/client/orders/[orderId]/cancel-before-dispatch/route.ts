@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { opaqueIdentifierSchema } from "@/lib/api/input-schemas";
@@ -15,6 +16,8 @@ export async function POST(
 ) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const { userId } = await auth();

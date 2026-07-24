@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { getSupportIdentity, updateTicket } from "@/lib/support/support-hub";
 const schema = z.object({ action: z.enum(["claim", "release", "close"]) }).strict();
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["operator", "admin"]);
   if (!authorization.ok) return authorization.response;
   const identity = await getSupportIdentity(authorization.context.userId);

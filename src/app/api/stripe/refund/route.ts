@@ -2,6 +2,7 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getStripeServer } from "@/lib/stripe/server";
@@ -14,6 +15,10 @@ export async function POST(request: Request) {
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   }
+  const rateLimit = await enforceRateLimit(request, "payment", {
+    userId: authResult.clerkUserId,
+  });
+  if (rateLimit) return rateLimit;
   const parsed = await validateRequest(refundBodySchema, request, {
     maxBytes: 4 * 1024,
   });

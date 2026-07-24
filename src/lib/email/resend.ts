@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "@/lib/api/upstream";
+
 export type SkySendEmailEvent =
   | "order_confirmation"
   | "payment_confirmation"
@@ -75,13 +77,15 @@ export async function sendSkySendEmail(input: SkySendEmailInput) {
   }
 
   const template = getEmailTemplate(input);
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const response = await fetchWithTimeout(
+    "https://api.resend.com/emails",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
       from: fromEmail,
       to: input.to,
       subject: template.subject,
@@ -95,12 +99,13 @@ export async function sendSkySendEmail(input: SkySendEmailInput) {
           </div>
         </div>
       `,
-    }),
-  });
+      }),
+    },
+    { timeoutMs: 10_000 },
+  );
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(body || "Email could not be sent.");
+    throw new Error(`email_provider_http_${response.status}`);
   }
 
   return {
@@ -178,23 +183,27 @@ export async function sendOrderCommunicationEmail(input: OrderCommunicationEmail
       : null;
   const finalText = `${text}${invoiceNote ? `\n\n${invoiceNote}` : ""}${invoiceDownloadUrl ? `\n${ro ? "Descarcă factura" : "Download invoice"}: ${invoiceDownloadUrl}` : ""}`;
   const htmlRows = rows.map(([label, value]) => `<tr><td style="padding:10px 0;color:#8093a3;vertical-align:top">${escapeHtml(label)}</td><td style="padding:10px 0;color:#f4f8fb;text-align:right">${escapeHtml(value)}</td></tr>`).join("");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": input.idempotencyKey,
-    },
-    body: JSON.stringify({
+  const response = await fetchWithTimeout(
+    "https://api.resend.com/emails",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": input.idempotencyKey,
+      },
+      body: JSON.stringify({
       from: fromEmail,
       to: input.to,
       subject,
       text: finalText,
       html: `<div style="background:#05080b;padding:32px 16px;color:#f4f8fb;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto"><p style="color:#20e7d5;font-size:12px;letter-spacing:.18em;margin:0 0 28px">SKYSEND</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 14px">${escapeHtml(subject)}</h1><p style="color:#aab9c5;line-height:1.7;margin:0 0 26px">${escapeHtml(intro)}</p><table style="width:100%;border-collapse:collapse;border-top:1px solid #21303b;border-bottom:1px solid #21303b">${htmlRows}</table>${invoiceNote ? `<p style="color:#aab9c5;line-height:1.7;margin:24px 0 0">${escapeHtml(invoiceNote)}</p>` : ""}${invoiceDownloadUrl ? `<a href="${escapeHtml(invoiceDownloadUrl)}" style="display:inline-block;margin-top:18px;color:#20e7d5">${ro ? "Descarcă factura" : "Download invoice"}</a>` : ""}${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" style="display:inline-block;margin-top:26px;background:#20e7d5;color:#04110f;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px">${ro ? "Urmărește livrarea" : "Track delivery"}</a>` : ""}<p style="color:#607381;font-size:12px;margin-top:34px">SkySend · Pitești</p></div></div>`,
       ...(input.invoiceAttachment ? { attachments: [{ filename: input.invoiceAttachment.filename, content: input.invoiceAttachment.contentBase64 }] } : {}),
-    }),
-  });
-  if (!response.ok) throw new Error((await response.text()) || "Email could not be sent.");
+      }),
+    },
+    { timeoutMs: 10_000 },
+  );
+  if (!response.ok) throw new Error(`email_provider_http_${response.status}`);
   return { skipped: false };
 }
 
@@ -228,22 +237,26 @@ export async function sendBillingDocumentEmail(input: BillingDocumentEmailInput)
   const action = correction
     ? (ro ? "Descarcă documentul de corecție" : "Download credit note")
     : (ro ? "Descarcă factura" : "Download invoice");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Idempotency-Key": input.idempotencyKey,
-    },
-    body: JSON.stringify({
+  const response = await fetchWithTimeout(
+    "https://api.resend.com/emails",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": input.idempotencyKey,
+      },
+      body: JSON.stringify({
       from: fromEmail,
       to: input.to,
       subject,
       text: `${subject}\n\n${intro}\n\n${action}: ${downloadUrl}`,
       html: `<div style="background:#05080b;padding:32px 16px;color:#f4f8fb;font-family:Arial,sans-serif"><div style="max-width:560px;margin:auto"><p style="color:#20e7d5;font-size:12px;letter-spacing:.18em;margin:0 0 28px">SKYSEND</p><h1 style="font-size:28px;line-height:1.15;margin:0 0 14px">${escapeHtml(subject)}</h1><p style="color:#aab9c5;line-height:1.7;margin:0 0 26px">${escapeHtml(intro)}</p><a href="${escapeHtml(downloadUrl)}" style="display:inline-block;background:#20e7d5;color:#04110f;text-decoration:none;font-weight:700;padding:13px 18px;border-radius:10px">${escapeHtml(action)}</a></div></div>`,
       attachments: [{ filename: input.attachment.filename, content: input.attachment.contentBase64 }],
-    }),
-  });
-  if (!response.ok) throw new Error((await response.text()) || "Billing document email could not be sent.");
+      }),
+    },
+    { timeoutMs: 10_000 },
+  );
+  if (!response.ok) throw new Error(`email_provider_http_${response.status}`);
   return { skipped: false };
 }

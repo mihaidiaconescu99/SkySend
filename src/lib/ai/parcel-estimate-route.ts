@@ -5,6 +5,7 @@ import {
   isoDateTimeSchema,
   plainTextSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { estimateParcelForDispatch } from "@/lib/ai";
 import { validateRequest } from "@/lib/api/validation";
 import { prepareParcelAiImagesForAnalysis } from "@/lib/parcel-ai-images/server";
@@ -238,8 +239,12 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 export async function postParcelEstimate(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "parcel-estimate");
+  if (rateLimit) return rateLimit;
 
-  const validation = await validateRequest(parcelEstimateRequestSchema, request);
+  const validation = await validateRequest(parcelEstimateRequestSchema, request, {
+    maxBytes: 24 * 1024,
+  });
 
   if (!validation.ok) {
     return validation.response;

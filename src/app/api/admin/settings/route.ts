@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
 
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { requireAdminPanelUser } from "@/lib/admin-auth";
 import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
@@ -18,6 +19,8 @@ const settingsSchema = z.object({
 }).strict();
 
 export async function PUT(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const authResult = await requireAdminPanelUser();
   if (!authResult.ok) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status });

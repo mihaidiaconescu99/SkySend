@@ -1,10 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { createConversation, getSupportIdentity, listConversations } from "@/lib/support/support-hub";
 
-export async function GET() {
+export async function GET(
+  request = new Request("http://localhost/api/assistant/conversations"),
+) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "support", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const identity = await getSupportIdentity(userId);
   if (!identity) return NextResponse.json({ error: "profile_not_found" }, { status: 401 });
@@ -16,6 +21,8 @@ export async function POST(request: Request) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "support", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const identity = await getSupportIdentity(userId);
   if (!identity) return NextResponse.json({ error: "profile_not_found" }, { status: 401 });

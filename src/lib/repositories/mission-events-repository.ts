@@ -14,6 +14,7 @@ import {
   type RepositoryResult,
 } from "@/lib/repositories/types";
 import type { Database } from "@/types/database";
+import { resolveAllowedColumn } from "@/lib/supabase/query-safety";
 import type {
   CreateMissionEventInput,
   MissionEvent,
@@ -22,6 +23,7 @@ import type {
 const DEFAULT_LIST_LIMIT = 100;
 
 type ListOrderBy = "occurred_at" | "created_at";
+const listOrderColumns = ["occurred_at", "created_at"] as const;
 
 export class MissionEventsRepository extends BaseRepository<"mission_events"> {
   protected readonly tableName = "mission_events" as const;
@@ -70,7 +72,11 @@ export class MissionEventsRepository extends BaseRepository<"mission_events"> {
     } = {},
   ): Promise<RepositoryResult<MissionEvent[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
-    const orderColumn = options.orderBy ?? "occurred_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "occurred_at",
+    );
     try {
       let query = this.supabase
         .from("mission_events")
@@ -103,7 +109,11 @@ export class MissionEventsRepository extends BaseRepository<"mission_events"> {
     options: { limit?: number; orderBy?: ListOrderBy } = {},
   ): Promise<RepositoryResult<MissionEvent[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
-    const orderColumn = options.orderBy ?? "occurred_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "occurred_at",
+    );
     try {
       const { data, error } = await this.supabase
         .from("mission_events")

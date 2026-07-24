@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { localOrderIdSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { billingSnapshotSchema } from "@/lib/billing/validation";
 import { saveBillingSnapshot } from "@/lib/billing/server";
@@ -15,6 +16,8 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "payment", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const parsed = await validateRequest(requestSchema, request, { maxBytes: 16 * 1024 });
   if (!parsed.ok) return parsed.response;

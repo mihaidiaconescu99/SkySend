@@ -6,6 +6,7 @@ import {
   publicTrackingCodeSchema,
   recipientTrackingTokenSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { getTrustedAppOrigin } from "@/lib/api/request-security";
@@ -71,6 +72,8 @@ async function cancelIntent(paymentIntentId?: string | null) {
 }
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const context = await actor();
@@ -118,6 +121,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const context = await actor();
@@ -232,6 +237,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const context = await actor();

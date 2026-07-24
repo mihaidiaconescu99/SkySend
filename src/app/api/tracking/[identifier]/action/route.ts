@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { trackingIdentifierSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { MissionsRepository } from "@/lib/repositories/missions-repository";
@@ -177,6 +178,9 @@ function setActiveFlight(
 }
 
 export async function POST(request: Request, { params }: Context) {
+  const rateLimit = await enforceRateLimit(request, "tracking-action");
+  if (rateLimit) return rateLimit;
+
   const { identifier } = await params;
   if (!trackingIdentifierSchema.safeParse(identifier).success) {
     return NextResponse.json({ error: "Invalid tracking identifier." }, { status: 400 });

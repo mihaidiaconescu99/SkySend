@@ -4,6 +4,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/lib/repositories/orders-repository";
 import { AddressesRepository } from "@/lib/repositories/addresses-repository";
@@ -183,6 +184,9 @@ function orderToTrackingShape(
 }
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "tracking-lookup");
+  if (rateLimit) return rateLimit;
+
   const { searchParams } = new URL(request.url);
   const identifier = searchParams.get("identifier");
 

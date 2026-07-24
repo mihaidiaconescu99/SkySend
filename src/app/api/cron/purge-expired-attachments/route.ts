@@ -13,6 +13,22 @@ export async function GET(request: Request) {
   }
 
   const db = createAdminSupabaseClient();
+  const rateLimitCleanup = await (
+    db as unknown as {
+      rpc: (
+        name: string,
+      ) => Promise<{ data: number | null; error: { message?: string } | null }>;
+    }
+  ).rpc("purge_expired_application_rate_limits").catch(() => ({
+    data: null,
+    error: { message: "rate_limit_cleanup_unavailable" },
+  }));
+  if (rateLimitCleanup.error) {
+    console.error(
+      "[purge-expired-attachments] rate limit cleanup unavailable",
+      rateLimitCleanup.error.message ?? "unknown",
+    );
+  }
   const { data: expired, error: loadError } = await db
     .from("file_attachments")
     .select("id,r2_object_key")
@@ -59,5 +75,6 @@ export async function GET(request: Request) {
     deleted: deletedIds.length,
     failed: (expired?.length ?? 0) - deletedIds.length,
     deletedParcelAiImages: expiredParcelImages?.length ?? 0,
+    purgedRateLimits: rateLimitCleanup.data ?? 0,
   });
 }

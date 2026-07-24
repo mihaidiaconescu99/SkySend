@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { plainTextSchema } from "@/lib/api/input-schemas";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
@@ -28,7 +29,9 @@ async function staffIdentity() {
   return { ok: true as const, identity };
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await enforceRateLimit(request, "admin-read");
+  if (rateLimit) return rateLimit;
   const staff = await staffIdentity();
   if (!staff.ok) return staff.response;
   const { identity } = staff;
@@ -43,6 +46,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const rateLimit = await enforceRateLimit(request, "admin-write");
+  if (rateLimit) return rateLimit;
   const staff = await staffIdentity();
   if (!staff.ok) return staff.response;
   const { identity } = staff;

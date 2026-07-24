@@ -1,14 +1,21 @@
 import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { createHash } from "node:crypto";
 import { Resend, type EmailReceivedEvent } from "resend";
+import {
+  fetchWithTimeout,
+  readLimitedResponseBytes,
+} from "@/lib/api/upstream";
 import { serverEnv } from "@/lib/env.server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
   createR2ObjectKey,
+  emailAttachmentMaxBytes,
   isAcceptedEmailAttachment,
   uploadR2Object,
 } from "@/lib/storage/r2";
+import { imageSignatureMatches } from "@/lib/uploads/image-signature";
 import {
   isAuthorizedSupportOperator,
   type SupportIdentity,
@@ -114,7 +121,12 @@ export async function replyToSiteMessage(identity: SupportIdentity, id: string, 
     subject,
     text: body,
     html: `<div style="font-family:Arial,sans-serif;line-height:1.6">${escapeHtml(body).replace(/\n/gu, "<br>")}</div>`,
-  }, { idempotencyKey: `site-message-${id}-${crypto.randomUUID()}` });
+  }, {
+    idempotencyKey: `site-message-${id}-${createHash("sha256")
+      .update(body)
+      .digest("hex")
+      .slice(0, 32)}`,
+  });
   if (result.error || !result.data?.id) throw new Error(result.error?.message ?? "email_send_failed");
 
   const now = new Date().toISOString();
@@ -177,14 +189,16 @@ export async function ingestResendInbound(event: EmailReceivedEvent) {
   let emailId = existing?.id as string | undefined;
 
   if (!emailId) {
+    const bodyText = received.data.text?.slice(0, 100_000) ?? null;
+    const bodyHtml = received.data.html?.slice(0, 200_000) ?? null;
     const { data: email, error: emailError } = await db().from("contact_message_emails").insert({
     contact_message_id: ticketId,
     direction: "inbound",
     sender_email: received.data.from,
     recipient_email: received.data.to[0] ?? `ticket-${ticketId}@${serverEnv.RESEND_INBOUND_DOMAIN}`,
     subject: received.data.subject || "Fără subiect",
-    body_text: received.data.text,
-    body_html: received.data.html,
+    body_text: bodyText,
+    body_html: bodyHtml,
     resend_email_id: event.data.email_id,
     internet_message_id: received.data.message_id,
     in_reply_to: received.data.headers?.["in-reply-to"] ?? null,
@@ -195,9 +209,11 @@ export async function ingestResendInbound(event: EmailReceivedEvent) {
     emailId = email.id;
   }
 
-  const attachments = (received.data.attachments ?? []).slice(0, 10);
+  const attachments = (received.data.attachments ?? []).slice(0, 5);
+  let acceptedAttachmentBytes = 0;
   for (const attachment of attachments) {
     if (!isAcceptedEmailAttachment(attachment.content_type, attachment.size)) continue;
+    if (acceptedAttachmentBytes + attachment.size > 50 * 1024 * 1024) continue;
     const { data: stored } = await db().from("file_attachments")
       .select("id")
       .eq("contact_email_id", emailId)
@@ -211,10 +227,24 @@ export async function ingestResendInbound(event: EmailReceivedEvent) {
       id: attachment.id,
     });
     if (download.error || !download.data?.download_url) continue;
-    const response = await fetch(download.data.download_url);
+    const response = await fetchWithTimeout(
+      download.data.download_url,
+      {},
+      { timeoutMs: 10_000 },
+    );
     if (!response.ok) continue;
-    const body = new Uint8Array(await response.arrayBuffer());
+    const body = await readLimitedResponseBytes(
+      response,
+      emailAttachmentMaxBytes,
+    );
     if (!isAcceptedEmailAttachment(attachment.content_type, body.byteLength)) continue;
+    if (
+      attachment.content_type.startsWith("image/") &&
+      !imageSignatureMatches(body, attachment.content_type)
+    ) {
+      continue;
+    }
+    acceptedAttachmentBytes += body.byteLength;
     const objectKey = createR2ObjectKey("email", ticketId, attachment.filename ?? "attachment");
     await uploadR2Object({ objectKey, body, contentType: attachment.content_type });
     const { error: attachmentError } = await db().from("file_attachments").insert({

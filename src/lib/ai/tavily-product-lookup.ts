@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readLimitedJsonResponse } from "@/lib/api/upstream";
 import { serverEnv } from "@/lib/env.server";
 import type {
   ParcelDetectedItem,
@@ -172,7 +173,10 @@ async function lookupOneQuery(
 
   let payload: TavilySearchResponse;
   try {
-    payload = (await response.json()) as TavilySearchResponse;
+    payload = await readLimitedJsonResponse<TavilySearchResponse>(
+      response,
+      256 * 1024,
+    );
   } catch {
     return [];
   }

@@ -1,12 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode } from "@/lib/api/validation";
 import { getAttachmentDownload } from "@/lib/attachments/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "download", { userId });
+  if (rateLimit) return rateLimit;
   const identity = userId ? await getSupportIdentity(userId) : null;
   if (!identity) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const attachmentId = (await params).id;

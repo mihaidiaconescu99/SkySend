@@ -6,8 +6,10 @@ import {
   createR2DownloadUrl,
   createR2ObjectKey,
   createR2UploadUrl,
+  inspectR2Object,
   isSupportImage,
 } from "@/lib/storage/r2";
+import { imageSignatureMatches } from "@/lib/uploads/image-signature";
 import {
   isAuthorizedSupportOperator,
   isSupportAdmin,
@@ -84,6 +86,34 @@ export async function completeAttachmentUpload(identity: SupportIdentity, input:
   if (!isSupportImage(input.contentType, input.sizeBytes)) throw new Error("invalid_image");
   const expectedPrefix = `${input.scope}/${identity.profileId}/`;
   if (!input.objectKey.startsWith(expectedPrefix)) throw new Error("invalid_object_key");
+  const { data: existing, error: existingError } = await db()
+    .from("file_attachments")
+    .select("id,original_name,content_type,size_bytes")
+    .eq("r2_object_key", input.objectKey)
+    .eq("uploaded_by_profile_id", identity.profileId)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing) {
+    if (
+      existing.original_name !== input.fileName ||
+      existing.content_type !== input.contentType ||
+      existing.size_bytes !== input.sizeBytes
+    ) {
+      throw new Error("invalid_object_key");
+    }
+    return existing;
+  }
+  const object = await inspectR2Object({
+    objectKey: input.objectKey,
+    maxBytes: input.sizeBytes,
+  });
+  if (
+    object.sizeBytes !== input.sizeBytes ||
+    object.contentType !== input.contentType ||
+    !imageSignatureMatches(object.signature, input.contentType)
+  ) {
+    throw new Error("invalid_image");
+  }
   const { count, error: countError } = await db().from("file_attachments")
     .select("id", { count: "exact", head: true }).eq(parent.column, input.parentId);
   if (countError) throw new Error(countError.message);

@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
 import { grantAdminSettingsAccess, isAdminSettingsCodeConfigured } from "@/lib/admin-settings-access";
 
 const schema = z.object({ code: z.string().regex(/^\d{6}$/u) }).strict();
 export async function POST(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "sync-profile");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["admin"]);
   if (!authorization.ok) return authorization.response;
   if (!isAdminSettingsCodeConfigured()) return NextResponse.json({ error: "settings_code_not_configured" }, { status: 503 });

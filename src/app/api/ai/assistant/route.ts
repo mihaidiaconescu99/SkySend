@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { plainTextSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { buildAssistantRuntimeContext } from "@/lib/ai/skysend-assistant-context";
 import { getSkySendAssistantReply } from "@/lib/ai/skysend-assistant";
@@ -24,42 +25,17 @@ const assistantRequestSchema = z.object({
   conversationId: z.string().uuid().optional(),
 }).strict();
 
-const requestsByIp = new Map<string, number[]>();
-const requestWindowMs = 60_000;
-const maximumRequestsPerWindow = 12;
-
-function isRateLimited(request: Request) {
-  const key = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-  const now = Date.now();
-  const recent = (requestsByIp.get(key) ?? []).filter(
-    (timestamp) => now - timestamp < requestWindowMs,
-  );
-
-  if (recent.length >= maximumRequestsPerWindow) {
-    requestsByIp.set(key, recent);
-    return true;
-  }
-
-  requestsByIp.set(key, [...recent, now]);
-  return false;
-}
-
 export async function POST(request: Request) {
-  if (isRateLimited(request)) {
-    return NextResponse.json(
-      {
-        message:
-          "Ai trimis mai multe întrebări într-un interval scurt. Încearcă din nou peste un minut sau consultă pagina de întrebări frecvente.",
-        action: { label: "Vezi întrebările frecvente", href: "/faq" },
-      },
-      { status: 429 },
-    );
-  }
+  const rateLimit = await enforceRateLimit(request, "assistant");
+  if (rateLimit) return rateLimit;
 
   const parsed = await validateRequest(assistantRequestSchema, request, {
     maxBytes: 8 * 1024,
   });
   if (!parsed.ok) {
+    if (parsed.response.status === 413 || parsed.response.status === 415) {
+      return parsed.response;
+    }
     return NextResponse.json(
       {
         message:

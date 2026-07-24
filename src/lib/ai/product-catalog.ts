@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  fetchWithTimeout,
+  readLimitedJsonResponse,
+} from "@/lib/api/upstream";
 import { serverEnv } from "@/lib/env.server";
 import type { ParcelDetectedItem, ProductLookupResult } from "@/types/parcel-intelligence";
 
@@ -12,12 +16,17 @@ function productId(item: ParcelDetectedItem) {
 }
 
 async function getJson(url: string, init: RequestInit) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    return response.ok ? await response.json() as Record<string, unknown> : null;
-  } catch { return null; } finally { clearTimeout(timer); }
+    const response = await fetchWithTimeout(url, init, { timeoutMs });
+    return response.ok
+      ? await readLimitedJsonResponse<Record<string, unknown>>(
+          response,
+          512 * 1024,
+        )
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function lookupOpenFoodFacts(gtin: string): Promise<ProductLookupResult | null> {

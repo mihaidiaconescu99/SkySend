@@ -14,6 +14,7 @@ import {
   type RepositoryResult,
 } from "@/lib/repositories/types";
 import type { Database } from "@/types/database";
+import { resolveAllowedColumn } from "@/lib/supabase/query-safety";
 import type {
   Address,
   CreateAddressInput,
@@ -24,6 +25,11 @@ const DEFAULT_LIST_LIMIT = 50;
 const DEFAULT_TOLERANCE_METERS = 30;
 
 type ListOrderBy = "last_used_at" | "created_at" | "usage_count";
+const listOrderColumns = [
+  "last_used_at",
+  "created_at",
+  "usage_count",
+] as const;
 
 export class AddressesRepository extends BaseRepository<"addresses"> {
   protected readonly tableName = "addresses" as const;
@@ -93,7 +99,11 @@ export class AddressesRepository extends BaseRepository<"addresses"> {
     } = {},
   ): Promise<RepositoryResult<Address[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
-    const orderColumn = options.orderBy ?? "last_used_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "last_used_at",
+    );
 
     try {
       let query = this.supabase

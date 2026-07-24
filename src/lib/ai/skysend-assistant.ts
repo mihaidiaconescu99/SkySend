@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  fetchWithTimeout,
+  readLimitedJsonResponse,
+} from "@/lib/api/upstream";
 import { createGeoapifyForwardGeocodingUrl } from "@/lib/geoapify";
 import { isGeocodedAddressEligible } from "@/lib/service-area";
 import {
@@ -196,8 +200,15 @@ async function checkCoverage(message: string, language: AssistantLanguage): Prom
   }
 
   try {
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = (await response.json()) as GeoapifySearchResponse;
+    const response = await fetchWithTimeout(
+      url,
+      { headers: { Accept: "application/json" } },
+      { timeoutMs: 3_000 },
+    );
+    const data = await readLimitedJsonResponse<GeoapifySearchResponse>(
+      response,
+      256 * 1024,
+    );
     const result = data.results?.[0];
     if (!response.ok || !result?.formatted || result.lat === undefined || result.lon === undefined) {
       throw new Error("address_not_found");
@@ -317,15 +328,17 @@ Spune transparent când informația lipsește. Nu pretinde că ai creat, modific
     role: item.role,
     content: item.content.slice(0, 1_000),
   }));
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_SITE_URL?.trim() || "http://localhost:3000",
-      "X-OpenRouter-Title": process.env.OPENROUTER_APP_NAME?.trim() || "SkySend",
-    },
-    body: JSON.stringify({
+  const response = await fetchWithTimeout(
+    OPENROUTER_URL,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL?.trim() || "http://localhost:3000",
+        "X-OpenRouter-Title": process.env.OPENROUTER_APP_NAME?.trim() || "SkySend",
+      },
+      body: JSON.stringify({
       model: process.env.OPENROUTER_ASSISTANT_MODEL?.trim() || process.env.OPENROUTER_MODEL?.trim() || "openrouter/free",
       temperature: 0.15,
       max_tokens: 1_100,
@@ -337,10 +350,14 @@ Spune transparent când informația lipsește. Nu pretinde că ai creat, modific
           content: `Întrebare: ${input.message}\n\nContext operațional public:\n${JSON.stringify(input.context.operational)}\n\nDocumentație autorizată:\n${knowledge.text}`,
         },
       ],
-    }),
-  });
+      }),
+    },
+    { timeoutMs: 10_000 },
+  );
   if (!response.ok) return null;
-  const data = (await response.json()) as { choices?: Array<{ message?: { content?: string | null } }> };
+  const data = await readLimitedJsonResponse<{
+    choices?: Array<{ message?: { content?: string | null } }>;
+  }>(response, 256 * 1024);
   const content = data.choices?.[0]?.message?.content?.trim();
   if (!content) return null;
   const linked = knowledge.records.find((record) => record.href);

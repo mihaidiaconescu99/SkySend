@@ -13,6 +13,7 @@ import {
   type RepositoryResult,
 } from "@/lib/repositories/types";
 import type { Database } from "@/types/database";
+import { resolveAllowedColumn } from "@/lib/supabase/query-safety";
 import type {
   CreateOrderInput,
   Order,
@@ -28,6 +29,7 @@ const ACTIVE_STATUSES: readonly OrderStatus[] = [
 ] as const;
 
 type ListOrderBy = "created_at" | "updated_at";
+const listOrderColumns = ["created_at", "updated_at"] as const;
 
 export class OrdersRepository extends BaseRepository<"orders"> {
   protected readonly tableName = "orders" as const;
@@ -155,7 +157,11 @@ export class OrdersRepository extends BaseRepository<"orders"> {
   ): Promise<RepositoryResult<Order[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
     const offset = options.offset ?? 0;
-    const orderColumn = options.orderBy ?? "created_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "created_at",
+    );
     const ascending = options.descending === false ? true : false;
 
     if (Array.isArray(options.status) && options.status.length === 0) {

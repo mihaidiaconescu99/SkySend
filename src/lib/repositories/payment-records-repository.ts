@@ -14,6 +14,7 @@ import {
   type RepositoryResult,
 } from "@/lib/repositories/types";
 import type { Database } from "@/types/database";
+import { resolveAllowedColumn } from "@/lib/supabase/query-safety";
 import type {
   CreatePaymentRecordInput,
   PaymentRecord,
@@ -22,6 +23,7 @@ import type {
 const DEFAULT_LIST_LIMIT = 100;
 
 type ListOrderBy = "created_at" | "amount_minor";
+const listOrderColumns = ["created_at", "amount_minor"] as const;
 
 export class PaymentRecordsRepository extends BaseRepository<"payment_records"> {
   protected readonly tableName = "payment_records" as const;
@@ -89,7 +91,11 @@ export class PaymentRecordsRepository extends BaseRepository<"payment_records"> 
     options: { limit?: number; orderBy?: ListOrderBy } = {},
   ): Promise<RepositoryResult<PaymentRecord[]>> {
     const limit = options.limit ?? DEFAULT_LIST_LIMIT;
-    const orderColumn = options.orderBy ?? "created_at";
+    const orderColumn = resolveAllowedColumn(
+      options.orderBy,
+      listOrderColumns,
+      "created_at",
+    );
     try {
       const { data, error } = await this.supabase
         .from("payment_records")

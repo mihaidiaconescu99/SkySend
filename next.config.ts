@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { networkInterfaces } from "node:os";
+import { buildSecurityHeaders } from "./src/lib/security/http-headers";
 
 function getLocalDevOrigins() {
   return Object.values(networkInterfaces()).flatMap((interfaces) =>
@@ -37,6 +38,14 @@ const nextConfig: NextConfig = {
     ],
   },
   poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: buildSecurityHeaders(),
+      },
+    ];
+  },
 };
 
 export default nextConfig;

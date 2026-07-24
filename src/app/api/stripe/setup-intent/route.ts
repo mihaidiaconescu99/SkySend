@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import {
   getAuthenticatedStripeCustomer,
@@ -9,6 +10,8 @@ import {
 export async function POST(request: Request) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   try {
     const { stripe, customer, clerkUserId } = await getAuthenticatedStripeCustomer();
     const setupIntent = await stripe.setupIntents.create({
@@ -40,7 +43,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(
+  request = new Request("http://localhost/api/stripe/setup-intent"),
+) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   try {
     const { stripe, customer } = await getAuthenticatedStripeCustomer();
     const paymentMethods = await listStripeCustomerPaymentMethods(stripe, customer);

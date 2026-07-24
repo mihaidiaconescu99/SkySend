@@ -2,6 +2,10 @@ import "server-only";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  fetchWithTimeout,
+  readLimitedResponseBytes,
+} from "@/lib/api/upstream";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createBillingR2ObjectKey, getR2Object, uploadR2Object } from "@/lib/storage/r2";
 import { serverEnv } from "@/lib/env.server";
@@ -179,18 +183,21 @@ async function generateDocumentPdf(document: any, snapshot: any, order: any) {
       unit_cost: item.amountMinor / 100,
     })),
   };
-  const response = await fetch("https://invoice-generator.com", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${serverEnv.INVOICE_GENERATOR_API_KEY}`,
-      "Content-Type": "application/json",
-      "Accept-Language": locale === "ro" ? "en-US" : "en-US",
+  const response = await fetchWithTimeout(
+    "https://invoice-generator.com",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serverEnv.INVOICE_GENERATOR_API_KEY}`,
+        "Content-Type": "application/json",
+        "Accept-Language": locale === "ro" ? "en-US" : "en-US",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
-  });
+    { timeoutMs: 20_000 },
+  );
   if (!response.ok) throw new Error(`invoice_provider_http_${response.status}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const bytes = await readLimitedResponseBytes(response, 10 * 1024 * 1024);
   if (bytes.byteLength < 5 || new TextDecoder().decode(bytes.slice(0, 4)) !== "%PDF") {
     throw new Error("invoice_provider_invalid_pdf");
   }

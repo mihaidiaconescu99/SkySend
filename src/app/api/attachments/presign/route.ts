@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { uploadFileNameSchema } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { publicErrorCode, validateRequest } from "@/lib/api/validation";
 import { createAttachmentUpload } from "@/lib/attachments/server";
 import { getSupportIdentity } from "@/lib/support/support-hub";
@@ -15,6 +16,8 @@ const schema = z.object({
 }).strict();
 export async function POST(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "upload", { userId });
+  if (rateLimit) return rateLimit;
   const identity = userId ? await getSupportIdentity(userId) : null;
   if (!identity) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const parsed = await validateRequest(schema, request, { maxBytes: 4 * 1024 });

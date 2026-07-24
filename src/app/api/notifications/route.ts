@@ -8,6 +8,7 @@ import {
   internalActionUrlSchema,
   plainTextSchema,
 } from "@/lib/api/input-schemas";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { NotificationsRepository } from "@/lib/repositories/notifications-repository";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
@@ -22,6 +23,8 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "support", { userId });
+  if (rateLimit) return rateLimit;
 
   if (!userId) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });

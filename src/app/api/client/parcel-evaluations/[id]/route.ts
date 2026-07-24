@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorizeApiRequest } from "@/lib/api/role-guard";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { requireSameOrigin } from "@/lib/api/request-security";
 import { publicErrorCode } from "@/lib/api/validation";
 import { cancelParcelEvaluation } from "@/lib/parcel-evaluations/server";
@@ -10,6 +11,8 @@ import { getSupportIdentity } from "@/lib/support/support-hub";
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const originFailure = requireSameOrigin(request);
   if (originFailure) return originFailure;
+  const rateLimit = await enforceRateLimit(request, "support");
+  if (rateLimit) return rateLimit;
   const authorization = await authorizeApiRequest(["client"]);
   if (!authorization.ok) return authorization.response;
   const { userId } = await auth();

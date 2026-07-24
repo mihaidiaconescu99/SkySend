@@ -2,12 +2,15 @@ import { auth } from "@clerk/nextjs/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { ProfilesRepository } from "@/lib/repositories/profiles-repository";
 import { createR2DownloadUrl } from "@/lib/storage/r2";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
-export async function GET(_request: Request, context: { params: Promise<{ documentId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ documentId: string }> }) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "download", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const { documentId } = await context.params;
   if (!z.string().uuid().safeParse(documentId).success) {

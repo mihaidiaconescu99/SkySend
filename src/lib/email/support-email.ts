@@ -1,5 +1,7 @@
 import "server-only";
 
+import { fetchWithTimeout } from "@/lib/api/upstream";
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
 }
@@ -21,10 +23,14 @@ export async function sendSupportEmail(input: { to: string | null; title: string
   if (!input.to || !apiKey || !from) return { skipped: true };
   const baseUrl = safeAppUrl(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
   const supportUrl = `${baseUrl}/client/support`;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: input.to, subject: input.title, text: `${input.message}\n\nDeschide SkySend pentru a răspunde: ${supportUrl}`, html: `<p>${escapeHtml(input.message)}</p><p><a href="${escapeHtml(supportUrl)}">Deschide SkySend</a></p>` }),
-  });
-  if (!response.ok) console.error("[support-email] delivery failed", await response.text());
+  const response = await fetchWithTimeout(
+    "https://api.resend.com/emails",
+    {
+      method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: input.to, subject: input.title, text: `${input.message}\n\nDeschide SkySend pentru a răspunde: ${supportUrl}`, html: `<p>${escapeHtml(input.message)}</p><p><a href="${escapeHtml(supportUrl)}">Deschide SkySend</a></p>` }),
+    },
+    { timeoutMs: 10_000 },
+  );
+  if (!response.ok) console.error("[support-email] delivery failed", response.status);
   return { skipped: false };
 }

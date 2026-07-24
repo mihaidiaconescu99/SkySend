@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
+import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { getTrustedAppOrigin } from "@/lib/api/request-security";
 import {
@@ -27,6 +28,8 @@ function idempotencyKey(sessionId: string, amount: number, currency: string) {
 
 export async function POST(request: Request) {
   const { userId } = await auth();
+  const rateLimit = await enforceRateLimit(request, "payment", { userId });
+  if (rateLimit) return rateLimit;
   if (!userId) return NextResponse.json({ error: "Authentication is required for checkout." }, { status: 401 });
   const parsed = await validateRequest(paymentIntentRequestSchema, request, {
     maxBytes: 4 * 1024,
@@ -125,6 +128,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceRateLimit(request, "payment");
+  if (rateLimit) return rateLimit;
   const paymentIntentId = new URL(request.url).searchParams.get("paymentIntentId");
   const parsedId = stripePaymentIntentIdSchema.safeParse(paymentIntentId);
   if (!parsedId.success) return NextResponse.json({ error: "validation_failed" }, { status: 400 });
