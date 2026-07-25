@@ -28,7 +28,6 @@ import {
 import { adminFailureReasonLabels } from "@/lib/admin-data";
 import type { AdminOrder } from "@/types/admin";
 import { cn } from "@/lib/utils";
-import type { AdminAuditActor } from "@/types/admin";
 import type {
   AdminFailedOrderDetail,
   CustomerNotificationStatus,
@@ -47,12 +46,6 @@ type ResolutionFilter = "all" | FailedOrderResolutionStatus;
 type RefundFilter = "all" | RefundStatus;
 type PriorityFilter = "all" | AdminFailedOrderDetail["priority"];
 type StatusTone = "neutral" | "success" | "warning" | "destructive" | "info";
-
-const adminActor: AdminAuditActor = {
-  actorId: "admin-local",
-  actorRole: "admin",
-  actorName: "Panou Administrator",
-};
 
 function formatDateTime(value?: string | null) {
   if (!value) {
@@ -843,11 +836,6 @@ export function AdminFailedOrdersView({
     },
   ];
 
-  function refreshOrders(orderId: string) {
-    setSelectedOrderId(orderId);
-    void refreshOrdersFromDB();
-  }
-
   function applyFilters() {
     setSearch(draftSearch);
     setReason(draftReason);
@@ -858,17 +846,40 @@ export function AdminFailedOrdersView({
   async function handleUpdate(
     orderId: string,
     patch: Parameters<typeof updateAdminFailedOrder>[0]["patch"],
-    _changeReason: string | null,
+    changeReason: string | null,
   ) {
-    void _changeReason;
+    if (
+      patch.refundStatus !== undefined &&
+      ["started", "completed"].includes(patch.refundStatus)
+    ) {
+      if (!changeReason?.trim()) {
+        setFeedback({
+          tone: "error",
+          message: "Adaugă motivul rambursării înainte de confirmare.",
+        });
+        return;
+      }
+      if (!window.confirm("Confirmi rambursarea integrală a sumei eligibile rămase?")) {
+        return;
+      }
+    }
     setIsSaving(true);
 
     const dbPatch: Record<string, unknown> = {};
+    if (patch.internalNotes !== undefined) {
+      dbPatch.internalNotes = patch.internalNotes;
+    }
+    if (patch.resolutionStatus !== undefined) {
+      dbPatch.resolutionStatus = patch.resolutionStatus;
+    }
+    if (patch.customerNotificationStatus !== undefined) {
+      dbPatch.customerNotificationStatus = patch.customerNotificationStatus;
+    }
     if (patch.refundStatus !== undefined) {
       dbPatch.refundStatus = patch.refundStatus;
     }
-    if (patch.internalNotes !== undefined) {
-      dbPatch.internalNotes = patch.internalNotes;
+    if (changeReason?.trim()) {
+      dbPatch.changeReason = changeReason.trim();
     }
 
     if (Object.keys(dbPatch).length === 0) {

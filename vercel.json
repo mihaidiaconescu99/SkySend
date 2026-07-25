@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/purge-expired-attachments",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/maintenance",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

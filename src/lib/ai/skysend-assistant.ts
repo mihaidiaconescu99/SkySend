@@ -101,6 +101,22 @@ function explicitlyRequestsHuman(query: string) {
   ]);
 }
 
+export function explicitlyRequestsSupportTicket(message: string) {
+  const query = normalizeAssistantText(message);
+  return hasAny(query, [
+    "creeaza tichet",
+    "creaza tichet",
+    "deschide tichet",
+    "deschide un tichet",
+    "fa un tichet",
+    "trimite la operator",
+    "creeaza ticket",
+    "create a ticket",
+    "create a support ticket",
+    "open a ticket",
+  ]);
+}
+
 export function shouldOfferAssistantHandoff(message: string) {
   const query = normalizeAssistantText(message);
   if (explicitlyRequestsHuman(query)) return true;

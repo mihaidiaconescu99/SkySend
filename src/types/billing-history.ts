@@ -7,4 +7,7 @@ export type BillingHistoryTransaction = {
   amountLabel: string;
   status: Extract<PaymentStatus, "paid" | "pending" | "failed" | "refunded">;
   invoiceDownloadHref: string | null;
+  documentLabel?: "Factură" | "Notă de credit" | null;
+  paymentMethodKey?: string | null;
+  paymentMethodLabel?: string | null;
 };

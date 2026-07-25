@@ -72,6 +72,7 @@ import {
   recommendDeliveryConfiguration,
 } from "@/lib/drone-recommendation";
 import { calculateDistanceKm } from "@/lib/mission-route";
+import { calculateDistanceMeters } from "@/lib/geo/distance";
 import { getDistanceBasedDeliveryEtaWindow } from "@/lib/delivery-eta";
 import { calculateSkySendPricing } from "@/lib/pricing";
 import {
@@ -908,6 +909,20 @@ export function CreateDeliveryShell() {
   const coverageSummary = useMemo(() => {
     return getCreateDeliveryCoverageSummary(pickupValidation, dropoffValidation);
   }, [dropoffValidation, pickupValidation]);
+  const addressDistanceMeters = useMemo(() => {
+    const pickup = pickupValidation.geocodedAddress?.location;
+    const dropoff = dropoffValidation.geocodedAddress?.location;
+
+    return pickup && dropoff ? calculateDistanceMeters(pickup, dropoff) : null;
+  }, [
+    dropoffValidation.geocodedAddress?.location,
+    pickupValidation.geocodedAddress?.location,
+  ]);
+  const isAddressDistanceValid =
+    addressDistanceMeters === null || addressDistanceMeters >= 150;
+  const addressDistanceError = !isAddressDistanceValid
+    ? `Ridicarea și livrarea sunt la ${Math.round(addressDistanceMeters ?? 0)} m. Distanța minimă este 150 m.`
+    : null;
 
   const parcelGuidance = useMemo(() => {
     return getCreateDeliveryParcelGuidance(parcelDraft);
@@ -1126,6 +1141,7 @@ export function CreateDeliveryShell() {
     return (
       pickupValidation.isEligible &&
       dropoffValidation.isEligible &&
+      isAddressDistanceValid &&
       isCandidatePointEligibleForContinue(selectedCandidatePoints.pickup) &&
       isCandidatePointEligibleForContinue(selectedCandidatePoints.dropoff) &&
       routeAddresses.pickup.address.trim().length >= 8 &&
@@ -1133,6 +1149,7 @@ export function CreateDeliveryShell() {
     );
   }, [
     dropoffValidation.isEligible,
+    isAddressDistanceValid,
     pickupValidation.isEligible,
     routeAddresses.dropoff.address,
     routeAddresses.pickup.address,
@@ -1148,6 +1165,10 @@ export function CreateDeliveryShell() {
       return "Alege adresa de livrare.";
     }
 
+    if (!isAddressDistanceValid) {
+      return addressDistanceError ?? "Adresele trebuie să fie la minimum 150 m.";
+    }
+
     if (!isCandidatePointEligibleForContinue(selectedCandidatePoints.pickup)) {
       return "Selectează un punct sigur de handoff pentru ridicare.";
     }
@@ -1159,6 +1180,8 @@ export function CreateDeliveryShell() {
     return "Traseul este gata.";
   }, [
     dropoffValidation.isEligible,
+    addressDistanceError,
+    isAddressDistanceValid,
     pickupValidation.isEligible,
     routeAddresses.dropoff.address,
     routeAddresses.pickup.address,
@@ -2694,6 +2717,7 @@ export function CreateDeliveryShell() {
                   isLocked={isRouteSelectionLocked}
                   routeReady={routeReady}
                   platformGateMessage={deliveryGateMessage}
+                  distanceError={addressDistanceError}
                   onAddressChange={handleAddressChange}
                   onAddressSelect={handleAddressSelect}
                   onSavedPlaceSelect={handleSavedPlaceSelect}
@@ -2717,6 +2741,9 @@ export function CreateDeliveryShell() {
                     ariaLabel="Hartă traseu creare livrare"
                     center={mapViewport.center}
                     zoom={mapViewport.zoom}
+                    padding={{ left: 590, top: 118, right: 40, bottom: 40 }}
+                    viewportPolicy="minimal"
+                    transitionDurationMs={900}
                     interactive
                     showNavigation={false}
                     selectionMode={mapSelectionMode ?? "preview"}
@@ -2825,8 +2852,13 @@ export function CreateDeliveryShell() {
                             dropoff={routeAddresses.dropoff}
                             pickupValidation={pickupValidation}
                             dropoffValidation={dropoffValidation}
-                            pickupCandidatePoints={candidatePoints.pickup}
-                            dropoffCandidatePoints={candidatePoints.dropoff}
+                            pickupCandidatePoints={
+                              isAddressDistanceValid ? candidatePoints.pickup : []
+                            }
+                            dropoffCandidatePoints={
+                              isAddressDistanceValid ? candidatePoints.dropoff : []
+                            }
+                            distanceError={addressDistanceError}
                             isPlanningPickupHandoffPoints={isPlanningHandoffPoints.pickup}
                             isPlanningDropoffHandoffPoints={isPlanningHandoffPoints.dropoff}
                             isPickupLocked={isRouteSelectionLocked}
@@ -2882,7 +2914,6 @@ export function CreateDeliveryShell() {
                   size="sm"
                   eyebrow="Dispatch"
                   title="Când ar trebui să plece drona?"
-                  description="Alege mai întâi intervalul. Prețul și verificarea se actualizează din această selecție."
                 >
                   <div className="grid gap-3 md:grid-cols-3">
                     {urgencyOptions.map((option) => (
@@ -3103,6 +3134,12 @@ export function CreateDeliveryShell() {
                           </p>
                         </div>
 
+                        <details className="group border-t border-border/70">
+                          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground sm:px-5">
+                            <span className="group-open:hidden">Vezi specificațiile dronei</span>
+                            <span className="hidden group-open:inline">Ascunde specificațiile</span>
+                            <ChevronDown className="size-4 transition-transform duration-300 group-open:rotate-180" />
+                          </summary>
                         <div className="grid border-t border-border/70 lg:grid-cols-3">
                           <div className="px-4 py-4 sm:px-5 lg:border-r lg:border-border/70">
                             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -3146,6 +3183,7 @@ export function CreateDeliveryShell() {
                             </dl>
                           </div>
                         </div>
+                        </details>
                       </div>
                     ) : (
                       <div className="px-4 py-4 text-sm leading-6 text-muted-foreground sm:px-5">

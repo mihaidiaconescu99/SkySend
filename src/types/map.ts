@@ -95,6 +95,9 @@ export type MapContainerProps = {
   selectedPoint?: GeoPoint | null;
   onPointSelect?: (point: GeoPoint) => void;
   onViewportSettled?: (viewport: MapViewport) => void;
+  viewportPolicy?: "always" | "minimal";
+  transitionDurationMs?: number;
+  suspendAutoViewportOnInteractionMs?: number;
   overlayContent?: ReactNode;
 };
 

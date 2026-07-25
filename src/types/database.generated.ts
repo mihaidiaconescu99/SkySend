@@ -592,6 +592,147 @@ export type Database = {
           },
         ]
       }
+      incident_notes: {
+        Row: {
+          author_profile_id: string | null
+          body: string
+          created_at: string
+          id: string
+          incident_id: string
+        }
+        Insert: {
+          author_profile_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          incident_id: string
+        }
+        Update: {
+          author_profile_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          incident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_notes_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_notes_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incident_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_notifications: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          incident_id: string
+          provider_message_id: string | null
+          recipient_email: string
+          sent_by_profile_id: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          incident_id: string
+          provider_message_id?: string | null
+          recipient_email: string
+          sent_by_profile_id?: string | null
+          status: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          incident_id?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          sent_by_profile_id?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_notifications_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incident_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_notifications_sent_by_profile_id_fkey"
+            columns: ["sent_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_workflows: {
+        Row: {
+          archived_at: string | null
+          assigned_profile_id: string | null
+          created_at: string
+          id: string
+          order_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assigned_profile_id?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assigned_profile_id?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_workflows_assigned_profile_id_fkey"
+            columns: ["assigned_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_workflows_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parcel_ai_images: {
         Row: {
           content_type: string
@@ -1274,6 +1415,7 @@ export type Database = {
           failure_reason: string | null
           id: string
           order_id: string
+          payment_method_snapshot: Json
           profile_id: string
           status: string
           stripe_charge_id: string | null
@@ -1288,6 +1430,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           order_id: string
+          payment_method_snapshot?: Json
           profile_id: string
           status: string
           stripe_charge_id?: string | null
@@ -1302,6 +1445,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           order_id?: string
+          payment_method_snapshot?: Json
           profile_id?: string
           status?: string
           stripe_charge_id?: string | null

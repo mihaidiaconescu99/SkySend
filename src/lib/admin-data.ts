@@ -184,6 +184,7 @@ export const operationalPlatformStatusLabels: Record<
 > = {
   active: "Activă",
   maintenance: "Mentenanță",
+  unavailable: "Indisponibilă",
 };
 
 const exportRequestStatusLabels: Record<ExportRequestStatus, string> = {

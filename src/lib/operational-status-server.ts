@@ -26,7 +26,9 @@ export async function getOperationalStatusSnapshot(
     ]);
 
   const manualStatus: ManualPlatformStatus =
-    settings?.manual_status === "maintenance" || settings?.is_active === false
+    settings?.manual_status === "unavailable"
+      ? "unavailable"
+      : settings?.manual_status === "maintenance" || settings?.is_active === false
       ? "maintenance"
       : "active";
   const weatherLevel =

@@ -96,7 +96,6 @@ export const serverEnv = {
 
   OPENAI_API_KEY: opt(process.env.OPENAI_API_KEY, ""),
 
-  TAVILY_API_KEY: opt(process.env.TAVILY_API_KEY, ""),
 
   OPEN_FOOD_FACTS_USER_AGENT: opt(
     process.env.OPEN_FOOD_FACTS_USER_AGENT,

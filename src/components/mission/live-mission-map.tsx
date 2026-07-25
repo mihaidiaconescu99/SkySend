@@ -320,7 +320,10 @@ export function LiveMissionMap({
     ];
   })();
   const viewport = useMemo(() => {
-    const markerViewport = getMarkerDrivenViewport(markers);
+    const followMarkers = markers.filter((marker) => marker.id !== "mission-hub");
+    const markerViewport = getMarkerDrivenViewport(
+      followMarkers.length ? followMarkers : markers,
+    );
     return {
       ...markerViewport,
       zoom: Math.max(11, markerViewport.zoom - 0.55),
@@ -399,6 +402,8 @@ export function LiveMissionMap({
       zoom={viewport.zoom}
       interactive
       showNavigation
+      suspendAutoViewportOnInteractionMs={3000}
+      transitionDurationMs={1200}
       markers={markers}
       overlays={serviceAreaOverlays}
       lines={lines}

@@ -834,6 +834,7 @@ export function buildPaymentRecordRow(
     type: "payment",
     status: "succeeded",
     failure_reason: null,
+    payment_method_snapshot: {},
     created_at: "2026-05-23T10:00:00Z",
     ...overrides,
   };

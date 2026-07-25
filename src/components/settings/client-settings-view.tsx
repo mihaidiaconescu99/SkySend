@@ -348,13 +348,13 @@ export function ClientSettingsView() {
       />
 
       <div className="grid gap-5">
+        <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
         <SectionCard
           eyebrow="Cont"
           title="Cont"
-          description="Datele sensibile ale contului sunt gestionate securizat prin Clerk."
         >
           <div className="grid gap-4">
-            <div className="grid gap-5 rounded-[calc(var(--radius)+0.5rem)] border border-border/80 bg-secondary/35 p-5 expanded-ui:grid-cols-[auto_minmax(0,1fr)_auto] expanded-ui:items-center">
+            <div className="grid gap-5 expanded-ui:grid-cols-[auto_minmax(0,1fr)] expanded-ui:items-center">
               <div className="relative size-20">
                 <div className="size-20 overflow-hidden rounded-3xl border border-primary/20 bg-primary/10">
                   {isLoaded && user?.imageUrl ? (
@@ -393,23 +393,17 @@ export function ClientSettingsView() {
                     {displayName}
                   </h2>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4">
                   <div className="rounded-[var(--radius)] border border-border/80 bg-background p-4">
                     <p className="text-sm text-muted-foreground">Email principal</p>
                     <p className="mt-1 truncate font-medium text-foreground">
                       {primaryEmail}
                     </p>
                   </div>
-                  <div className="rounded-[var(--radius)] border border-border/80 bg-background p-4">
-                    <p className="text-sm text-muted-foreground">Status cont</p>
-                    <p className="mt-1 font-medium text-foreground">
-                      {isLoaded ? "Activ" : "Se încarcă"}
-                    </p>
-                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-2 expanded-ui:min-w-48 expanded-ui:grid-cols-1">
+              <div className="grid gap-2 expanded-ui:col-span-2 expanded-ui:grid-cols-2">
                 <AppButton
                   type="button"
                   onClick={() => setAccountPanelOpen(true)}
@@ -430,14 +424,20 @@ export function ClientSettingsView() {
               </div>
             </div>
 
-            <AccountBillingProfile />
-
             {accountMessage ? (
               <p className="text-sm font-medium text-primary">{accountMessage}</p>
             ) : null}
 
           </div>
         </SectionCard>
+        <SectionCard
+          eyebrow="Facturare"
+          title="Date de facturare"
+          description="Datele folosite pentru precompletarea comenzilor viitoare."
+        >
+          <AccountBillingProfile />
+        </SectionCard>
+        </div>
 
         <SectionCard
           eyebrow={t("settings.preferences.eyebrow")}

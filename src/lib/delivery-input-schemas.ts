@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { calculateDistanceMeters } from "@/lib/geo/distance";
 
 import {
   boundedJsonValueSchema,
@@ -254,7 +255,7 @@ const selectedConfigurationSchema = z
   })
   .strict();
 
-export const createDeliveryPayloadSchema = z
+const createDeliveryPayloadBaseSchema = z
   .object({
     userId: z.string().trim().min(1).max(200).nullable(),
     pickupAddress: addressPayloadSchema,
@@ -304,11 +305,37 @@ export const createDeliveryPayloadSchema = z
   })
   .strict();
 
-export const checkoutDeliveryPayloadSchema = createDeliveryPayloadSchema.omit({
-  userId: true,
-  estimatedPrice: true,
-  pricingSnapshot: true,
-});
+function validateDeliveryDistance(
+  value: {
+    pickupAddress: { location: { latitude: number; longitude: number } };
+    dropoffAddress: { location: { latitude: number; longitude: number } };
+  },
+  context: z.RefinementCtx,
+) {
+    const distanceMeters = calculateDistanceMeters(
+      value.pickupAddress.location,
+      value.dropoffAddress.location,
+    );
+
+    if (distanceMeters < 150) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["dropoffAddress", "location"],
+        message: "delivery_distance_below_150_meters",
+      });
+    }
+}
+
+export const createDeliveryPayloadSchema =
+  createDeliveryPayloadBaseSchema.superRefine(validateDeliveryDistance);
+
+export const checkoutDeliveryPayloadSchema = createDeliveryPayloadBaseSchema
+  .omit({
+    userId: true,
+    estimatedPrice: true,
+    pricingSnapshot: true,
+  })
+  .superRefine(validateDeliveryDistance);
 
 export const parcelEvaluationSnapshotSchema = z
   .object({

@@ -19,5 +19,7 @@ export function effectiveThemeForPathname(
   pathname: string,
   preference: "dark" | "light",
 ): "dark" | "light" {
-  return isAppRoute(pathname) ? preference : "dark";
+  return pathname === "/client" || pathname.startsWith("/client/")
+    ? preference
+    : "dark";
 }

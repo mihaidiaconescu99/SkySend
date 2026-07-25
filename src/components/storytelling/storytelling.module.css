@@ -25,6 +25,14 @@
     radial-gradient(circle at 18% 34%, rgb(32 231 213 / 0.16), transparent 34rem),
     radial-gradient(circle at 80% 68%, rgb(114 80 255 / 0.15), transparent 38rem),
     linear-gradient(118deg, #071923 0%, #0a202d 52%, #0d1726 100%);
+  --how-pickup-surface:
+    radial-gradient(circle at 18% 38%, rgb(32 231 213 / 0.26), transparent 30rem),
+    radial-gradient(circle at 76% 76%, rgb(18 111 141 / 0.2), transparent 38rem),
+    linear-gradient(122deg, #04111c 0%, #071f2c 48%, #081725 100%);
+  --how-dropoff-surface:
+    radial-gradient(circle at 82% 34%, rgb(32 231 213 / 0.25), transparent 31rem),
+    radial-gradient(circle at 24% 76%, rgb(18 111 141 / 0.19), transparent 38rem),
+    linear-gradient(238deg, #04111c 0%, #071f2c 48%, #081725 100%);
   --story-final-background:
     radial-gradient(circle at 22% 37%, rgb(21 67 96 / 0.36), transparent 35rem),
     radial-gradient(circle at 80% 48%, rgb(28 49 68 / 0.24), transparent 28rem),
@@ -1057,9 +1065,19 @@
   background: var(--how-story-surface);
 }
 
-.howPickupPanel { z-index: 1; }
+.howPickupPanel {
+  z-index: 1;
+  background: var(--how-pickup-surface);
+}
 .howFlightPanel { z-index: 2; will-change: transform; }
-.howDropoffPanel { z-index: 3; will-change: transform; }
+.howDropoffPanel {
+  z-index: 3;
+  background: var(--how-dropoff-surface);
+  will-change: transform;
+}
+
+.howPickupPanel .howJourneySplit { background: var(--how-pickup-surface); }
+.howDropoffPanel .howJourneySplit { background: var(--how-dropoff-surface); }
 
 .howJourneyScene,
 .howFlightScene {
@@ -1199,6 +1217,7 @@
 .editorialHeadline h2 > span:last-child {
   font-size: clamp(3.4rem, 6.8vw, 8rem);
   text-wrap: balance;
+  transform: scaleX(0.95);
 }
 
 .finalCtaFadeIn {
@@ -2238,8 +2257,10 @@
   }
 
   .editorialHeadline h2 > span:last-child {
+    width: 92%;
     max-width: 22ch;
     font-size: clamp(1.55rem, 8vw, 2.5rem);
+    transform: scaleX(1.08);
   }
 
   .editorialVideoLayer {
@@ -2423,7 +2444,7 @@
   .landingWordmark {
     font-size: clamp(4rem, 17vw, 6rem);
     letter-spacing: -0.02em;
-    transform: scaleX(0.86);
+    transform: scaleX(1);
   }
   .landingMessage {
     z-index: 43;
@@ -2432,7 +2453,7 @@
     letter-spacing: -0.045em;
     line-height: 1.24;
     padding-block: 0.16em 0.24em;
-    transform: translate(-50%, -50%) scaleX(0.58);
+    transform: translate(-50%, -50%) scaleX(0.72);
   }
   .howHeroCopy {
     bottom: max(15rem, calc(env(safe-area-inset-bottom) + 2.6rem));

@@ -105,6 +105,15 @@ function applyPrefsToDocument(prefs: UserPrefs) {
   root.classList.toggle("light", effectiveTheme === "light");
   root.style.colorScheme = effectiveTheme === "dark" ? "dark" : "light";
   root.lang = prefs.language;
+  const surfaceColor = effectiveTheme === "light" ? "#f4f8f7" : "#070b10";
+  let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!themeColor) {
+    themeColor = document.createElement("meta");
+    themeColor.name = "theme-color";
+    document.head.appendChild(themeColor);
+  }
+  themeColor.content = surfaceColor;
+  document.body.style.backgroundColor = surfaceColor;
 }
 
 function enableThemeTransition() {

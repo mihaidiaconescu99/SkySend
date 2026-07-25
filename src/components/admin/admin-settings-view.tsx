@@ -48,6 +48,8 @@ function getPlatformTone(status: OperationalSettings["platformStatus"]) {
       return "success" as const;
     case "maintenance":
       return "warning" as const;
+    case "unavailable":
+      return "destructive" as const;
   }
 }
 

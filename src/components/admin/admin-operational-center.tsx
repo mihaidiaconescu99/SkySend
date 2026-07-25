@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
-  Ban,
   Clock3,
   Inbox,
   Loader2,
@@ -20,9 +19,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AppButton } from "@/components/shared/app-button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { cancelRuntimeOrdersInProgress } from "@/lib/admin-data";
-import { cn } from "@/lib/utils";
-import type { AdminAuditActor, OperationalPlatformStatus } from "@/types/admin";
+import type { OperationalPlatformStatus } from "@/types/admin";
 import type {
   OperationalCenterData,
   OperationalContactMessage,
@@ -36,15 +33,6 @@ type OperationalCenterViewProps = {
 };
 
 type StatusTone = "neutral" | "success" | "warning" | "destructive" | "info";
-type BulkOrderActionFeedback = {
-  tone: "success" | "destructive";
-  message: string;
-};
-const adminBulkActor: AdminAuditActor = {
-  actorId: "admin-local",
-  actorRole: "admin",
-  actorName: "Panou Administrator",
-};
 
 function formatDateTime(value?: string | null) {
   if (!value) {
@@ -59,7 +47,7 @@ function formatDateTime(value?: string | null) {
 
 function formatMoney(value: OperationalMapOrder["price"]) {
   if (!value) {
-    return "PreÈ› indisponibil";
+    return "Preț indisponibil";
   }
 
   return new Intl.NumberFormat("ro-RO", {
@@ -113,6 +101,8 @@ function getPlatformTone(status: OperationalPlatformStatus): StatusTone {
       return "success";
     case "maintenance":
       return "warning";
+    case "unavailable":
+      return "destructive";
   }
 }
 
@@ -195,7 +185,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
         <QueueHeader
           icon={Package2}
           title="Comenzi active"
-          description="Programate, Ã®n aÈ™teptare sau Ã®n zbor, ordonate dupÄƒ starea curentÄƒ."
+          description="Programate, în așteptare sau în zbor, ordonate după starea curentă."
           href="/admin/orders"
         />
 
@@ -219,7 +209,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
               <div>
                 <p className="text-xs text-muted-foreground">Ruta</p>
                 <p className="mt-1 truncate text-sm text-foreground">
-                  {order.pickup.label} cÄƒtre {order.dropoff.label}
+                  {order.pickup.label} către {order.dropoff.label}
                 </p>
               </div>
               <div>
@@ -235,7 +225,7 @@ function ActiveOrdersQueue({ orders }: { orders: OperationalMapOrder[] }) {
           ))}
 
           {orders.length === 0 ? (
-            <EmptyQueueState>Nu existÄƒ comenzi active Ã®n datele disponibile.</EmptyQueueState>
+            <EmptyQueueState>Nu există comenzi active în datele disponibile.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -250,7 +240,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
         <QueueHeader
           icon={ShieldAlert}
           title="Incidente"
-          description="Cazuri de rezolvat operaÈ›ional, fÄƒrÄƒ recuperÄƒri locker dublate."
+          description="Cazuri de rezolvat operațional, fără recuperări locker dublate."
           href="/admin/failed-orders"
         />
 
@@ -274,7 +264,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">LocaÈ›ie colet</p>
+                <p className="text-xs text-muted-foreground">Locație colet</p>
                 <p className="mt-1 truncate text-sm text-foreground">
                   {incident.locationLabel}
                 </p>
@@ -289,7 +279,7 @@ function FailedOrdersQueue({ incidents }: { incidents: OperationalIncident[] }) 
           ))}
 
           {incidents.length === 0 ? (
-            <EmptyQueueState>Nu existÄƒ incidente Ã®n datele disponibile.</EmptyQueueState>
+            <EmptyQueueState>Nu există incidente în datele disponibile.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -308,7 +298,7 @@ function ContactMessagesQueue({
         <QueueHeader
           icon={Inbox}
           title="Mesaje noi"
-          description="Mesaje primite È™i nesortate Ã®ncÄƒ Ã®n fluxul de suport."
+          description="Mesaje primite și nesortate încă în fluxul de suport."
           href="/admin/site-messages"
         />
 
@@ -337,7 +327,7 @@ function ContactMessagesQueue({
           ))}
 
           {messages.length === 0 ? (
-            <EmptyQueueState>Nu existÄƒ mesaje noi.</EmptyQueueState>
+            <EmptyQueueState>Nu există mesaje noi.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -351,8 +341,8 @@ function PlatformStatusPanel({ data }: { data: OperationalCenterData }) {
       <CardContent className="grid gap-4 p-5">
         <QueueHeader
           icon={Settings}
-          title="Status platformÄƒ"
-          description="SetÄƒri operaÈ›ionale folosite de panoul admin."
+          title="Status platformă"
+          description="Setări operaționale folosite de panoul admin."
           href="/admin/settings"
         />
 
@@ -365,7 +355,7 @@ function PlatformStatusPanel({ data }: { data: OperationalCenterData }) {
             />
           </div>
           <div className="flex items-center justify-between gap-3 rounded-[calc(var(--radius)+0.35rem)] border border-border/75 bg-secondary/25 p-4">
-            <span className="text-muted-foreground">RazÄƒ activÄƒ</span>
+            <span className="text-muted-foreground">Rază activă</span>
             <span className="font-medium text-foreground">
               {data.platform.serviceRadiusKm} km
             </span>
@@ -402,12 +392,12 @@ function LockerRecoveryNotice({
       <div className="flex items-center gap-3">
         <AlertTriangle className="size-4 text-warning" />
         <p className="text-muted-foreground">
-          {incidents.length} recuperÄƒri locker active generate de simulare.
+          {incidents.length} recuperări locker active generate de simulare.
         </p>
       </div>
       <AppButton asChild variant="outline" size="sm">
         <Link href="/admin/locker-recoveries">
-          Vezi recuperÄƒri
+          Vezi recuperări
           <ArrowRight className="size-4" />
         </Link>
       </AppButton>
@@ -421,9 +411,9 @@ function ActivityFeed({ events }: { events: OperationalEvent[] }) {
       <CardContent className="grid gap-4 p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-medium text-foreground">Activitate recentÄƒ</p>
+            <p className="font-medium text-foreground">Activitate recentă</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Evenimente calculate din comenzile È™i cazurile existente.
+              Evenimente calculate din comenzile și cazurile existente.
             </p>
           </div>
           <Clock3 className="size-5 text-muted-foreground" />
@@ -454,7 +444,7 @@ function ActivityFeed({ events }: { events: OperationalEvent[] }) {
           ))}
 
           {events.length === 0 ? (
-            <EmptyQueueState>Nu existÄƒ activitate recentÄƒ de afiÈ™at.</EmptyQueueState>
+            <EmptyQueueState>Nu există activitate recentă de afișat.</EmptyQueueState>
           ) : null}
         </div>
       </CardContent>
@@ -466,11 +456,6 @@ export function AdminOperationalCenterView({
   initialData,
 }: OperationalCenterViewProps) {
   const [data, setData] = useState(initialData);
-  const [bulkActionFeedback, setBulkActionFeedback] =
-    useState<BulkOrderActionFeedback | null>(null);
-  const [bulkActionRunning, setBulkActionRunning] = useState<"cancel" | null>(
-    null,
-  );
   const [isManualRefreshRunning, setIsManualRefreshRunning] = useState(false);
   const refreshOperationalData = useCallback(async () => {
     try {
@@ -524,49 +509,6 @@ export function AdminOperationalCenterView({
     (incident) => incident.priority === "urgent" || incident.priority === "high",
   ).length;
 
-  function handleCancelActiveOrders() {
-    if (data.activeOrders.length === 0) {
-      setBulkActionFeedback({
-        tone: "success",
-        message: "Nu existÄƒ comenzi Ã®n desfÄƒÈ™urare de anulat.",
-      });
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Anulezi ${data.activeOrders.length} comenzi Ã®n desfÄƒÈ™urare? Comenzile vor rÄƒmÃ¢ne Ã®n istoric, dar nu vor mai apÄƒrea ca livrÄƒri active.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setBulkActionRunning("cancel");
-    const result = cancelRuntimeOrdersInProgress({
-      actor: adminBulkActor,
-      reason: "Anulare Ã®n masÄƒ din Privire generalÄƒ.",
-    });
-
-    if (!result.ok) {
-      setBulkActionFeedback({
-        tone: "destructive",
-        message: "Comenzile nu pot fi anulate Ã®n acest browser deoarece stocarea localÄƒ nu este disponibilÄƒ.",
-      });
-      setBulkActionRunning(null);
-      return;
-    }
-
-    refreshOperationalData();
-    setBulkActionFeedback({
-      tone: "success",
-      message:
-        result.affectedOrders === 1
-          ? "O comandÄƒ Ã®n desfÄƒÈ™urare a fost anulatÄƒ."
-          : `${result.affectedOrders} comenzi Ã®n desfÄƒÈ™urare au fost anulate.`,
-    });
-    setBulkActionRunning(null);
-  }
-
   async function handleManualRefresh() {
     setIsManualRefreshRunning(true);
     await refreshOperationalData();
@@ -577,8 +519,8 @@ export function AdminOperationalCenterView({
     <section className="flex flex-col gap-6">
       <AdminPageHeader
         eyebrow="Panou Administrator"
-        title="Privire generalÄƒ"
-        description="Cozi de lucru pentru comenzi, incidente, mesaje È™i statusul platformei."
+        title="Privire generală"
+        description="Cozi de lucru pentru comenzi, incidente, mesaje și statusul platformei."
         actions={
           <>
             <AppButton
@@ -593,19 +535,6 @@ export function AdminOperationalCenterView({
                 <RefreshCw className="size-4" />
               )}
               Refresh
-            </AppButton>
-            <AppButton
-              type="button"
-              variant="outline"
-              onClick={handleCancelActiveOrders}
-              disabled={Boolean(bulkActionRunning) || data.activeOrders.length === 0}
-            >
-              {bulkActionRunning === "cancel" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Ban className="size-4" />
-              )}
-              AnuleazÄƒ active
             </AppButton>
             <AppButton asChild variant="outline">
               <Link href="/admin/orders">
@@ -623,24 +552,11 @@ export function AdminOperationalCenterView({
         }
       />
 
-      {bulkActionFeedback ? (
-        <div
-          className={cn(
-            "rounded-[calc(var(--radius)+0.35rem)] border px-4 py-3 text-sm leading-6",
-            bulkActionFeedback.tone === "destructive"
-              ? "border-destructive/40 bg-destructive/8 text-destructive"
-              : "border-primary/35 bg-primary/10 text-foreground",
-          )}
-        >
-          {bulkActionFeedback.message}
-        </div>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
           label="Comenzi active"
           value={`${data.activeOrders.length}`}
-          hint="Programate, Ã®n aÈ™teptare sau Ã®n zbor."
+          hint="Programate, în așteptare sau în zbor."
           tone={data.activeOrders.length > 0 ? "info" : "neutral"}
         />
         <OverviewCard
@@ -648,21 +564,39 @@ export function AdminOperationalCenterView({
           value={`${failedIncidents.length}`}
           hint={
             urgentFailedCount > 0
-              ? `${urgentFailedCount} cazuri cu prioritate ridicatÄƒ.`
-              : "FÄƒrÄƒ cazuri prioritare Ã®n listÄƒ."
+              ? `${urgentFailedCount} cazuri cu prioritate ridicată.`
+              : "Fără cazuri prioritare în listă."
           }
           tone={urgentFailedCount > 0 ? "warning" : "neutral"}
+        />
+        <OverviewCard
+          label="Încasări nete astăzi"
+          value={formatMoney({
+            amountMinor: data.activeOrders
+              .filter(
+                (order) =>
+                  new Date(order.updatedAt).toDateString() ===
+                  new Date().toDateString(),
+              )
+              .reduce(
+                (total, order) => total + (order.price?.amountMinor ?? 0),
+                0,
+              ),
+            currency: "RON",
+          })}
+          hint="Plăți ale comenzilor active actualizate astăzi."
+          tone="success"
         />
         {false ? <OverviewCard
           label="Mesaje noi"
           value={`${data.contactMessages.length}`}
-          hint="Mesaje care nu au fost preluate Ã®ncÄƒ."
+          hint="Mesaje care nu au fost preluate încă."
           tone={data.contactMessages.length > 0 ? "info" : "neutral"}
         /> : null}
         <OverviewCard
-          label="Status platformÄƒ"
+          label="Status platformă"
           value={data.platform.statusLabel}
-          hint={`RazÄƒ activÄƒ: ${data.platform.serviceRadiusKm} km.`}
+          hint={`Rază activă: ${data.platform.serviceRadiusKm} km.`}
           tone={getPlatformTone(data.platform.status)}
         />
       </div>

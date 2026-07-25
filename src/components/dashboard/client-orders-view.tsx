@@ -63,7 +63,7 @@ function EmptyOrders({ scheduled }: { scheduled: boolean }) {
 
 function DetailsLink({ order }: { order: ClientOrderSummary }) {
   return (
-    <AppButton asChild variant="ghost" size="sm" className="shrink-0">
+    <AppButton asChild variant="ghost" size="sm" className="shrink-0 whitespace-nowrap">
       <Link href={order.href}>Detalii<ArrowRight className="size-4" /></Link>
     </AppButton>
   );

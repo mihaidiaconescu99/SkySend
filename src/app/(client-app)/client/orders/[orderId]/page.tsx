@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { LiveMissionTrackingView } from "@/components/delivery/live-mission-tracking-view";
-import { OrderBillingDocuments } from "@/components/billing/order-billing-documents";
 import { droneClassLabels } from "@/constants/domain";
 import { createPageMetadata } from "@/lib/metadata";
 import { getClientOrderDetail } from "@/lib/client-orders";
@@ -276,10 +275,6 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
   }
   if (order.status === "failed") runtimeOrder.fulfillmentStatus = "failed_mission";
   if (order.status === "delivered") runtimeOrder.fulfillmentStatus = "completed_mission";
-  const isFailedDelivery =
-    order.status === "failed" ||
-    runtimeOrder.fulfillmentStatus === "failed_mission" ||
-    runtimeOrder.missionStatus === "mission_failed";
   runtimeOrder.completedAt = order.completedAt ?? null;
   runtimeOrder.publicCodeAccessMode =
     storedOrder.ok && storedOrder.data
@@ -314,11 +309,6 @@ export default async function ClientOrderDetailsPage({ params }: PageProps) {
       }
       startOnMount={shouldStartMission(order.status) && paymentStatus === "paid"}
     />
-    {!isFailedDelivery ? (
-      <div className="app-container mt-6">
-        <OrderBillingDocuments orderId={order.id} />
-      </div>
-    ) : null}
     </>
   );
 }

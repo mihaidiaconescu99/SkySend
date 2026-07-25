@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -637,6 +638,8 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const [isEditingConfirmation, setIsEditingConfirmation] = useState(false);
   const [clarificationAnswers, setClarificationAnswers] =
     useState<ClarificationAnswerDraft>({});
+  const [clarificationWeightUnits, setClarificationWeightUnits] =
+    useState<Record<string, "kg" | "g">>({});
   const [submittedClarificationAnswers, setSubmittedClarificationAnswers] =
     useState<ParcelClarificationAnswer[]>([]);
   const [isEstimating, setIsEstimating] = useState(false);
@@ -693,9 +696,17 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     .map((question) => {
       const raw = clarificationAnswers[question.id] ?? "";
       const custom = clarificationAnswers[`${question.id}__custom`] ?? "";
-      const answer = question.answerType === "multi_select"
+      let answer = question.answerType === "multi_select"
         ? raw.split("|").flatMap((item) => item === "__custom" ? (custom ? [custom] : []) : [item]).join("|")
         : raw === "__custom" ? custom : raw;
+      if (
+        question.field === "weight" &&
+        clarificationWeightUnits[question.id] === "g" &&
+        answer.trim()
+      ) {
+        const grams = Number(answer.replace(",", "."));
+        answer = Number.isFinite(grams) ? String(grams / 1000) : answer;
+      }
       return normalizeClarificationAnswer(question, answer);
     })
     .filter((answer): answer is ParcelClarificationAnswer => Boolean(answer));
@@ -1935,24 +1946,59 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
                             ))}
                           </select>
                         ) : (
-                          <input
-                            type={question.answerType === "number" ? "number" : "text"}
-                            min={question.answerType === "number" ? "0.1" : undefined}
-                            step={question.answerType === "number" ? "0.1" : undefined}
-                            value={value}
-                            placeholder={
-                              question.field === "weight"
-                                ? "Ex: 1.2 kg"
-                                : "Răspuns scurt"
-                            }
-                            onChange={(event) =>
-                              updateClarificationAnswer(
-                                question.id,
-                                event.target.value,
-                              )
-                            }
-                            className="h-12 min-w-0 rounded-2xl border border-input bg-card px-4 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
-                          />
+                          <div className="flex min-w-0 gap-2">
+                            <input
+                              type={question.answerType === "number" ? "number" : "text"}
+                              min={question.answerType === "number" ? "0.1" : undefined}
+                              step={question.answerType === "number" ? "0.1" : undefined}
+                              value={value}
+                              placeholder={
+                                question.field === "weight"
+                                  ? clarificationWeightUnits[question.id] === "g"
+                                    ? "Ex: 1200"
+                                    : "Ex: 1.2"
+                                  : "Răspuns scurt"
+                              }
+                              onChange={(event) =>
+                                updateClarificationAnswer(
+                                  question.id,
+                                  event.target.value,
+                                )
+                              }
+                              className="h-12 min-w-0 flex-1 rounded-2xl border border-input bg-card px-4 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-primary/15 focus-visible:ring-4 focus-visible:ring-ring"
+                            />
+                            {question.field === "weight" ? (
+                              <div className="relative grid h-12 shrink-0 grid-cols-2 rounded-2xl border border-border/80 bg-secondary/55 p-1">
+                                {(["kg", "g"] as const).map((unit) => {
+                                  const active =
+                                    (clarificationWeightUnits[question.id] ?? "kg") === unit;
+                                  return (
+                                    <button
+                                      key={unit}
+                                      type="button"
+                                      className="relative z-10 min-w-11 rounded-xl px-2 text-xs font-semibold"
+                                      aria-pressed={active}
+                                      onClick={() =>
+                                        setClarificationWeightUnits((current) => ({
+                                          ...current,
+                                          [question.id]: unit,
+                                        }))
+                                      }
+                                    >
+                                      {active ? (
+                                        <motion.span
+                                          layoutId={`weight-unit-${question.id}`}
+                                          className="absolute inset-0 -z-10 rounded-xl bg-background shadow-sm"
+                                          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                                        />
+                                      ) : null}
+                                      {unit}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
                         )}
                         {value.includes("__custom") || value === "__custom" ? <input type="text" value={clarificationAnswers[`${question.id}__custom`] ?? ""} placeholder="Scrie răspunsul tău" onChange={(event) => updateClarificationAnswer(`${question.id}__custom`, event.target.value)} className="h-12 min-w-0 rounded-2xl border border-input bg-card px-4 text-sm outline-none" /> : null}
                       </label>

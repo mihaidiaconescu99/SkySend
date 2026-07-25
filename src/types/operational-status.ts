@@ -1,6 +1,10 @@
-export type ManualPlatformStatus = "active" | "maintenance";
+export type ManualPlatformStatus = "active" | "maintenance" | "unavailable";
 export type WeatherLevel = "safe" | "warning" | "suspended";
-export type EffectivePlatformStatus = "active" | "maintenance" | "suspended";
+export type EffectivePlatformStatus =
+  | "active"
+  | "maintenance"
+  | "unavailable"
+  | "suspended";
 export type WeatherCheckStatus = "never" | "success" | "failed";
 
 export type WeatherPointMetrics = {

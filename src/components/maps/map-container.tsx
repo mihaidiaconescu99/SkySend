@@ -428,6 +428,9 @@ export const MapContainer = memo(function MapContainer({
   selectedPoint,
   onPointSelect,
   onViewportSettled,
+  viewportPolicy = "always",
+  transitionDurationMs = 720,
+  suspendAutoViewportOnInteractionMs = 0,
   overlayContent,
 }: MapContainerProps) {
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
@@ -439,6 +442,9 @@ export const MapContainer = memo(function MapContainer({
   const activeLineIdsRef = useRef<string[]>([]);
   const clickHandlerRef = useRef(onPointSelect);
   const viewportSettledHandlerRef = useRef(onViewportSettled);
+  const autoViewportBlockedUntilRef = useRef(0);
+  const autoViewportResumeTimerRef = useRef<number | null>(null);
+  const [autoViewportRevision, setAutoViewportRevision] = useState(0);
   const initialCenterRef = useRef(center);
   const initialZoomRef = useRef(zoom);
   const hasAppliedFallbackStyleRef = useRef(false);
@@ -675,6 +681,21 @@ export const MapContainer = memo(function MapContainer({
           });
         });
 
+        const suspendAutoViewport = (event: { originalEvent?: unknown }) => {
+          if (!event.originalEvent || suspendAutoViewportOnInteractionMs <= 0) return;
+          autoViewportBlockedUntilRef.current =
+            Date.now() + suspendAutoViewportOnInteractionMs;
+          if (autoViewportResumeTimerRef.current) {
+            window.clearTimeout(autoViewportResumeTimerRef.current);
+          }
+          autoViewportResumeTimerRef.current = window.setTimeout(() => {
+            autoViewportBlockedUntilRef.current = 0;
+            setAutoViewportRevision((current) => current + 1);
+          }, suspendAutoViewportOnInteractionMs);
+        };
+        map.on("dragstart", suspendAutoViewport);
+        map.on("zoomstart", suspendAutoViewport);
+
         map.on("error", (event) => {
           if (!disposed) {
             const message = event.error?.message || "Eroare hartă necunoscută";
@@ -759,6 +780,9 @@ export const MapContainer = memo(function MapContainer({
       if (fallbackStyleTimeout) {
         window.clearTimeout(fallbackStyleTimeout);
       }
+      if (autoViewportResumeTimerRef.current) {
+        window.clearTimeout(autoViewportResumeTimerRef.current);
+      }
       resizeObserver?.disconnect();
       setIsReady(false);
       setIsInitializing(true);
@@ -776,7 +800,12 @@ export const MapContainer = memo(function MapContainer({
       hasLoadedStyleRef.current = false;
       setDiagnostics(initialDiagnostics);
     };
-  }, [interactive, shouldShowDiagnostics, showNavigation]);
+  }, [
+    interactive,
+    shouldShowDiagnostics,
+    showNavigation,
+    suspendAutoViewportOnInteractionMs,
+  ]);
 
   useEffect(() => {
     let currentTheme: "dark" | "light" =
@@ -802,6 +831,9 @@ export const MapContainer = memo(function MapContainer({
     if (!mapRef.current || !isReady) {
       return;
     }
+    if (Date.now() < autoViewportBlockedUntilRef.current) {
+      return;
+    }
 
     mapRef.current.setPadding(mapPadding);
   }, [isReady, mapPadding]);
@@ -811,14 +843,44 @@ export const MapContainer = memo(function MapContainer({
       return;
     }
 
-    mapRef.current.easeTo({
+    const map = mapRef.current;
+    const currentZoom = map.getZoom();
+    const requestedZoom =
+      viewportPolicy === "minimal" ? Math.min(currentZoom, zoom) : zoom;
+
+    if (viewportPolicy === "minimal") {
+      const projectedTarget = map.project([center.longitude, center.latitude]);
+      const canvas = map.getCanvas();
+      const horizontalMargin = 48;
+      const verticalMargin = 48;
+      const isInsideVisibleArea =
+        projectedTarget.x >= mapPadding.left + horizontalMargin &&
+        projectedTarget.x <= canvas.clientWidth - mapPadding.right - horizontalMargin &&
+        projectedTarget.y >= mapPadding.top + verticalMargin &&
+        projectedTarget.y <= canvas.clientHeight - mapPadding.bottom - verticalMargin;
+
+      if (isInsideVisibleArea && requestedZoom >= currentZoom) {
+        return;
+      }
+    }
+
+    map.easeTo({
       center: [center.longitude, center.latitude],
-      zoom,
+      zoom: requestedZoom,
       padding: mapPadding,
-      duration: 720,
+      duration: transitionDurationMs,
       essential: true,
     });
-  }, [center.latitude, center.longitude, isReady, mapPadding, zoom]);
+  }, [
+    center.latitude,
+    center.longitude,
+    autoViewportRevision,
+    isReady,
+    mapPadding,
+    transitionDurationMs,
+    viewportPolicy,
+    zoom,
+  ]);
 
   useEffect(() => {
     if (!isReady || !mapRef.current || !maplibreRef.current) {

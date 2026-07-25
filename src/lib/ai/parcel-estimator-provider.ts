@@ -8,7 +8,6 @@ import {
   parseLiquidVolumeLiters,
 } from "@/lib/parcel-assistant";
 import { estimateParcelWithOpenRouter } from "@/lib/ai/openrouter-parcel-estimator";
-import { runProductLookupForEstimate } from "@/lib/ai/tavily-product-lookup";
 import { lookupExactCatalogProducts } from "@/lib/ai/product-catalog";
 import { getRecommendedDrone } from "@/lib/drone-recommendation";
 import type { DroneClass } from "@/types/domain";
@@ -1686,10 +1685,16 @@ export async function estimateParcelForDispatch(
   const provider = process.env.AI_PROVIDER?.trim().toLowerCase() || "openrouter";
 
   const preview = buildLocalEstimate(input);
-  const lookup = await runProductLookupForEstimate(
-    input,
-    preview.detectedItemsDetailed ?? [],
-  );
+  const lookup = {
+    trace: {
+      queries: [],
+      results: [],
+      skipped: true,
+      reason: "no_query" as const,
+      usedInPrompt: false,
+    },
+    results: [] as ProductLookupResult[],
+  };
 
   if (provider !== "openrouter") {
     return {

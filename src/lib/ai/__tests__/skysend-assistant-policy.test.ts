@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  explicitlyRequestsSupportTicket,
   getSkySendAssistantReply,
   isConfidentialAssistantRequest,
   shouldOfferAssistantHandoff,
@@ -21,6 +22,20 @@ describe("assistant security policy", () => {
 });
 
 describe("assistant ticket policy", () => {
+  it.each([
+    "Creează tichet",
+    "Te rog deschide un tichet de suport",
+    "Create a support ticket",
+  ])("creates a ticket directly for an explicit request: %s", (request) => {
+    expect(explicitlyRequestsSupportTicket(request)).toBe(true);
+  });
+
+  it("keeps confirmation for an ambiguous support message", () => {
+    expect(explicitlyRequestsSupportTicket("Am o problemă cu livrarea")).toBe(
+      false,
+    );
+  });
+
   it("does not offer a ticket for general documented questions", () => {
     expect(shouldOfferAssistantHandoff("Cum funcționează rambursarea?")) .toBe(false);
     expect(shouldOfferAssistantHandoff("Ce este un agent operator?")) .toBe(false);
@@ -62,4 +77,3 @@ describe("assistant fallback", () => {
     expect(reply.sourceIds).toEqual(["faq.payments.001"]);
   });
 });
-

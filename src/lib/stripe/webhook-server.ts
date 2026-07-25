@@ -153,6 +153,11 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
       currency: intent.currency.toUpperCase(), type: "payment", status: "succeeded",
     });
   }
+  await database
+    .from("payment_records")
+    .update({ payment_method_snapshot: method })
+    .eq("stripe_payment_intent_id", intent.id)
+    .eq("type", "payment");
   const order = rowToOrder(updated);
   await ensureInvoiceDocument(createAdminSupabaseClient(), order, method);
   const operational = await getOperationalStatusSnapshot();

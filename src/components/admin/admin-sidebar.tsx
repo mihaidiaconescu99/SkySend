@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, ShieldCheck, Wrench } from "lucide-react";
+import { ShieldCheck, UserRound, Wrench } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { adminNavigationItems } from "@/constants/admin-navigation";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { cn } from "@/lib/utils";
@@ -27,9 +28,11 @@ function isActiveAdminItem(currentPath: string, href: string) {
 }
 
 export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
+  const reduceMotion = Boolean(useReducedMotion());
   const workspaces = [
     { label: "Spațiu admin", href: "/admin", icon: ShieldCheck },
     { label: "Spațiu operator", href: "/operator", icon: Wrench },
+    { label: "Spațiu client", href: "/client", icon: UserRound },
   ] as const;
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-border/70 bg-sidebar/95">
@@ -43,18 +46,6 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
           <BrandMark compact />
         </Link>
 
-        <div className="rounded-[calc(var(--radius)+0.35rem)] border border-border/70 bg-card/60 p-3">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Administrare
-          </p>
-          <p className="mt-1.5 font-heading text-lg tracking-tight text-foreground">
-            Panou Administrator
-          </p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Spațiu intern pentru operațiunile SkySend.
-          </p>
-        </div>
-
         <nav aria-label="Navigație administrator" className="grid gap-1.5">
           {adminNavigationItems.map((item) => {
             const Icon = item.icon;
@@ -67,30 +58,36 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
                 aria-current={isActive ? "page" : undefined}
                 onClick={onNavigate}
                 className={cn(
-                  "group rounded-[calc(var(--radius)+0.25rem)] border px-3 py-2.5 transition-colors",
+                  "group rounded-xl border px-3 py-2.5 transition-colors",
                   isActive
-                    ? "border-primary/45 bg-primary/10 text-foreground"
+                    ? "border-transparent text-foreground"
                     : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-secondary/70 hover:text-foreground",
                 )}
               >
-                <span className="flex min-w-0 items-start gap-3">
+                <span className="flex min-w-0 items-center gap-3">
                   <span
                     className={cn(
-                      "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
+                      "relative flex size-8 shrink-0 items-center justify-center rounded-lg",
                       isActive
-                        ? "bg-primary text-primary-foreground"
+                        ? "text-primary-foreground"
                         : "bg-secondary text-foreground",
                     )}
                   >
-                    <Icon className="size-4" />
+                    {isActive ? (
+                      <motion.span
+                        layoutId="admin-active-icon"
+                        className="absolute inset-0 rounded-lg bg-primary"
+                        transition={
+                          reduceMotion
+                            ? { duration: 0 }
+                            : { type: "spring", stiffness: 520, damping: 42 }
+                        }
+                      />
+                    ) : null}
+                    <Icon className="relative z-10 size-4" />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium leading-5">
-                      {item.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
-                      {item.description}
-                    </span>
+                  <span className="truncate text-sm font-medium leading-5">
+                    {item.label}
                   </span>
                 </span>
               </Link>
@@ -109,17 +106,6 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
               </Link>
             );
           })}
-        </div>
-
-        <div className="rounded-[calc(var(--radius)+0.25rem)] border border-border/70 bg-secondary/35 p-2.5">
-          <Link
-            href="/"
-            onClick={onNavigate}
-            className="inline-flex min-h-9 items-center gap-2 rounded-full px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Înapoi la site
-            <ArrowUpRight className="size-4" />
-          </Link>
         </div>
       </div>
     </aside>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import {
   CheckCircle2,
   ImagePlus,
@@ -15,6 +16,7 @@ import {
 import { uploadMessageFiles } from "@/lib/attachments/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type Profile = { id?: string; full_name?: string | null; email?: string | null; avatar_url?: string | null };
 type Attachment = { id: string; original_name: string; content_type: string; size_bytes: number };
@@ -68,6 +70,7 @@ function PersonAvatar({ profile, fallback }: { profile?: Profile | null; fallbac
 }
 
 export function OperatorSupportView() {
+  const { getToken } = useAuth();
   const [queue, setQueue] = useState<QueueKey>("unassigned");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [counts, setCounts] = useState<Record<QueueKey, number>>({ unassigned: 0, claimed: 0, waiting_customer: 0, closed: 0 });
@@ -115,6 +118,30 @@ export function OperatorSupportView() {
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [loadTickets, loadConversation, selected]);
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient({
+      getAccessToken: () => getToken({ template: "supabase" }),
+    });
+    const channel = supabase
+      .channel("operator-support-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets" },
+        () => void loadTickets(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "assistant_messages" },
+        () => {
+          void loadTickets();
+          if (selected) void loadConversation(selected);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [getToken, loadConversation, loadTickets, selected]);
 
   const messages = useMemo(
     () => (conversation?.assistant_messages ?? []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at)),

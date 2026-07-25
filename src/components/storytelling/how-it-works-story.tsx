@@ -31,7 +31,7 @@ const FLIGHT_DRONE_POSITIONS = Array.from({ length: 50 }, (_, index) => index / 
 const FLIGHT_DRONE_X = FLIGHT_DRONE_POSITIONS.map((position) => `${-58 + position * 168}vw`);
 const FLIGHT_DRONE_SCALE = FLIGHT_DRONE_POSITIONS.map((_, index) => (index >= 45 ? 0.8 : index >= 40 ? 0.9 : 1));
 
-const TUTORIAL_SCENE_SCREENS = [10, 20, 10, 7, 8, 6] as const;
+const TUTORIAL_SCENE_SCREENS = [8, 15, 7, 5, 6, 5] as const;
 const TUTORIAL_CONTENT_SCREENS = TUTORIAL_SCENE_SCREENS.reduce((total, screens) => total + screens, 0);
 const FINAL_DISSOLVE_SCREENS = 2;
 const FINAL_TITLE_SCREENS = 3;

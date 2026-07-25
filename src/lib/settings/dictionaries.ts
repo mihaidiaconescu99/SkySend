@@ -31,7 +31,7 @@ const roDictionary: Record<string, string> = {
     "preferences.theme.light": "Mod luminos",
     "preferences.language.ro": "Română",
     "preferences.language.en": "Engleză",
-    "preferences.currency.RON": "Lei românești",
+    "preferences.currency.RON": "RON",
     "preferences.currency.EUR": "Euro",
 
     "loading.title": "Se încarcă…",
@@ -74,7 +74,7 @@ const enDictionary: Record<string, string> = {
     "preferences.theme.light": "Light mode",
     "preferences.language.ro": "Romanian",
     "preferences.language.en": "English",
-    "preferences.currency.RON": "Romanian lei",
+    "preferences.currency.RON": "RON",
     "preferences.currency.EUR": "Euro",
 
     "loading.title": "Loading…",

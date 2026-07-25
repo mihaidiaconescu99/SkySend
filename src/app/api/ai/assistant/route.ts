@@ -5,10 +5,14 @@ import { plainTextSchema } from "@/lib/api/input-schemas";
 import { enforceRateLimit } from "@/lib/api/rate-limit";
 import { validateRequest } from "@/lib/api/validation";
 import { buildAssistantRuntimeContext } from "@/lib/ai/skysend-assistant-context";
-import { getSkySendAssistantReply } from "@/lib/ai/skysend-assistant";
+import {
+  explicitlyRequestsSupportTicket,
+  getSkySendAssistantReply,
+} from "@/lib/ai/skysend-assistant";
 import {
   getConversation,
   getSupportIdentity,
+  handoffConversation,
   persistAiExchange,
 } from "@/lib/support/support-hub";
 import type { AssistantHistoryMessage } from "@/types/assistant";
@@ -95,6 +99,21 @@ export async function POST(request: Request) {
 
   try {
     const conversationId = await persistAiExchange(identity, parsed.data.message, reply.message, parsed.data.conversationId);
+    if (explicitlyRequestsSupportTicket(parsed.data.message)) {
+      const ticket = await handoffConversation(identity, conversationId);
+      return NextResponse.json({
+        ...reply,
+        message:
+          parsed.data.language === "en"
+            ? "The support ticket was created and sent to a SkySend operator."
+            : "Tichetul a fost creat și trimis direct unui operator SkySend.",
+        conversationId,
+        ticket,
+        handoffOffer: false,
+        handoffCreated: true,
+        persistent: true,
+      });
+    }
     return NextResponse.json({ ...reply, conversationId, persistent: true });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "support_unavailable";

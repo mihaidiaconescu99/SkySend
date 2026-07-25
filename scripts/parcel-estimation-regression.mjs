@@ -217,7 +217,6 @@ function mockOpenRouterEstimate(overrides = {}) {
 const {
   buildBlockingProductClarifications,
   getDeterministicParcelWeightBounds,
-  getLocalParcelAssistantResult,
   getSemanticParcelEstimate,
   parseLiquidVolumeLiters,
 } = loadSource("src/lib/parcel-assistant.ts");
@@ -351,56 +350,6 @@ process.env.CLERK_SECRET_KEY = "test-clerk-secret";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-supabase-service-role";
 process.env.STRIPE_SECRET_KEY = "test-stripe-secret";
 
-const tavily = loadSource("src/lib/ai/tavily-product-lookup.ts");
-const cannedIphoneResult = {
-  title: "Apple iPhone 14 Pro Max specs",
-  url: "https://www.apple.com/iphone-14-pro-max/",
-  snippet: "iPhone 14 Pro Max, 240g, 6.7 inch display.",
-  sourceType: "web",
-  confidence: 0.85,
-};
-const tavilyStack = {
-  mode: "auto",
-  mockResults: [cannedIphoneResult],
-  mockQueries: ["iphone 14 pro max"],
-};
-tavily.runProductLookupForEstimate = async () => {
-  if (tavilyStack.mode === "nokey") {
-    return {
-      trace: {
-        queries: [],
-        results: [],
-        skipped: true,
-        reason: "no_api_key",
-        usedInPrompt: false,
-      },
-      results: [],
-    };
-  }
-  if (tavilyStack.mode === "mock") {
-    return {
-      trace: {
-        queries: tavilyStack.mockQueries,
-        results: tavilyStack.mockResults,
-        skipped: false,
-        reason: null,
-        usedInPrompt: true,
-      },
-      results: tavilyStack.mockResults,
-    };
-  }
-  return {
-    trace: {
-      queries: [],
-      results: [],
-      skipped: true,
-      reason: "no_query",
-      usedInPrompt: false,
-    },
-    results: [],
-  };
-};
-
 const blockingIphone = buildBlockingProductClarifications(assistantInput("iphone"));
 assert(
   blockingIphone.some(
@@ -459,24 +408,6 @@ const blockingVase = buildBlockingProductClarifications(assistantInput("vaza cer
 assert(
   blockingVase.some((question) => /fragile/i.test(question.id)),
   `"vaza ceramica" without packaging detail should block on fragile packaging, got ${JSON.stringify(blockingVase.map((q) => q.id))}`,
-);
-
-const detect = tavily.detectProductLookupCandidates;
-assert(
-  detect("iPhone 14 Pro Max", []).some((q) => /iphone/i.test(q)),
-  `iPhone 14 Pro Max should yield a lookup query, got ${JSON.stringify(detect("iPhone 14 Pro Max", []))}`,
-);
-assert(
-  detect("Samsung S23", []).some((q) => /samsung/i.test(q)),
-  `Samsung S23 should yield a lookup query, got ${JSON.stringify(detect("Samsung S23", []))}`,
-);
-assert(
-  detect("telefon", []).length === 0,
-  `Bare "telefon" should NOT trigger web lookup (it blocks instead), got ${JSON.stringify(detect("telefon", []))}`,
-);
-assert(
-  detect("2 sticle apa 2L", []).length === 0,
-  `Water bottles (no brand/model) should NOT trigger web lookup, got ${JSON.stringify(detect("2 sticle apa 2L", []))}`,
 );
 
 const { estimateParcelForDispatch } = loadSource(
@@ -762,9 +693,6 @@ assert(
 );
 
 
-tavilyStack.mode = "mock";
-tavilyStack.mockResults = [cannedIphoneResult];
-tavilyStack.mockQueries = ["iphone 14 pro max"];
 const iphoneWithBox = await estimateParcelForDispatch(
   estimatorRequest("iPhone 14 Pro Max in cutie originala"),
 );
@@ -773,14 +701,9 @@ assert(
   "iPhone estimate should carry a lookupTrace",
 );
 assert(
-  iphoneWithBox.lookupTrace.skipped === false,
-  `mocked lookup should not be skipped, got reason ${iphoneWithBox.lookupTrace.reason}`,
-);
-assert(
-  iphoneWithBox.lookupTrace.results.length > 0 &&
-    iphoneWithBox.lookupTrace.results[0].sourceType === "web" &&
-    typeof iphoneWithBox.lookupTrace.results[0].confidence === "number",
-  "lookupTrace results should be normalized with sourceType=web + numeric confidence",
+  iphoneWithBox.lookupTrace.skipped === true &&
+    iphoneWithBox.lookupTrace.reason === "no_query",
+  `External web lookup must stay disabled, got ${JSON.stringify(iphoneWithBox.lookupTrace)}`,
 );
 assert(
   iphoneWithBox.estimatedWeightMin >= 0.3 &&
@@ -788,36 +711,12 @@ assert(
   `iPhone 14 Pro Max in box should have realistic weight, got ${iphoneWithBox.estimatedWeightMin}-${iphoneWithBox.estimatedWeightMax} kg`,
 );
 assert(
-  (iphoneWithBox.detectedItemsDetailed ?? []).some(
-    (item) =>
-      (item.sourceUrls && item.sourceUrls.length > 0) ||
-      (item.lookupEvidence && item.lookupEvidence.length > 0),
-  ),
-  "a detected item should carry web source evidence after lookup",
-);
-
-tavilyStack.mode = "nokey";
-const tavilyUnavailable = await estimateParcelForDispatch(
-  estimatorRequest("iPhone 14 Pro Max in cutie originala"),
-);
-assert(
-  tavilyUnavailable.lookupTrace?.skipped === true &&
-    tavilyUnavailable.lookupTrace?.reason === "no_api_key",
-  `Tavily unavailable should skip with no_api_key reason, got ${JSON.stringify(tavilyUnavailable.lookupTrace?.reason)}`,
-);
-assert(
-  tavilyUnavailable.estimatedWeightMin >= 0.3 &&
-    tavilyUnavailable.estimatedWeightMax <= 1.2,
-  `iPhone estimate should still be realistic without Tavily, got ${tavilyUnavailable.estimatedWeightMin}-${tavilyUnavailable.estimatedWeightMax} kg`,
-);
-assert(
-  (tavilyUnavailable.detectedItemsDetailed ?? []).every(
+  (iphoneWithBox.detectedItemsDetailed ?? []).every(
     (item) => !item.sourceUrls || item.sourceUrls.length === 0,
   ),
-  "no item should carry web evidence when Tavily is unavailable",
+  "no item should carry external web evidence",
 );
 
-tavilyStack.mode = "auto";
 const bareIphone = await estimateParcelForDispatch(estimatorRequest("iphone"));
 assert(
   bareIphone.clarificationQuestions?.some(
@@ -827,7 +726,6 @@ assert(
   `bare "iphone" dispatch estimate should block on model, got ${JSON.stringify(bareIphone.clarificationQuestions?.map((q) => q.id))}`,
 );
 
-tavilyStack.mode = "mock";
 const clarifiedIphone = await estimateParcelForDispatch(
   estimatorRequest("iphone", {
     previousClarificationAnswers: [
@@ -851,10 +749,28 @@ assert(
   `clarified iPhone estimate should remain realistic, got ${clarifiedIphone.estimatedWeightMin}-${clarifiedIphone.estimatedWeightMax} kg`,
 );
 assert(
-  clarifiedIphone.lookupTrace?.results.length > 0,
-  "clarified iPhone estimate should populate lookup trace via mock",
+  clarifiedIphone.lookupTrace?.skipped === true,
+  "clarified iPhone estimate must not call an external web lookup",
 );
 
-tavilyStack.mode = "auto";
+const fourSamsungTablets = await estimateParcelForDispatch(
+  estimatorRequest(
+    "patru tablete model Samsung Tab S7 Plus cu cutie originală pentru fiecare",
+  ),
+);
+assert(
+  fourSamsungTablets.estimatedWeightMin >= 2.4 &&
+    fourSamsungTablets.estimatedWeightMax >= 3.5,
+  `Four individually boxed Samsung tablets must be multiplied, got ${fourSamsungTablets.estimatedWeightMin}-${fourSamsungTablets.estimatedWeightMax} kg`,
+);
+
+const persil4500g = await estimateParcelForDispatch(
+  estimatorRequest("detergent Persil, greutate netă 4500 grame"),
+);
+assert(
+  persil4500g.estimatedWeightMin >= 4.5 &&
+    persil4500g.estimatedWeightMax >= 4.5,
+  `Persil 4500 g must be parsed as at least 4.5 kg, got ${persil4500g.estimatedWeightMin}-${persil4500g.estimatedWeightMax} kg`,
+);
 
 console.log("Parcel estimation regression checks passed.");

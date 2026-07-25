@@ -107,6 +107,7 @@ export function CreateDeliveryCheckoutPanel({
   const stripeRef = useRef<Stripe | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
   const paymentElementRef = useRef<StripePaymentElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const pollingSessionRef = useRef<string | null>(null);
   const paidNavigationRef = useRef<string | null>(null);
   const [session, setSession] = useState<DeliveryCheckoutSession | null>(null);
@@ -450,6 +451,12 @@ export function CreateDeliveryCheckoutPanel({
   const stepIndex = step === "summary" ? 0 : step === "billing" ? 1 : 2;
   const transition = reduceMotion ? { duration: 0 } : { duration: 0.22, ease: "easeOut" as const };
   const panelKey = `${step}-${session?.id ?? "draft"}`;
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [step]);
   const canSubmitBilling = useMemo(() => {
     if (!billing.privacyAccepted || !billing.addressLine.trim() || !billing.city.trim() || !billing.region.trim() || billing.countryCode.length !== 2 || !billing.invoiceEmail.includes("@")) return false;
     if (billing.countryCode === "RO" && !/^\d{6}$/u.test(billing.postalCode ?? "")) return false;
@@ -471,7 +478,10 @@ export function CreateDeliveryCheckoutPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-visible px-5 py-5 expanded-ui:overflow-y-auto">
+      <div
+        ref={scrollContainerRef}
+        className="min-h-0 flex-1 overflow-visible px-5 py-5 expanded-ui:overflow-y-auto"
+      >
         {!hydrated ? <div className="flex min-h-48 items-center justify-center"><Loader2 className="size-5 animate-spin" /></div> : (
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={panelKey} initial={reduceMotion ? false : { opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: -14 }} transition={transition}>

@@ -15,7 +15,7 @@ const settingsSchema = z.object({
   confirmationTimerMinutes: z.number().int().min(1).max(60),
   loadingTimerMinutes: z.number().int().min(1).max(60),
   unloadingTimerMinutes: z.number().int().min(1).max(60),
-  manualStatus: z.enum(["active", "maintenance"]),
+  manualStatus: z.enum(["active", "maintenance", "unavailable"]),
 }).strict();
 
 export async function PUT(request: Request) {
@@ -46,7 +46,10 @@ export async function PUT(request: Request) {
   }).eq("is_singleton", true);
   if (error) return NextResponse.json({ error: "settings_save_failed" }, { status: 502 });
 
-  if (parsed.data.manualStatus === "maintenance") {
+  if (
+    parsed.data.manualStatus === "maintenance" ||
+    parsed.data.manualStatus === "unavailable"
+  ) {
     await supabase.from("platform_override_state").update({
       cancelled_at: now,
       cancelled_by: authResult.profile.id,

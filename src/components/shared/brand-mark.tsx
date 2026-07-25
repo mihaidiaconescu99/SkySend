@@ -26,7 +26,15 @@ export function BrandMark({
           width={192}
           height={192}
           priority
-          className="size-full object-contain"
+          className="size-full object-contain light:hidden"
+        />
+        <Image
+          src="/icons/client-light-drone.png"
+          alt=""
+          width={192}
+          height={192}
+          priority
+          className="hidden size-full object-contain light:block"
         />
       </span>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Check, ChevronUp, Copy, Headphones, MapPin, PackageCheck, Route } from "lucide-react";
+import { Check, ChevronUp, Copy, Headphones, Loader2, MapPin, PackageCheck, Route } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LiveMissionMap } from "@/components/mission/live-mission-map";
 import { MissionActionPanel } from "@/components/mission/mission-action-panel";
@@ -154,6 +155,7 @@ export function PremiumTrackingWorkspace({
   order,
   dispatchCountdown = 0,
 }: Props) {
+  const router = useRouter();
   const {
     currentMission: runtimeMission,
     currentStatus: runtimeStatus,
@@ -169,6 +171,8 @@ export function PremiumTrackingWorkspace({
   const publicMode = (order.trackingAccessScope ?? "owner") !== "owner";
   const [copied, setCopied] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const progress = getMissionJourneyProgress(currentStatus, segmentProgress);
   const rawFailureCode =
     currentMission?.failureReason ??
@@ -190,6 +194,23 @@ export function PremiumTrackingWorkspace({
     order.fulfillmentStatus === "failed_mission" ||
     currentStatus === "mission_failed" ||
     Boolean(failureCode);
+  const hasRequiredAction = Boolean(
+    currentStatus &&
+      [
+        "awaiting_sender_position_confirmation",
+        "awaiting_pickup_pin",
+        "awaiting_parcel_load",
+        "awaiting_recipient_position_confirmation",
+        "awaiting_recipient_pin",
+        "awaiting_parcel_collection",
+      ].includes(currentStatus),
+  );
+
+  useEffect(() => {
+    if (!hasRequiredAction) return;
+    const expandTimer = window.setTimeout(() => setMobileExpanded(true), 0);
+    return () => window.clearTimeout(expandTimer);
+  }, [hasRequiredAction]);
 
   useEffect(() => {
     const previousDocumentOverflow = document.documentElement.style.overflow;
@@ -229,6 +250,27 @@ export function PremiumTrackingWorkspace({
     window.setTimeout(() => setCopied(false), 1400);
   }
 
+  async function cancelBeforeDispatch() {
+    if (isCancelling) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const response = await fetch(
+        `/api/client/orders/${encodeURIComponent(order.id)}/cancel-before-dispatch`,
+        { method: "POST" },
+      );
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Anularea nu a putut fi procesată.");
+      router.replace("/client/orders");
+      router.refresh();
+    } catch (error) {
+      setCancelError(
+        error instanceof Error ? error.message : "Anularea nu a putut fi procesată.",
+      );
+      setIsCancelling(false);
+    }
+  }
+
   return (
     <section
       className={cn(
@@ -250,10 +292,14 @@ export function PremiumTrackingWorkspace({
         </div>
 
         <div className={cn(
-          "absolute inset-x-0 bottom-0 z-30 flex min-h-[46svh] flex-col border-t border-border bg-card shadow-[0_-18px_50px_-35px_rgba(0,0,0,.7)] transition-[max-height] duration-300 expanded-ui:static expanded-ui:max-h-none expanded-ui:min-h-0 expanded-ui:border-l expanded-ui:border-t-0 expanded-ui:shadow-none",
-          mobileExpanded ? "max-h-[88svh]" : "max-h-[54svh]",
+          "absolute inset-x-0 bottom-0 z-30 flex min-h-0 flex-col overflow-hidden border-t border-border bg-card shadow-[0_-18px_50px_-35px_rgba(0,0,0,.7)] transition-[max-height] duration-300 expanded-ui:static expanded-ui:max-h-none expanded-ui:min-h-0 expanded-ui:overflow-visible expanded-ui:border-l expanded-ui:border-t-0 expanded-ui:shadow-none",
+          dispatchCountdown > 0
+            ? "max-h-[54svh]"
+            : mobileExpanded
+              ? "max-h-[92svh]"
+              : "max-h-[9.5rem]",
         )}>
-          {dispatchCountdown <= 0 ? <button
+          <button
             type="button"
             aria-label={mobileExpanded ? "Restrânge panoul" : "Extinde panoul"}
             aria-expanded={mobileExpanded}
@@ -261,7 +307,7 @@ export function PremiumTrackingWorkspace({
             className="mx-auto mt-1 flex h-8 w-14 items-center justify-center text-muted-foreground expanded-ui:hidden"
           >
             <ChevronUp className={cn("size-4 transition-transform", mobileExpanded ? "rotate-180" : undefined)} />
-          </button> : null}
+          </button>
           {dispatchCountdown > 0 ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:px-10">
               <h1 className="max-w-xl font-heading text-4xl uppercase leading-[0.95] tracking-tight text-foreground sm:text-6xl expanded-ui:text-7xl">
@@ -270,6 +316,22 @@ export function PremiumTrackingWorkspace({
               <p className="mt-6 font-mono text-5xl font-semibold tabular-nums text-primary sm:text-7xl">
                 00:{String(dispatchCountdown).padStart(2, "0")}
               </p>
+              {!publicMode ? (
+                <button
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={() => void cancelBeforeDispatch()}
+                  className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-destructive/35 px-5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {isCancelling ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Anulează
+                </button>
+              ) : null}
+              {cancelError ? (
+                <p role="alert" className="mt-3 max-w-sm text-sm text-destructive">
+                  {cancelError}
+                </p>
+              ) : null}
             </div>
           ) : <>
           <div className="shrink-0 px-5 pb-5 pt-5 sm:px-7 expanded-ui:pt-24">

@@ -189,14 +189,23 @@ const semanticItemProfiles: readonly SemanticItemProfile[] = [
   {
     id: "tablet",
     label: "tableta",
-    keywords: ["ipad", "tableta", "tablet"],
+    keywords: [
+      "ipad",
+      "tableta",
+      "tablete",
+      "tablet",
+      "samsung tab",
+      "galaxy tab",
+      "tab s7",
+      "tab s7 plus",
+    ],
     category: "electronics",
     materials: ["electronics", "glass", "battery"],
-    minKg: 0.55,
-    maxKg: 1.1,
+    minKg: 0.6,
+    maxKg: 0.95,
     dimensionsCm: { lengthCm: 28, widthCm: 20, heightCm: 6 },
     fragileLevel: "moderate",
-    perItemWeightKg: { min: 0.55, max: 1.1 },
+    perItemWeightKg: { min: 0.6, max: 0.95 },
   },
   {
     id: "laptop",
@@ -1154,12 +1163,31 @@ export function getSemanticParcelEstimate(
   }
 
   const packagingBuffer = semanticPackagingBufferKg[input.packaging];
+  const explicitQuantities = matchedProfiles
+    .map((profile) => {
+      const match = profile.label.match(/x(\d+)$/u);
+      return match ? Number(match[1]) : 1;
+    })
+    .filter(Number.isFinite);
+  const largestQuantity = Math.max(1, ...explicitQuantities);
+  const hasIndividualPackaging =
+    largestQuantity > 1 &&
+    /\b(?:fiecare|individual|individuala|individuale|separat|separate)\b/u.test(
+      normalizedContents,
+    ) &&
+    /\b(?:cutie|cutii|ambalaj|ambalaje|box|boxes)\b/u.test(normalizedContents);
+  const hasOuterPackaging =
+    /\b(?:cutie exterioara|ambalaj exterior|colet exterior|outer box|shipping box)\b/u.test(
+      normalizedContents,
+    );
+  const packagingUnits =
+    (hasIndividualPackaging ? largestQuantity : 1) + (hasOuterPackaging ? 1 : 0);
   const minKg =
     matchedProfiles.reduce((total, profile) => total + profile.minKg, 0) +
-    packagingBuffer.min;
+    packagingBuffer.min * packagingUnits;
   const maxKg =
     matchedProfiles.reduce((total, profile) => total + profile.maxKg, 0) +
-    packagingBuffer.max;
+    packagingBuffer.max * packagingUnits;
   const fragileLevel = matchedProfiles.reduce(
     (currentLevel, profile) =>
       getHigherFragilityLevel(currentLevel, profile.fragileLevel),

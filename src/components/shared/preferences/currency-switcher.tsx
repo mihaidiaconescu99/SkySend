@@ -1,5 +1,6 @@
 "use client";
 
+import { m } from "motion/react";
 import { useSettings } from "@/lib/settings/settings-context";
 import type { CurrencyCode } from "@/types/entities";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ export function CurrencySwitcher({
       role="group"
       aria-label={t("preferences.currency")}
       className={cn(
-        "grid gap-1",
+        "relative grid gap-1",
         variant === "stacked" ? "grid-cols-1" : "grid-cols-2 items-stretch",
       )}
     >
@@ -38,26 +39,26 @@ export function CurrencySwitcher({
             aria-pressed={isActive}
             onClick={() => setCurrency(option.value)}
             className={cn(
-              "flex min-w-0 items-center gap-2.5 whitespace-nowrap rounded-2xl border px-3 py-2 text-sm font-medium transition-colors duration-200",
+              "relative isolate flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap rounded-2xl border px-3 py-2 text-sm font-medium transition-colors duration-200",
               isActive
-                ? "border-primary/55 bg-primary/10 text-foreground"
+                ? "border-primary/45 text-foreground"
                 : "border-border/70 bg-background/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
             )}
           >
+            {isActive ? (
+              <m.span
+                layoutId="currency-active-pill"
+                className="absolute inset-0 -z-10 rounded-[inherit] bg-primary/10 shadow-[inset_0_0_0_1px_rgb(34_211_238_/_0.08),0_8px_28px_-20px_rgb(34_211_238_/_0.9)] backdrop-blur-sm"
+                aria-hidden="true"
+                transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+              />
+            ) : null}
             <span className="grid size-5 shrink-0 place-items-center rounded-md bg-primary/15 font-heading text-xs font-semibold text-primary">
               {option.symbol}
             </span>
             <span className="min-w-0 flex-1 whitespace-nowrap text-left">
               {t(option.labelKey)}
             </span>
-            {isActive ? (
-              <span
-                className="size-1.5 shrink-0 rounded-full bg-primary"
-                aria-hidden="true"
-              />
-            ) : (
-              <span className="size-1.5 shrink-0" aria-hidden="true" />
-            )}
           </button>
         );
       })}

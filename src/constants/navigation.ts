@@ -184,6 +184,7 @@ export const adminDashboardNavigation = {
   workspaces: [
     workspaceItems.admin,
     workspaceItems.operator,
+    workspaceItems.client,
   ],
 } as const;
 
@@ -218,6 +219,7 @@ export const operatorDashboardNavigation = {
   ],
   workspaces: [
     workspaceItems.operator,
+    workspaceItems.client,
   ],
 } as const;
 

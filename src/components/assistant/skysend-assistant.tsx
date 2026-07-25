@@ -24,6 +24,11 @@ import type { Language } from "@/lib/settings/types";
 import { cn } from "@/lib/utils";
 
 type Action = { label: string; href: string };
+type Ticket = {
+  id: string;
+  status: string;
+  assigned_operator_profile_id?: string | null;
+};
 type AssistantTab = "home" | "messages" | "help";
 type Message = {
   id: string;
@@ -57,6 +62,8 @@ type AssistantApiReply = {
   action?: Action;
   conversationId?: string;
   handoffOffer?: boolean;
+  handoffCreated?: boolean;
+  ticket?: Ticket;
   persistent?: boolean;
   error?: string;
 };
@@ -290,11 +297,7 @@ function SkySendAssistantPanel({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [mode, setMode] = useState("ai_active");
-  const [ticket, setTicket] = useState<{
-    id: string;
-    status: string;
-    assigned_operator_profile_id?: string | null;
-  } | null>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>(() => [
     createWelcome(copy),
   ]);
@@ -432,6 +435,11 @@ function SkySendAssistantPanel({
 
         if (reply.handoffOffer) {
           setHandoffPromptOpen(true);
+        }
+        if (reply.handoffCreated && reply.ticket) {
+          setTicket(reply.ticket);
+          setMode("human_requested");
+          setHandoffPromptOpen(false);
         }
       } else if (conversationId) {
         const response = await fetch(

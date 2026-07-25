@@ -53,7 +53,7 @@ export function LanguageSwitcher({
       role="group"
       aria-label={t("preferences.language")}
       className={cn(
-        "grid gap-1",
+        "relative grid gap-1",
         variant === "stacked" ? "grid-cols-1" : "grid-cols-2",
       )}
     >
@@ -66,24 +66,24 @@ export function LanguageSwitcher({
             aria-pressed={isActive}
             onClick={() => setLanguage(option.value)}
             className={cn(
-              "flex items-center gap-2.5 rounded-2xl border px-3 py-2 text-sm font-medium transition-colors duration-200",
+              "relative isolate flex items-center gap-2.5 overflow-hidden rounded-2xl border px-3 py-2 text-sm font-medium transition-colors duration-200",
               isActive
-                ? "border-primary/55 bg-primary/10 text-foreground"
+                ? "border-primary/45 text-foreground"
                 : "border-border/70 bg-background/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
             )}
           >
+            {isActive ? (
+              <m.span
+                layoutId="language-active-pill"
+                className="absolute inset-0 -z-10 rounded-[inherit] bg-primary/10 shadow-[inset_0_0_0_1px_rgb(34_211_238_/_0.08),0_8px_28px_-20px_rgb(34_211_238_/_0.9)] backdrop-blur-sm"
+                aria-hidden="true"
+                transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+              />
+            ) : null}
             <span className="relative overflow-hidden rounded-[3px] ring-1 ring-black/10">
               <option.Flag />
             </span>
             <span className="min-w-0 flex-1">{t(option.labelKey)}</span>
-            {isActive ? (
-              <m.span
-                layoutId="language-active-dot"
-                className="size-1.5 rounded-full bg-primary"
-                aria-hidden="true"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            ) : null}
           </button>
         );
       })}

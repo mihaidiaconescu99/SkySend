@@ -242,16 +242,16 @@ describe("Clerk organization role resolution", () => {
 });
 
 describe("workspace and API authorization matrix", () => {
-  it("keeps Client and Operator isolated and allows Admin in Operator tools", () => {
+  it("allows hierarchical workspace access without elevating API roles", () => {
     expect(canAccessRoleRoute("client", "client")).toBe(true);
     expect(canAccessRoleRoute("client", "operator")).toBe(false);
     expect(canAccessRoleRoute("client", "admin")).toBe(false);
     expect(canAccessRoleRoute("operator", "operator")).toBe(true);
-    expect(canAccessRoleRoute("operator", "client")).toBe(false);
+    expect(canAccessRoleRoute("operator", "client")).toBe(true);
     expect(canAccessRoleRoute("operator", "admin")).toBe(false);
     expect(canAccessRoleRoute("admin", "admin")).toBe(true);
     expect(canAccessRoleRoute("admin", "operator")).toBe(true);
-    expect(canAccessRoleRoute("admin", "client")).toBe(false);
+    expect(canAccessRoleRoute("admin", "client")).toBe(true);
   });
 
   it("returns 403 for direct API access with the wrong role", () => {

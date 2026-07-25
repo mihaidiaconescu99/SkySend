@@ -59,9 +59,8 @@ export function AccountBillingProfile() {
   }
 
   return (
-    <div className="border-t border-border/70 pt-6">
+    <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="type-caption">Facturare</p><h3 className="mt-2 font-heading text-xl tracking-tight">Date de facturare</h3><p className="mt-2 text-sm text-muted-foreground">Un singur set, folosit pentru precompletarea comenzilor viitoare.</p></div>
         {exists ? <AppButton type="button" size="sm" variant="ghost" onClick={remove} disabled={busy}><Trash2 className="size-4" />Șterge</AppButton> : null}
       </div>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">

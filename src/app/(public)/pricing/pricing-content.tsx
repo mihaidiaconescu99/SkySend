@@ -59,7 +59,6 @@ const content = {
       },
     ],
     primary: "Creează livrare",
-    secondary: "Verifică acoperirea",
     plans: [
       { name: "Standard", description: "Pentru livrările de zi cu zi.", eta: "6–10 min" },
       { name: "Prioritară", description: "Când fiecare minut contează.", eta: "4–8 min" },
@@ -108,7 +107,6 @@ const content = {
       },
     ],
     primary: "Create delivery",
-    secondary: "Check coverage",
     plans: [
       { name: "Standard", description: "For everyday deliveries.", eta: "6–10 min" },
       { name: "Priority", description: "When every minute matters.", eta: "4–8 min" },
@@ -144,9 +142,6 @@ export default function PricingContent({
             <Link href="/client/create-delivery">
               {copy.primary}<ArrowRight className="size-4" />
             </Link>
-          </AppButton>
-          <AppButton asChild variant="outline" size="lg">
-            <Link href="/#coverage">{copy.secondary}</Link>
           </AppButton>
         </div>
       </header>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { LoaderCircle, MapPin, Search } from "lucide-react";
+import { Bookmark, LoaderCircle, MapPin, Search } from "lucide-react";
 import { mapConfig } from "@/constants/map";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { fetchGeoapifyAutocompleteSuggestions } from "@/lib/geoapify";
 import { cn } from "@/lib/utils";
 import type { GeoapifyAddressSuggestion } from "@/types/geoapify";
+import type { SavedPlace } from "@/types/saved-places";
 
 type AddressAutocompleteInputProps = {
   label: string;
@@ -15,8 +16,10 @@ type AddressAutocompleteInputProps = {
   disabled?: boolean;
   ariaInvalid?: boolean;
   hasResolvedSelection?: boolean;
+  savedPlaces?: readonly SavedPlace[];
   onChange: (value: string) => void;
   onSelect: (suggestion: GeoapifyAddressSuggestion) => void;
+  onSavedPlaceSelect?: (place: SavedPlace) => void;
 };
 
 export function AddressAutocompleteInput({
@@ -26,8 +29,10 @@ export function AddressAutocompleteInput({
   disabled,
   ariaInvalid,
   hasResolvedSelection = false,
+  savedPlaces = [],
   onChange,
   onSelect,
+  onSavedPlaceSelect,
 }: AddressAutocompleteInputProps) {
   const listId = useId();
   const debouncedValue = useDebouncedValue(value, 260);
@@ -37,10 +42,14 @@ export function AddressAutocompleteInput({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showAllSavedPlaces, setShowAllSavedPlaces] = useState(false);
 
   const shouldSearch = debouncedValue.trim().length >= 3;
   const hasSuggestions = suggestions.length > 0;
-  const showDropdown = isOpen && (hasSuggestions || isLoading || Boolean(errorMessage));
+  const hasSavedPlaces = savedPlaces.length > 0 && Boolean(onSavedPlaceSelect);
+  const showDropdown =
+    isOpen && (hasSuggestions || hasSavedPlaces || isLoading || Boolean(errorMessage));
+  const visibleSavedPlaces = showAllSavedPlaces ? savedPlaces : savedPlaces.slice(0, 4);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -138,7 +147,7 @@ export function AddressAutocompleteInput({
           )}
           placeholder={placeholder}
           onFocus={() => {
-            if (hasSuggestions || isLoading || errorMessage) {
+            if (hasSuggestions || hasSavedPlaces || isLoading || errorMessage) {
               setIsOpen(true);
             }
           }}
@@ -198,6 +207,51 @@ export function AddressAutocompleteInput({
             role="listbox"
             className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-50 max-h-[min(18rem,46svh)] overflow-y-auto overscroll-contain rounded-[1.35rem] border border-border/80 bg-card shadow-[var(--elevation-panel)]"
           >
+            {hasSavedPlaces ? (
+              <div className="border-b border-border/70 p-2">
+                <p className="px-3 pb-1.5 pt-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Locații salvate
+                </p>
+                <div className="grid gap-1">
+                  {visibleSavedPlaces.map((place) => (
+                    <button
+                      key={place.id}
+                      type="button"
+                      className="flex min-h-11 items-center gap-3 rounded-2xl px-3 text-left transition-colors hover:bg-secondary/70"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        onSavedPlaceSelect?.(place);
+                        setIsOpen(false);
+                        setShowAllSavedPlaces(false);
+                      }}
+                    >
+                      <Bookmark className="size-4 shrink-0 text-primary" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {place.label}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {place.address}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                  {savedPlaces.length > 4 ? (
+                    <button
+                      type="button"
+                      className="min-h-10 rounded-2xl px-3 text-left text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        setShowAllSavedPlaces((current) => !current);
+                      }}
+                    >
+                      {showAllSavedPlaces ? "Arată mai puține" : "Vezi toate"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {errorMessage ? (
               <div className="px-4 py-4 text-sm leading-6 text-muted-foreground">
                 {errorMessage}
@@ -239,13 +293,13 @@ export function AddressAutocompleteInput({
                   </button>
                 ))}
               </div>
-            ) : (
+            ) : !hasSavedPlaces ? (
               <div className="px-4 py-4 text-sm leading-6 text-muted-foreground">
                 {shouldSearch
                   ? "Nu am găsit încă sugestii de adresă."
                   : "Începe să scrii ca să vezi sugestii de adresă."}
               </div>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>

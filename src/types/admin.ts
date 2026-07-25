@@ -368,7 +368,8 @@ export type ContactMessage = EntityTimestamps & {
 
 export type OperationalPlatformStatus =
   | "active"
-  | "maintenance";
+  | "maintenance"
+  | "unavailable";
 
 export type OperationalSettings = {
   id: "default";

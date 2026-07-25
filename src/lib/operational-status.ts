@@ -13,6 +13,7 @@ export function resolveEffectivePlatformStatus(input: {
   now?: Date;
 }): EffectivePlatformStatus {
   if (input.manualStatus === "maintenance") return "maintenance";
+  if (input.manualStatus === "unavailable") return "unavailable";
   const now = input.now ?? new Date();
   const overrideActive =
     !input.overrideCancelledAt &&
@@ -25,4 +26,3 @@ export function resolveEffectivePlatformStatus(input: {
 export function isOrderPlacementAvailable(snapshot: OperationalStatusSnapshot) {
   return snapshot.effectiveStatus === "active";
 }
-

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PremiumTrackingWorkspace } from "@/components/delivery/premium-tracking-workspace";
 import { useMissionRuntime } from "@/hooks/use-mission-runtime";
 import {
@@ -52,7 +51,6 @@ export function LiveMissionTrackingView({
   startOnMount = true,
   paymentStatus = "paid",
 }: LiveMissionTrackingViewProps) {
-  const router = useRouter();
   const {
     currentMission,
     currentStatus,
@@ -101,14 +99,29 @@ export function LiveMissionTrackingView({
     }
 
     dispatchRefreshRequestedRef.current = true;
-    router.refresh();
+    void fetch(
+      `/api/client/orders/${encodeURIComponent(order.id)}/start-dispatch`,
+      { method: "POST" },
+    ).finally(() => {
+      const snapshot = syncPaidCreatedDeliveryOrderMission(order, {
+        isLiveTrackingVisible: true,
+      });
+      if (
+        snapshot.currentMission?.sourceOrderId === order.id &&
+        !snapshot.isMissionRunning
+      ) {
+        startMission();
+      }
+    });
   }, [
     dispatchCountdown,
     isPaymentPaid,
     isWaitingForScheduledStart,
     order.missionStatus,
-    router,
+    order,
+    startMission,
     startOnMount,
+    syncPaidCreatedDeliveryOrderMission,
   ]);
 
   useEffect(() => {
@@ -121,15 +134,13 @@ export function LiveMissionTrackingView({
       return;
     }
 
-    // The page refresh above must start a persisted mission before local animation begins.
-    if (order.missionId && order.missionStatus === "mission_created") {
-      return;
-    }
-
     const syncedSnapshot = syncPaidCreatedDeliveryOrderMission(order, {
       isLiveTrackingVisible: true,
     });
-    if (syncedSnapshot.currentMission?.sourceOrderId === order.id) return;
+    if (syncedSnapshot.currentMission?.sourceOrderId === order.id) {
+      if (!syncedSnapshot.isMissionRunning) startMission();
+      return;
+    }
 
     if (currentMission?.sourceOrderId === order.id) {
       if (

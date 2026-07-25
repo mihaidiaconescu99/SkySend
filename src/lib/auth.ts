@@ -63,7 +63,10 @@ export function canAccessRoleRoute(
 ) {
   if (!currentRole) return false;
   if (currentRole === "admin") {
-    return targetRole === "admin" || targetRole === "operator";
+    return true;
+  }
+  if (currentRole === "operator") {
+    return targetRole === "operator" || targetRole === "client";
   }
   return currentRole === targetRole;
 }

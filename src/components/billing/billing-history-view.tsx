@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, ReceiptText } from "lucide-react";
+import { useMemo, useState } from "react";
 import { PaymentsEmptyState } from "@/components/shared/domain-empty-states";
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
@@ -42,7 +43,7 @@ function InvoiceDownload({ transaction }: { transaction: BillingHistoryTransacti
     <a
       href={transaction.invoiceDownloadHref}
       aria-label={`Descarcă factura pentru tranzacția din ${formatDateTime(transaction.date)}`}
-      title="Descarcă factura PDF"
+      title={`Descarcă ${transaction.documentLabel?.toLowerCase() ?? "documentul"} PDF`}
       className="inline-flex size-9 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition hover:border-primary/45 hover:text-primary focus-visible:ring-4 focus-visible:ring-ring"
     >
       <Download className="size-4" />
@@ -51,6 +52,30 @@ function InvoiceDownload({ transaction }: { transaction: BillingHistoryTransacti
 }
 
 export function BillingHistoryView({ transactions }: BillingHistoryViewProps) {
+  const [selectedMethod, setSelectedMethod] = useState("all");
+  const methods = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          transactions
+            .filter(
+              (transaction) =>
+                transaction.paymentMethodKey && transaction.paymentMethodLabel,
+            )
+            .map((transaction) => [
+              transaction.paymentMethodKey!,
+              transaction.paymentMethodLabel!,
+            ]),
+        ),
+      ),
+    [transactions],
+  );
+  const visibleTransactions =
+    selectedMethod === "all"
+      ? transactions
+      : transactions.filter(
+          (transaction) => transaction.paymentMethodKey === selectedMethod,
+        );
   return (
     <section className="app-container flex flex-col gap-6">
       <PageHeader
@@ -74,6 +99,21 @@ export function BillingHistoryView({ transactions }: BillingHistoryViewProps) {
           title="Istoric plăți"
           description="Factura este disponibilă pentru tranzacțiile aprobate, după generarea documentului."
         >
+          {methods.length ? (
+            <label className="mb-4 grid max-w-xs gap-2 text-sm">
+              <span className="font-medium text-muted-foreground">Card folosit</span>
+              <select
+                value={selectedMethod}
+                onChange={(event) => setSelectedMethod(event.target.value)}
+                className="h-11 rounded-xl border border-input bg-background px-3 text-foreground outline-none focus-visible:ring-4 focus-visible:ring-ring"
+              >
+                <option value="all">Toate cardurile</option>
+                {methods.map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <div className="hidden overflow-hidden rounded-[var(--ui-radius-panel)] border border-border/70 expanded-ui:block">
             <table className="w-full">
               <thead className="bg-secondary/45 text-left">
@@ -81,11 +121,11 @@ export function BillingHistoryView({ transactions }: BillingHistoryViewProps) {
                   <th className="px-5 py-4">Dată</th>
                   <th className="px-5 py-4">Status</th>
                   <th className="px-5 py-4">Sumă</th>
-                  <th className="px-5 py-4 text-right">Factură</th>
+                  <th className="px-5 py-4 text-right">Document</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction, index) => {
+                {visibleTransactions.map((transaction, index) => {
                   const status = getStatusPresentation(transaction.status);
 
                   return (
@@ -116,7 +156,7 @@ export function BillingHistoryView({ transactions }: BillingHistoryViewProps) {
           </div>
 
           <div className="grid gap-3 compact-ui:grid expanded-ui:hidden">
-            {transactions.map((transaction) => {
+            {visibleTransactions.map((transaction) => {
               const status = getStatusPresentation(transaction.status);
 
               return (

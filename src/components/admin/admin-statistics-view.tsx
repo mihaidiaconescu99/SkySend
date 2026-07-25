@@ -8,7 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   defaultAdminExportFilters,
   getAvailableExportFilterOptions,
-  prepareAdminCsvExport,
 } from "@/lib/admin-export";
 import { getAdminStatisticsSnapshot } from "@/lib/admin-statistics";
 import { cn } from "@/lib/utils";
@@ -31,8 +30,7 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
 
@@ -78,6 +76,9 @@ function ExportPanel({
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [exporting, setExporting] = useState<"orders" | "financial" | null>(
+    null,
+  );
 
   function updateFilter<Field extends keyof AdminExportFilter>(
     field: Field,
@@ -89,27 +90,53 @@ function ExportPanel({
     }));
   }
 
-  function runExport() {
-    const result = prepareAdminCsvExport("general_report", filters);
-
-    if (!result.ok) {
+  async function runExport(kind: "orders" | "financial") {
+    if (
+      filters.dateFrom &&
+      filters.dateTo &&
+      filters.dateFrom > filters.dateTo
+    ) {
       setFeedback({
         tone: "error",
-        message:
-          result.reason === "invalid_date_range"
-            ? "Intervalul de export nu este valid."
-            : result.reason === "no_results"
-              ? "Nu există rezultate pentru filtrele selectate."
-              : "Exportul nu este disponibil.",
+        message: "Intervalul de export nu este valid.",
       });
       return;
     }
-
-    downloadCsv(result.filename, result.csv);
-    setFeedback({
-      tone: "success",
-      message: `Export CSV generat: ${result.rowCount} rânduri.`,
-    });
+    setExporting(kind);
+    setFeedback(null);
+    try {
+      const parameters = new URLSearchParams({ type: kind });
+      if (filters.dateFrom) {
+        parameters.set("from", `${filters.dateFrom}T00:00:00.000`);
+      }
+      if (filters.dateTo) {
+        parameters.set("to", `${filters.dateTo}T23:59:59.999`);
+      }
+      if (kind === "orders" && filters.orderStatus !== "all") {
+        parameters.set("status", filters.orderStatus);
+      }
+      const response = await fetch(`/api/admin/exports?${parameters.toString()}`);
+      if (!response.ok) throw new Error("export_failed");
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filename =
+        disposition.match(/filename="([^"]+)"/)?.[1] ??
+        `skysend-${kind}.csv`;
+      downloadBlob(filename, await response.blob());
+      setFeedback({
+        tone: "success",
+        message:
+          kind === "orders"
+            ? "Exportul comenzilor a fost generat."
+            : "Exportul financiar a fost generat.",
+      });
+    } catch {
+      setFeedback({
+        tone: "error",
+        message: "Exportul nu a putut fi generat. Încearcă din nou.",
+      });
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -119,7 +146,7 @@ function ExportPanel({
           <div>
             <p className="font-medium text-foreground">Export CSV</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Raport operațional generat în browser din comenzile disponibile.
+              Export server-side pentru comenzile și tranzacțiile disponibile.
             </p>
           </div>
           <FileSpreadsheet className="size-5 text-primary" />
@@ -172,10 +199,39 @@ function ExportPanel({
           </label>
         </div>
 
-        <AppButton type="button" className="w-fit" onClick={runExport}>
-          <Download className="size-4" />
-          Exportă raport CSV
-        </AppButton>
+        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+          <span>Un interval gol include tot istoricul disponibil.</span>
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilters(defaultAdminExportFilters)}
+          >
+            Tot istoricul
+          </AppButton>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <AppButton
+            type="button"
+            disabled={exporting !== null}
+            onClick={() => void runExport("orders")}
+          >
+            <Download className="size-4" />
+            {exporting === "orders" ? "Se pregătește…" : "Exportă comenzi"}
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="outline"
+            disabled={exporting !== null}
+            onClick={() => void runExport("financial")}
+          >
+            <Download className="size-4" />
+            {exporting === "financial"
+              ? "Se pregătește…"
+              : "Exportă financiar"}
+          </AppButton>
+        </div>
 
         {feedback ? (
           <div

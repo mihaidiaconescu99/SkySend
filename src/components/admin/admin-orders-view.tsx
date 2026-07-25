@@ -258,11 +258,6 @@ export function AdminOrdersView({ initialOrders }: AdminOrdersViewProps) {
     },
   ];
 
-  function refreshOrders(orderId: string) {
-    setSelectedOrderId(orderId);
-    void refreshOrdersFromDB();
-  }
-
   function applyFilters() {
     setSearch(draftSearch);
     setStatus(draftStatus);
@@ -273,15 +268,23 @@ export function AdminOrdersView({ initialOrders }: AdminOrdersViewProps) {
   async function handleSave(
     orderId: string,
     patch: AdminOrderEditablePatch,
-    _reason: string | null,
+    reason: string | null,
   ) {
-    void _reason;
     setIsSaving(true);
 
     const dbPatch: Record<string, unknown> = {};
     if (patch.status !== undefined) dbPatch.status = patch.status;
     if (patch.internalNotes !== undefined)
       dbPatch.internalNotes = patch.internalNotes;
+    if (patch.resolutionStatus) {
+      dbPatch.resolutionStatus = patch.resolutionStatus;
+    }
+    if (patch.refundStatus !== undefined) {
+      dbPatch.refundStatus = patch.refundStatus;
+    }
+    if (reason?.trim()) {
+      dbPatch.changeReason = reason.trim();
+    }
 
     if (Object.keys(dbPatch).length === 0) {
       setFeedback({

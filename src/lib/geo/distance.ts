@@ -26,4 +26,24 @@ export function calculateDistanceKm(from: GeoPoint, to: GeoPoint): number {
   return Math.round(rawKm * 100) / 100;
 }
 
+export function calculateDistanceMeters(from: GeoPoint, to: GeoPoint): number {
+  const latitudeDelta = toRadians(to.latitude - from.latitude);
+  const longitudeDelta = toRadians(to.longitude - from.longitude);
+  const fromLatitude = toRadians(from.latitude);
+  const toLatitude = toRadians(to.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(fromLatitude) *
+      Math.cos(toLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+
+  const rawMeters =
+    2 *
+    EARTH_RADIUS_KM *
+    1000 *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+
+  return Math.round(rawMeters * 100) / 100;
+}
+
 export type { GeoPoint };

@@ -24,6 +24,7 @@ type CreateDeliveryAddressSectionProps = {
   dropoff: CreateDeliveryAddressDraft;
   pickupValidation: CreateDeliveryAddressValidation;
   dropoffValidation: CreateDeliveryAddressValidation;
+  distanceError?: string | null;
   pickupCandidatePoints: readonly CandidatePoint[];
   dropoffCandidatePoints: readonly CandidatePoint[];
   isPlanningPickupHandoffPoints?: boolean;
@@ -89,48 +90,6 @@ const coverageStateClassNames = {
   review: "border-warning/35 bg-warning/10",
   outside: "border-destructive/15 bg-destructive/5",
 } as const;
-
-function PlaceShortcutList({
-  field,
-  title,
-  places,
-  disabled,
-  onSavedPlaceSelect,
-}: {
-  field: CreateDeliveryAddressField;
-  title: string;
-  places: readonly SavedPlace[];
-  disabled?: boolean;
-  onSavedPlaceSelect?: (
-    field: CreateDeliveryAddressField,
-    place: SavedPlace,
-  ) => void;
-}) {
-  if (!places.length || !onSavedPlaceSelect) {
-    return null;
-  }
-
-  return (
-    <div className="grid gap-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {title}
-      </p>
-      <div className="flex flex-wrap gap-2 pb-1">
-        {places.slice(0, 4).map((place) => (
-          <button
-            key={`${field}-${title}-${place.id}`}
-            type="button"
-            disabled={disabled}
-            onClick={() => onSavedPlaceSelect(field, place)}
-            className="min-h-11 max-w-full rounded-full border border-border/80 bg-background/80 px-3.5 py-2 text-left text-xs font-medium leading-tight text-foreground transition-colors hover:border-primary/35 hover:bg-primary/10 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            Folosește {place.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function MeetingPointSelector({
   field,
@@ -329,9 +288,11 @@ const AddressFieldBlock = memo(function AddressFieldBlock({
           hasResolvedSelection={
             value.selectedAddress?.formattedAddress === value.address.trim()
           }
+          savedPlaces={savedPlaces}
           disabled={isLocked}
           onChange={(nextValue) => onAddressChange(field, nextValue)}
           onSelect={(suggestion) => onAddressSelect(field, suggestion)}
+          onSavedPlaceSelect={(place) => onSavedPlaceSelect?.(field, place)}
         />
         <AppButton
           type="button"
@@ -347,16 +308,6 @@ const AddressFieldBlock = memo(function AddressFieldBlock({
         >
           <MapPinned className="size-4" />
         </AppButton>
-      </div>
-
-      <div className="grid gap-3">
-        <PlaceShortcutList
-          field={field}
-          title="Locații salvate"
-          places={savedPlaces}
-          disabled={isLocked}
-          onSavedPlaceSelect={onSavedPlaceSelect}
-        />
       </div>
 
       {noteLabel ? (
@@ -393,6 +344,7 @@ export const CreateDeliveryAddressSection = memo(function CreateDeliveryAddressS
   dropoff,
   pickupValidation,
   dropoffValidation,
+  distanceError,
   pickupCandidatePoints,
   dropoffCandidatePoints,
   isPlanningPickupHandoffPoints,
@@ -414,6 +366,14 @@ export const CreateDeliveryAddressSection = memo(function CreateDeliveryAddressS
 }: CreateDeliveryAddressSectionProps) {
   return (
     <div className="grid min-w-0 gap-3">
+      {distanceError ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive"
+        >
+          {distanceError}
+        </div>
+      ) : null}
       <div className="grid min-w-0 gap-3">
         <AddressFieldBlock
           field="pickup"

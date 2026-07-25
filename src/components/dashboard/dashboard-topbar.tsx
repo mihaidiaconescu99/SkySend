@@ -124,7 +124,15 @@ export function DashboardTopbar({
                   width={64}
                   height={64}
                   priority
-                  className="size-12 shrink-0 object-contain"
+                  className="size-12 shrink-0 object-contain light:hidden"
+                />
+                <Image
+                  src="/icons/client-light-drone.png"
+                  alt=""
+                  width={64}
+                  height={64}
+                  priority
+                  className="hidden size-12 shrink-0 object-contain light:block"
                 />
                 <span className="truncate font-heading text-2xl font-semibold tracking-tight">
                   SkySend
@@ -298,15 +306,15 @@ export function DashboardTopbar({
                   "compact-ui:hidden expanded-ui:inline-flex",
                 )}
               >
-                <Warehouse className="size-4 text-foreground" />
-                <span
+                <Warehouse
                   className={cn(
-                    "size-2.5 rounded-full",
-                    isHubOnline
-                      ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]"
-                      : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.75)]",
+                    "size-4",
+                    isPlatformInMaintenance
+                      ? "text-amber-400"
+                      : isHubOnline
+                        ? "text-emerald-400"
+                        : "text-red-500",
                   )}
-                  aria-hidden="true"
                 />
                 <span className="whitespace-nowrap max-[380px]:sr-only">
                   {isPlatformInMaintenance

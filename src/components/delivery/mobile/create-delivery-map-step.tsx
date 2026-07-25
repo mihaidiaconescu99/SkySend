@@ -35,6 +35,7 @@ type CreateDeliveryMapStepProps = {
   isLocked: boolean;
   routeReady: boolean;
   platformGateMessage: string | null;
+  distanceError?: string | null;
   onAddressChange: (field: CreateDeliveryAddressField, value: string) => void;
   onAddressSelect: (
     field: CreateDeliveryAddressField,
@@ -65,6 +66,7 @@ export function CreateDeliveryMapStep({
   isLocked,
   routeReady,
   platformGateMessage,
+  distanceError,
   onAddressChange,
   onAddressSelect,
   onSavedPlaceSelect,
@@ -160,9 +162,10 @@ export function CreateDeliveryMapStep({
   }, [closeMapSelection, onContinue]);
 
   const noticeMessage =
-    pickupValidation.state === "outside" || dropoffValidation.state === "outside"
+    distanceError ??
+    (pickupValidation.state === "outside" || dropoffValidation.state === "outside"
       ? "Adresa e în afara zonei active Pitești."
-      : platformGateMessage;
+      : platformGateMessage);
 
   const continueReady = routeReady && !platformGateMessage;
   const showCenterPin = Boolean(activeMapSelectionField);
@@ -224,7 +227,13 @@ export function CreateDeliveryMapStep({
             aria-live="polite"
           >
             {isResolving ? <LoaderCircle className="size-3.5 shrink-0 animate-spin" /> : null}
-            <span className="truncate">{feedback}</span>
+            <span className="truncate">
+              {canConfirm
+                ? activeMapSelectionField === "pickup"
+                  ? "Confirmi adresa de ridicare?"
+                  : "Confirmi adresa de livrare?"
+                : feedback}
+            </span>
             <AnimatePresence initial={false}>
               {canConfirm ? (
                 <motion.button

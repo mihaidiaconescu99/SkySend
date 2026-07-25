@@ -8,7 +8,7 @@ import { getOperationalStatusSnapshot } from "@/lib/operational-status-server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const schema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("set_manual_status"), status: z.enum(["active", "maintenance"]) }).strict(),
+  z.object({ action: z.literal("set_manual_status"), status: z.enum(["active", "maintenance", "unavailable"]) }).strict(),
   z.object({ action: z.literal("cancel_override") }).strict(),
 ]);
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       last_saved_by: authResult.profile.id,
     }).eq("is_singleton", true);
     const before = await getOperationalStatusSnapshot(createAdminSupabaseClient(), now);
-    if (parsed.data.status === "maintenance") {
+    if (parsed.data.status === "maintenance" || parsed.data.status === "unavailable") {
       await supabase.from("platform_override_state").update({
         cancelled_at: now.toISOString(),
         cancelled_by: authResult.profile.id,
