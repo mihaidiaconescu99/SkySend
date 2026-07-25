@@ -14,24 +14,7 @@ SkySend este o aplicație web demonstrativă pentru configurarea și simularea l
 - OpenRouter pentru funcțiile AI
 - Vitest pentru testare
 
-## Dezvoltare locală
 
-Instalează dependențele și pornește serverul de dezvoltare:
-
-```bash
-npm install
-npm run dev
-```
-
-Comenzile principale de verificare sunt:
-
-```bash
-npm run knowledge:check
-npm test
-npm run typecheck
-npm run lint
-npm run build
-```
 
 ## Documentația AI Assistant
 
@@ -43,11 +26,6 @@ Documentația canonică pentru produs, FAQ și politici se află în:
 
 Aceste fișiere alimentează AI Assistant-ul, tabul Ajutor și pagina publică FAQ. După orice modificare editorială rulează:
 
-```bash
-npm run knowledge:generate
-```
-
-Artefactul `src/generated/assistant-knowledge.json` este generat determinist și nu trebuie editat manual. `npm run knowledge:check` detectează indexul neactualizat și erorile structurale din documentație.
 
 ## Structură
 
