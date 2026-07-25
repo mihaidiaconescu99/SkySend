@@ -1,6 +1,6 @@
 # SkySend maintenance scheduler
 
-Workerul rulează la fiecare minut și apelează un singur endpoint agregator protejat, `/api/cron/maintenance`. Agregatorul execută:
+Workerul rulează la fiecare 5 minute și apelează endpoint-ul agregator protejat, `/api/cron/maintenance`. Agregatorul execută:
 
 - expirarea acțiunilor de misiune;
 - reconcilierea refundurilor;
@@ -9,7 +9,7 @@ Workerul rulează la fiecare minut și apelează un singur endpoint agregator pr
 - hold/reluare pentru misiunile aflate în preflight;
 - generarea și retry-ul documentelor PDF.
 
-Cronul zilnic Vercel pentru atașamentele temporare rămâne separat. Documentele din prefixul privat R2 `billing/` nu primesc expirare.
+La ora 03:00 UTC, același Worker apelează separat `/api/cron/purge-expired-attachments`. Nu mai există Cron Jobs configurate în Vercel. Documentele din prefixul privat R2 `billing/` nu primesc expirare.
 
 ## Publicare
 
@@ -22,4 +22,4 @@ npx wrangler secret put CRON_SECRET
 npx wrangler deploy
 ```
 
-`SKYSEND_ORIGIN` este domeniul public fără slash final, iar `CRON_SECRET` trebuie să fie identic cu valoarea din Vercel. Nu salva secretele în fișier.
+`SKYSEND_ORIGIN` este domeniul public fără slash final, iar `CRON_SECRET` trebuie să fie identic cu valoarea configurată în aplicația găzduită. Nu salva secretele în fișier.

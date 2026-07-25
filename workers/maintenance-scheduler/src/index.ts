@@ -7,15 +7,21 @@ type SchedulerContext = {
   waitUntil(promise: Promise<unknown>): void;
 };
 
+type SchedulerController = {
+  cron: string;
+};
+
 type SchedulerHandler = {
   scheduled(
-    controller: unknown,
+    controller: SchedulerController,
     env: Env,
     ctx: SchedulerContext,
   ): Promise<void>;
 };
 
 const maintenancePath = "/api/cron/maintenance";
+const purgeExpiredAttachmentsPath = "/api/cron/purge-expired-attachments";
+const purgeExpiredAttachmentsSchedule = "0 3 * * *";
 
 async function invokeMaintenancePath(origin: string, secret: string, path: string) {
   const response = await fetch(new URL(path, origin), {
@@ -28,7 +34,7 @@ async function invokeMaintenancePath(origin: string, secret: string, path: strin
 }
 
 export default {
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
     const origin = env.SKYSEND_ORIGIN?.replace(/\/+$/u, "");
     const secret = env.CRON_SECRET?.trim();
 
@@ -37,9 +43,14 @@ export default {
       return;
     }
 
+    const path =
+      controller.cron === purgeExpiredAttachmentsSchedule
+        ? purgeExpiredAttachmentsPath
+        : maintenancePath;
+
     ctx.waitUntil(
-      invokeMaintenancePath(origin, secret, maintenancePath).catch((error) => {
-        console.error(`Maintenance request failed for ${maintenancePath}`, error);
+      invokeMaintenancePath(origin, secret, path).catch((error) => {
+        console.error(`Scheduled request failed for ${path}`, error);
       }),
     );
   },
