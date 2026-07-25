@@ -79,10 +79,19 @@ function SidebarGroup({
   );
 }
 
-export function DashboardSidebar({ role }: { role: DashboardRole }) {
+export function DashboardSidebar({
+  role,
+  accountRole,
+}: {
+  role: DashboardRole;
+  accountRole: DashboardRole;
+}) {
   const navigation = getDashboardNavigation(role);
+  const accountNavigation = getDashboardNavigation(accountRole);
   const currentRoute = useCurrentRoute();
   const isClientWorkspace = role === "client";
+  const isStaffClientWorkspace =
+    isClientWorkspace && (accountRole === "admin" || accountRole === "operator");
 
   return (
     <aside
@@ -106,19 +115,19 @@ export function DashboardSidebar({ role }: { role: DashboardRole }) {
           <SidebarGroup items={navigation.secondary} currentRoute={currentRoute} label="Instrumente" />
         ) : null}
 
-        {isClientWorkspace ? (
-          <div className="mt-auto border-t border-border/70 pt-4">
+        {isClientWorkspace && !isStaffClientWorkspace ? (
+          <div className="sticky bottom-0 z-10 mt-auto border-t border-border/70 bg-sidebar/95 pt-4 backdrop-blur">
             <SidebarGroup items={navigation.secondary} currentRoute={currentRoute} label="Cont" />
           </div>
         ) : null}
 
-        {!isClientWorkspace ? (
-          <div className="mt-auto space-y-2">
+        {!isClientWorkspace || isStaffClientWorkspace ? (
+          <div className="sticky bottom-0 z-10 mt-auto space-y-2 border-t border-border/70 bg-sidebar/95 pt-4 backdrop-blur">
             <p className="px-2 text-[0.8rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Spații de lucru
             </p>
             <nav className="grid gap-2">
-              {navigation.workspaces.map((item) => {
+              {accountNavigation.workspaces.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentRoute.startsWith(item.href);
 

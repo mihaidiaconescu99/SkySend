@@ -14,9 +14,11 @@ import type { DashboardRole } from "@/types/roles";
 export function DashboardShell({
   children,
   role,
+  accountRole,
 }: {
   children: ReactNode;
   role?: DashboardRole;
+  accountRole?: DashboardRole;
 }) {
   const detectedRole = useActiveeRole();
   const activeRole = role ?? detectedRole ?? "client";
@@ -52,7 +54,10 @@ export function DashboardShell({
             : "lg:grid-cols-[19.5rem_minmax(0,1fr)]",
         )}
       >
-        <DashboardSidebar role={activeRole} />
+        <DashboardSidebar
+          role={activeRole}
+          accountRole={accountRole ?? activeRole}
+        />
 
         <div
           className={cn(

@@ -25,6 +25,7 @@ export interface OperationalSettings {
 
 export interface UpdateOperationalSettingsInput {
   isActive?: boolean;
+  manualStatus?: "active" | "maintenance" | "unavailable";
   serviceRadiusKm?: number;
   basePriceMinor?: number;
   pricePerKmMinor?: number;

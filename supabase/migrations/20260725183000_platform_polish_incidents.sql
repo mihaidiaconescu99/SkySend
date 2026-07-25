@@ -1,6 +1,8 @@
 -- Persistent admin incident workflow, unavailable hub state and payment snapshots.
 
 ALTER TABLE public.operational_settings
+  ADD COLUMN IF NOT EXISTS manual_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE public.operational_settings
   DROP CONSTRAINT IF EXISTS operational_settings_manual_status_check;
 ALTER TABLE public.operational_settings
   ADD CONSTRAINT operational_settings_manual_status_check

@@ -44,7 +44,13 @@ export async function PUT(request: Request) {
     last_saved_at: now,
     last_saved_by: authResult.profile.id,
   }).eq("is_singleton", true);
-  if (error) return NextResponse.json({ error: "settings_save_failed" }, { status: 502 });
+  if (error) {
+    console.error("[admin/settings] save failed", {
+      code: error.code,
+      message: error.message,
+    });
+    return NextResponse.json({ error: "settings_save_failed" }, { status: 502 });
+  }
 
   if (
     parsed.data.manualStatus === "maintenance" ||

@@ -7,7 +7,11 @@ export default async function ClientAppLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  await requireRoleRoute("client");
+  const context = await requireRoleRoute("client");
 
-  return <DashboardShell role="client">{children}</DashboardShell>;
+  return (
+    <DashboardShell role="client" accountRole={context.role ?? "client"}>
+      {children}
+    </DashboardShell>
+  );
 }

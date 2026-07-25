@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin-export";
 import { getAdminStatisticsSnapshot } from "@/lib/admin-statistics";
 import { cn } from "@/lib/utils";
+import type { AdminOrder } from "@/types/admin";
 import type {
   AdminExportFilter,
   AdminStatisticsSnapshot,
@@ -255,15 +256,34 @@ export function AdminStatisticsView({
   initialExportOptions,
 }: AdminStatisticsViewProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [exportOptions, setExportOptions] = useState(initialExportOptions);
 
   useEffect(() => {
-    const refreshFrame = window.requestAnimationFrame(() => {
-      setSnapshot(getAdminStatisticsSnapshot());
-      setExportOptions(getAvailableExportFilterOptions());
-    });
+    let active = true;
 
-    return () => window.cancelAnimationFrame(refreshFrame);
+    async function refreshSnapshot() {
+      try {
+        const response = await fetch("/api/admin/orders", {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { orders?: AdminOrder[] };
+        if (active && Array.isArray(payload.orders)) {
+          setSnapshot(getAdminStatisticsSnapshot(payload.orders));
+        }
+      } catch {
+      }
+    }
+
+    const interval = window.setInterval(() => {
+      void refreshSnapshot();
+    }, 15_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const generatedLabel = useMemo(
@@ -285,7 +305,7 @@ export function AdminStatisticsView({
 
       <StatisticsKpiGrid snapshot={snapshot} />
 
-      <ExportPanel exportOptions={exportOptions} />
+      <ExportPanel exportOptions={initialExportOptions} />
     </section>
   );
 }

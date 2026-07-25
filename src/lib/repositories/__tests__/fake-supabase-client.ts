@@ -888,6 +888,7 @@ export function buildSettingsRow(
     id: overrides.id ?? randomUUID(),
     is_active: true,
     is_singleton: true,
+    manual_status: "active",
     service_radius_km: 6,
     base_price_minor: 990,
     price_per_km_minor: 220,

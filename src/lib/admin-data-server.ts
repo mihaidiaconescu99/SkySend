@@ -63,9 +63,9 @@ function mapRepoContactMessageToAdmin(
 function mapRepoSettingsToAdmin(
   settings: RepoOperationalSettings,
 ): AdminOperationalSettings {
-  const platformStatus: OperationalPlatformStatus = settings.isActive
-    ? "active"
-    : "maintenance";
+  const platformStatus: OperationalPlatformStatus =
+    settings.manualStatus ??
+    (settings.isActive ? "active" : "maintenance");
 
   const hubAddress: AddressSnapshot = {
     formattedAddress: activeHub.address.formattedAddress,
@@ -178,7 +178,9 @@ export async function getAdminStatisticsSnapshotFromDB(): Promise<AdminStatistic
 export async function getAdminFailedOrderDetailsFromDB(): Promise<AdminFailedOrderDetail[]> {
   await assertAdminDataAccess();
   const orders = await loadAdminOrdersFromDB();
-  return getAdminFailedOrderDetails(orders);
+  return getAdminFailedOrderDetails(orders).filter(
+    (order) => order.hasLockerRecoveryIncident,
+  );
 }
 
 export async function getAdminLockerRecoveryDetailsFromDB(): Promise<AdminLockerRecoveryDetail[]> {

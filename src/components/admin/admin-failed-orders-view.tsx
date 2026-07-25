@@ -44,7 +44,6 @@ type AdminFailedOrdersViewProps = {
 type ReasonFilter = "all" | FailureReasonCode;
 type ResolutionFilter = "all" | FailedOrderResolutionStatus;
 type RefundFilter = "all" | RefundStatus;
-type PriorityFilter = "all" | AdminFailedOrderDetail["priority"];
 type StatusTone = "neutral" | "success" | "warning" | "destructive" | "info";
 
 function formatDateTime(value?: string | null) {
@@ -152,8 +151,8 @@ function EmptyFailedOrdersState() {
         <div>
           <p className="font-medium text-foreground">Nu există incidente</p>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Când apar livrări eșuate sau anulate, ele vor fi listate aici
-            pentru rezolvare operațională.
+            Aici vor apărea numai lockerele rămase la sol sau desprinse în
+            timpul unei livrări reale.
           </p>
         </div>
       </CardContent>
@@ -710,7 +709,6 @@ export function AdminFailedOrdersView({
     useState<ResolutionFilter>("all");
   const [refund, setRefund] = useState<RefundFilter>("all");
   const [draftRefund, setDraftRefund] = useState<RefundFilter>("all");
-  const [priority, setPriority] = useState<PriorityFilter>("all");
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
     message: string;
@@ -731,7 +729,9 @@ export function AdminFailedOrdersView({
 
       const body = (await response.json()) as { orders?: AdminOrder[] };
       const refreshed = Array.isArray(body.orders) ? body.orders : [];
-      const details = getAdminFailedOrderDetails(refreshed);
+      const details = getAdminFailedOrderDetails(refreshed).filter(
+        (order) => order.hasLockerRecoveryIncident,
+      );
       setOrders(details);
       setSelectedOrderId((currentId) => {
         const params = new URLSearchParams(window.location.search);
@@ -782,11 +782,10 @@ export function AdminFailedOrdersView({
         matchesSearch &&
         (reason === "all" || order.reasonCode === reason) &&
         (resolution === "all" || order.resolutionStatus === resolution) &&
-        (refund === "all" || order.refundStatus === refund) &&
-        (priority === "all" || order.priority === priority)
+        (refund === "all" || order.refundStatus === refund)
       );
     });
-  }, [orders, priority, reason, refund, resolution, search]);
+  }, [orders, reason, refund, resolution, search]);
 
   const selectedOrder =
     orders.find((order) => order.orderId === selectedOrderId) ??
@@ -940,7 +939,7 @@ export function AdminFailedOrdersView({
       <AdminPageHeader
         eyebrow="Panou Administrator"
         title="Incidente"
-        description="Listă operațională pentru livrări eșuate, rambursări, notificări și rezolvare internă."
+        description="Lockere rămase la sol sau desprinse în timpul livrării."
         actions={
           lockerIncidentCount > 0 ? (
             <AppButton asChild>
@@ -953,6 +952,10 @@ export function AdminFailedOrdersView({
         }
       />
 
+      {orders.length === 0 ? (
+        <EmptyFailedOrdersState />
+      ) : (
+        <>
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="rounded-[calc(var(--radius)+0.375rem)]">
           <CardContent className="grid gap-2 p-4">
@@ -985,39 +988,14 @@ export function AdminFailedOrdersView({
         applyLabel="Filtrează"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <AppButton
-          type="button"
-          variant={priority === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setPriority("all")}
-        >
-          Toate prioritățile
-        </AppButton>
-        {(["urgent", "high", "normal", "low"] as const).map((priorityValue) => (
-          <AppButton
-            key={priorityValue}
-            type="button"
-            variant={priority === priorityValue ? "default" : "outline"}
-            size="sm"
-            onClick={() => setPriority(priorityValue)}
-          >
-            {priorityValue === "urgent"
-              ? "Urgentă"
-              : priorityValue === "high"
-                ? "Ridicata"
-                : priorityValue === "normal"
-                  ? "Normala"
-                  : "Scăzută"}
-          </AppButton>
-        ))}
-        {refundInProgressCount > 0 ? (
+      {refundInProgressCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge
             label={`${refundInProgressCount} rambursări în curs`}
             tone="warning"
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {feedback ? (
         <div
@@ -1069,6 +1047,8 @@ export function AdminFailedOrdersView({
           />
         </div>
       </div>
+        </>
+      )}
     </section>
   );
 }

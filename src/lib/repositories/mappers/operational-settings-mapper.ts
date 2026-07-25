@@ -73,10 +73,19 @@ export function rowToSettings(
   row: DBRow<"operational_settings">,
 ): OperationalSettings {
   validateCoordinates(row.hub_latitude, row.hub_longitude);
+  const manualStatus =
+    row.manual_status === "active" ||
+    row.manual_status === "maintenance" ||
+    row.manual_status === "unavailable"
+      ? row.manual_status
+      : row.is_active
+        ? "active"
+        : "maintenance";
 
   return {
     id: requireString(row.id, "id"),
     isActive: row.is_active === true,
+    manualStatus,
     serviceRadiusKm: requirePositiveNumber(
       row.service_radius_km,
       "service_radius_km",
@@ -117,6 +126,9 @@ export function updateInputToRow(
 
   if (input.isActive !== undefined) {
     payload.is_active = input.isActive;
+  }
+  if (input.manualStatus !== undefined) {
+    payload.manual_status = input.manualStatus;
   }
   if (input.serviceRadiusKm !== undefined) {
     payload.service_radius_km = requirePositiveNumber(

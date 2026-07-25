@@ -1027,6 +1027,7 @@ export type Database = {
           last_saved_at: string
           last_saved_by: string | null
           loading_timer_minutes: number
+          manual_status: string
           price_per_km_minor: number
           service_radius_km: number
           unloading_timer_minutes: number
@@ -1044,6 +1045,7 @@ export type Database = {
           last_saved_at?: string
           last_saved_by?: string | null
           loading_timer_minutes?: number
+          manual_status?: string
           price_per_km_minor?: number
           service_radius_km?: number
           unloading_timer_minutes?: number
@@ -1061,6 +1063,7 @@ export type Database = {
           last_saved_at?: string
           last_saved_by?: string | null
           loading_timer_minutes?: number
+          manual_status?: string
           price_per_km_minor?: number
           service_radius_km?: number
           unloading_timer_minutes?: number

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 type AdminSidebarProps = {
   currentPath: string;
+  animationScope: "desktop" | "mobile";
   onNavigate?: () => void;
 };
 
@@ -27,7 +28,11 @@ function isActiveAdminItem(currentPath: string, href: string) {
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
-export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({
+  currentPath,
+  animationScope,
+  onNavigate,
+}: AdminSidebarProps) {
   const reduceMotion = Boolean(useReducedMotion());
   const workspaces = [
     { label: "Spațiu admin", href: "/admin", icon: ShieldCheck },
@@ -67,7 +72,7 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
                 <span className="flex min-w-0 items-center gap-3">
                   <span
                     className={cn(
-                      "relative flex size-8 shrink-0 items-center justify-center rounded-lg",
+                      "relative flex size-8 shrink-0 items-center justify-center rounded-full",
                       isActive
                         ? "text-primary-foreground"
                         : "bg-secondary text-foreground",
@@ -75,8 +80,8 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
                   >
                     {isActive ? (
                       <motion.span
-                        layoutId="admin-active-icon"
-                        className="absolute inset-0 rounded-lg bg-primary"
+                        layoutId={`admin-active-icon-${animationScope}`}
+                        className="absolute inset-0 rounded-full bg-primary"
                         transition={
                           reduceMotion
                             ? { duration: 0 }
@@ -95,7 +100,7 @@ export function AdminSidebar({ currentPath, onNavigate }: AdminSidebarProps) {
           })}
         </nav>
 
-        <div className="mt-auto grid gap-1.5">
+        <div className="sticky bottom-0 z-10 mt-auto grid gap-1.5 border-t border-border/70 bg-sidebar/95 pb-1 pt-3 backdrop-blur">
           <p className="px-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Spații de lucru</p>
           {workspaces.map((workspace) => {
             const Icon = workspace.icon;

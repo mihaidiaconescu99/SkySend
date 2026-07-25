@@ -142,7 +142,13 @@ export function AdminSettingsView({ initialSettings }: AdminSettingsViewProps) {
     });
     const remoteResult = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setFeedback({ tone: "error", message: remoteResult.error ?? "Setările nu au putut fi salvate în Supabase." });
+      setFeedback({
+        tone: "error",
+        message:
+          remoteResult.error === "settings_save_failed"
+            ? "Setările nu au putut fi salvate. Încearcă din nou."
+            : remoteResult.error ?? "Setările nu au putut fi salvate în Supabase.",
+      });
       setIsSaving(false);
       return;
     }

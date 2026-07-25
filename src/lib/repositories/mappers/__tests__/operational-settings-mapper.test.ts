@@ -13,6 +13,7 @@ function buildSettingsRow(
     id: "11111111-1111-1111-1111-111111111111",
     is_active: true,
     is_singleton: true,
+    manual_status: "active",
     service_radius_km: 6,
     base_price_minor: 990,
     price_per_km_minor: 220,
@@ -35,6 +36,7 @@ describe("rowToSettings", () => {
     expect(rowToSettings(row)).toEqual({
       id: row.id,
       isActive: true,
+      manualStatus: "active",
       serviceRadiusKm: 6,
       basePriceMinor: 990,
       pricePerKmMinor: 220,

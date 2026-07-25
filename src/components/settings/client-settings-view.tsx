@@ -349,10 +349,11 @@ export function ClientSettingsView() {
 
       <div className="grid gap-5">
         <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
-        <SectionCard
-          eyebrow="Cont"
-          title="Cont"
-        >
+          <div className="xl:col-start-1 xl:row-start-1">
+            <SectionCard
+              eyebrow="Cont"
+              title="Cont"
+            >
           <div className="grid gap-4">
             <div className="grid gap-5 expanded-ui:grid-cols-[auto_minmax(0,1fr)] expanded-ui:items-center">
               <div className="relative size-20">
@@ -429,28 +430,33 @@ export function ClientSettingsView() {
             ) : null}
 
           </div>
-        </SectionCard>
-        <SectionCard
-          eyebrow="Facturare"
-          title="Date de facturare"
-          description="Datele folosite pentru precompletarea comenzilor viitoare."
-        >
-          <AccountBillingProfile />
-        </SectionCard>
-        </div>
-
-        <SectionCard
-          eyebrow={t("settings.preferences.eyebrow")}
-          title={t("settings.preferences.title")}
-          description={t("settings.preferences.description")}
-        >
-          <div className="grid gap-3">
-            <PreferencesControls />
-            <p className="text-xs leading-5 text-muted-foreground">
-              {t("settings.preferences.note")}
-            </p>
+            </SectionCard>
           </div>
-        </SectionCard>
+          <div className="xl:col-start-2 xl:row-span-2 xl:row-start-1">
+            <SectionCard
+              eyebrow="Facturare"
+              title="Date de facturare"
+              description="Datele folosite pentru precompletarea comenzilor viitoare."
+            >
+              <AccountBillingProfile />
+            </SectionCard>
+          </div>
+
+          <div className="xl:col-start-1 xl:row-start-2">
+            <SectionCard
+              eyebrow={t("settings.preferences.eyebrow")}
+              title={t("settings.preferences.title")}
+              description={t("settings.preferences.description")}
+            >
+              <div className="grid gap-3">
+                <PreferencesControls />
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {t("settings.preferences.note")}
+                </p>
+              </div>
+            </SectionCard>
+          </div>
+        </div>
 
         <SectionCard
           eyebrow="Notificări"

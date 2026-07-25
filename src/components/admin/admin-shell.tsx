@@ -21,7 +21,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <div className="grid min-h-screen min-w-0 lg:h-full lg:min-h-0 lg:grid-cols-[18.5rem_minmax(0,1fr)]">
         <div className="hidden min-h-screen lg:block lg:h-dvh lg:min-h-0">
           <div className="h-full">
-            <AdminSidebar currentPath={pathname} />
+            <AdminSidebar currentPath={pathname} animationScope="desktop" />
           </div>
         </div>
 
@@ -68,6 +68,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </button>
           <AdminSidebar
             currentPath={pathname}
+            animationScope="mobile"
             onNavigate={() => setIsMenuOpen(false)}
           />
         </div>

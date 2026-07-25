@@ -7,7 +7,11 @@ export default async function OperatorAppLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  await requireSupportOperatorRoute();
+  const context = await requireSupportOperatorRoute();
 
-  return <DashboardShell role="operator">{children}</DashboardShell>;
+  return (
+    <DashboardShell role="operator" accountRole={context.role ?? "operator"}>
+      {children}
+    </DashboardShell>
+  );
 }
