@@ -478,6 +478,11 @@ export function AdminOperationalCenterView({
 
   useEffect(() => {
     void Promise.resolve().then(refreshOperationalData);
+    const interval = window.setInterval(() => {
+      void refreshOperationalData();
+    }, 15_000);
+
+    return () => window.clearInterval(interval);
   }, [refreshOperationalData]);
 
 
@@ -497,15 +502,11 @@ export function AdminOperationalCenterView({
     };
   }, [refreshOperationalData]);
 
-  const failedIncidents = useMemo(
-    () => data.incidents.filter((incident) => incident.kind === "failed_order"),
-    [data.incidents],
-  );
   const lockerIncidents = useMemo(
     () => data.incidents.filter((incident) => incident.kind === "locker_recovery"),
     [data.incidents],
   );
-  const urgentFailedCount = failedIncidents.filter(
+  const urgentIncidentCount = lockerIncidents.filter(
     (incident) => incident.priority === "urgent" || incident.priority === "high",
   ).length;
 
@@ -561,30 +562,18 @@ export function AdminOperationalCenterView({
         />
         <OverviewCard
           label="Incidente"
-          value={`${failedIncidents.length}`}
+          value={`${lockerIncidents.length}`}
           hint={
-            urgentFailedCount > 0
-              ? `${urgentFailedCount} cazuri cu prioritate ridicată.`
-              : "Fără cazuri prioritare în listă."
+            urgentIncidentCount > 0
+              ? `${urgentIncidentCount} lockere necesită intervenție.`
+              : "Nu există incidente de locker."
           }
-          tone={urgentFailedCount > 0 ? "warning" : "neutral"}
+          tone={urgentIncidentCount > 0 ? "warning" : "neutral"}
         />
         <OverviewCard
           label="Încasări nete astăzi"
-          value={formatMoney({
-            amountMinor: data.activeOrders
-              .filter(
-                (order) =>
-                  new Date(order.updatedAt).toDateString() ===
-                  new Date().toDateString(),
-              )
-              .reduce(
-                (total, order) => total + (order.price?.amountMinor ?? 0),
-                0,
-              ),
-            currency: "RON",
-          })}
-          hint="Plăți ale comenzilor active actualizate astăzi."
+          value={formatMoney(data.netRevenueToday)}
+          hint="Plăți confirmate minus rambursări confirmate astăzi."
           tone="success"
         />
         {false ? <OverviewCard
@@ -606,7 +595,7 @@ export function AdminOperationalCenterView({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="grid gap-5">
           <ActiveOrdersQueue orders={data.activeOrders} />
-          <FailedOrdersQueue incidents={failedIncidents} />
+          <FailedOrdersQueue incidents={lockerIncidents} />
         </div>
 
         <div className="grid content-start gap-5">

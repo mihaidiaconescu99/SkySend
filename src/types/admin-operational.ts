@@ -118,6 +118,7 @@ export type OperationalCenterData = {
   generatedAt: string;
   hub: OperationalHubSnapshot;
   kpis: OperationalKpi[];
+  netRevenueToday: MoneyAmount;
   activeOrders: OperationalMapOrder[];
   droneMarkers: OperationalDroneMarker[];
   incidents: OperationalIncident[];

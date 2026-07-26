@@ -1,7 +1,6 @@
 import { activeHub } from "@/constants/hub";
 import {
   getAdminOrdersWithRuntime,
-  getFailedOrderRecords,
   readOperationalSettings,
 } from "@/lib/admin-data";
 import { getAdminContactMessageDetails } from "@/lib/admin-contact-messages";
@@ -12,7 +11,6 @@ import {
 } from "@/lib/mission-route";
 import type {
   AdminOrder,
-  FailedOrderRecord,
   LockerRecoveryIncident,
   OperationalSettings,
 } from "@/types/admin";
@@ -29,6 +27,7 @@ import type {
 import type { OrderStatus } from "@/types/domain";
 import type { OperatorParcelEvaluation } from "@/types/operator-parcel-evaluation";
 import type { GeoPoint } from "@/types/service-area";
+import type { MoneyAmount } from "@/types/entities";
 
 const activeOrderStatuses: readonly OrderStatus[] = [
   "scheduled",
@@ -195,31 +194,6 @@ function mapLockerIncidentToOperational(
   };
 }
 
-function mapFailedOrderToOperational(
-  failedOrder: FailedOrderRecord,
-): OperationalIncident {
-  const isUrgent = failedOrder.priority === "urgent" || failedOrder.priority === "high";
-
-  return {
-    id: failedOrder.id,
-    kind: "failed_order",
-    orderId: failedOrder.orderId,
-    shortOrderId: formatOrderId(failedOrder.orderId),
-    title: isUrgent ? "Incident operațional prioritar" : "Comandă eșuată",
-    description: failedOrder.reasonLabel,
-    priority: failedOrder.priority,
-    priorityLabel: failedOrder.priorityLabel,
-    statusLabel: failedOrder.resolutionStatusLabel,
-    locationLabel: failedOrder.parcelLocation.label,
-    coordinates: failedOrder.parcelLocation.coordinates,
-    href: `/admin/failed-orders?orderId=${encodeURIComponent(failedOrder.orderId)}`,
-    lockerId: null,
-    lockerStatus: null,
-    createdAt: failedOrder.createdAt,
-    updatedAt: failedOrder.updatedAt,
-  };
-}
-
 function createOrderEvent(order: OperationalMapOrder): OperationalEvent {
   if (order.status === "in_flight") {
     return {
@@ -318,6 +292,7 @@ type OperationalCenterDataOverride = {
   adminOrders?: AdminOrder[];
   contactMessages?: AdminContactMessageDetail[];
   settings?: OperationalSettings;
+  netRevenueToday?: MoneyAmount;
 };
 
 export function getAdminOperationalCenterData(
@@ -333,13 +308,7 @@ export function getAdminOperationalCenterData(
   const lockerIncidents = getAdminLockerRecoveryDetails(adminOrders)
     .filter((incident) => incident.status !== "resolved")
     .map(mapLockerIncidentToOperational);
-  const lockerIncidentOrderIds = new Set(
-    lockerIncidents.map((incident) => incident.orderId),
-  );
-  const failedIncidents = getFailedOrderRecords(adminOrders)
-    .filter((record) => !lockerIncidentOrderIds.has(record.orderId))
-    .map(mapFailedOrderToOperational);
-  const incidents = [...lockerIncidents, ...failedIncidents].sort(
+  const incidents = lockerIncidents.sort(
     (left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
   );
   const completedTodayCount = adminOrders.filter((order) =>
@@ -413,6 +382,8 @@ export function getAdminOperationalCenterData(
         tone: "success",
       },
     ],
+    netRevenueToday:
+      override?.netRevenueToday ?? { amountMinor: 0, currency: "RON" },
     activeOrders,
     droneMarkers,
     incidents,
