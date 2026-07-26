@@ -58,11 +58,23 @@ Vercel – găzduirea și publicarea aplicației.
 Google Maps – deschiderea externă a unor coordonate și trasee.
 
 Chei și credențiale:
+
 Aplicația utilizează chei sau credențiale pentru Clerk, Supabase, Stripe, Geoapify, OpenRouter, Open Icecat, Invoice Generator, Resend și Cloudflare R2. Sunt folosite și secrete interne pentru webhook-uri, operații programate, limitarea cererilor și protejarea anumitor funcții administrative. Valorile acestor chei nu sunt incluse în codul public sau în documentație.
 
 Resurse vizuale și media:
+
 Fonturile, pictogramele și datele cartografice provin din servicii și biblioteci externe precum Google Fonts, Lucide, Geoapify, OpenStreetMap și CARTO.
 
 O parte dintre imaginile proiectului au fost generate cu OpenAI si gemini veo3, iar materialele foto-video au fost prelucrate și optimizate cu instrumente externe.
 
 Logo-urile Uber Eats, Wolt, Bolt Food, Sameday și Glovo sunt utilizate exclusiv în scop demonstrativ, fără a indica o afiliere oficială.
+
+Documentația AI Assistant
+
+Documentația Ai, FAQ și politici este generata folosind Chat gpt si se află în:
+
+- [`docs/ai-assistant/knowledge-base.md`](docs/ai-assistant/knowledge-base.md)
+- [`docs/ai-assistant/faq.md`](docs/ai-assistant/faq.md)
+- [`docs/ai-assistant/policies.md`](docs/ai-assistant/policies.md)
+
+Aceste fișiere alimentează AI Assistant-ul, tabul Ajutor și pagina publică FAQ.
