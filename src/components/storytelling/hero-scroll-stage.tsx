@@ -109,7 +109,7 @@ function HeroScene({
 
 export function HeroScrollStage({ copy }: HeroScrollStageProps) {
   return (
-    <StoryChapter id="story-hero" label={copy.title} screens={16}>
+    <StoryChapter id="story-hero" label={copy.title} screens={15}>
       {(progress) => <HeroScene progress={progress} copy={copy} />}
     </StoryChapter>
   );

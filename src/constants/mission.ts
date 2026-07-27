@@ -112,15 +112,15 @@ export type MissionDurationSeconds = number | MissionDurationRange;
 export const defaultMissionDurations = {
   preflightChecks: 4,
   warehouseToPickup: {
-    minSeconds: 20,
-    maxSeconds: 35,
+    minSeconds: 14,
+    maxSeconds: 25,
   },
   pickupSafetyCheck: 4,
   lockerDescent: 5,
   lockerAscent: 5,
   pickupToDropoff: {
-    minSeconds: 25,
-    maxSeconds: 40,
+    minSeconds: 18,
+    maxSeconds: 29,
   },
   dropoffSafetyCheck: 4,
 } satisfies Record<string, MissionDurationSeconds>;

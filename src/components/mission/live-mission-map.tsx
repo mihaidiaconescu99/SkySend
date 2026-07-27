@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { activeHub } from "@/constants/hub";
 import { useMissionRuntime } from "@/hooks/use-mission-runtime";
 import { getMarkerDrivenViewport, getServiceAreaMapOverlay } from "@/lib/map";
-import { interpolateGeoPoint } from "@/lib/mission-route";
 import { cn } from "@/lib/utils";
 import type { MapLineDefinition, MapMarkerDefinition } from "@/types/map";
 import type { GeoPoint } from "@/types/service-area";
@@ -133,7 +132,7 @@ function buildRouteLinePoints({
   activeSegmentType,
   activeSegmentFrom,
   activeSegmentTo,
-  segmentProgress,
+  currentDronePoint,
 }: {
   hubPoint: GeoPoint;
   pickupPoint: GeoPoint;
@@ -142,35 +141,25 @@ function buildRouteLinePoints({
   activeSegmentType?: string | null;
   activeSegmentFrom?: GeoPoint | null;
   activeSegmentTo?: GeoPoint | null;
-  segmentProgress: number;
+  currentDronePoint: GeoPoint;
 }) {
   if (activeSegmentType === "warehouse_to_pickup") {
     const routeStart = activeSegmentFrom ?? hubPoint;
     const routeEnd = activeSegmentTo ?? pickupPoint;
-    const progressPoint = interpolateGeoPoint(
-      routeStart,
-      routeEnd,
-      segmentProgress,
-    );
 
     return {
-      completed: [routeStart, progressPoint],
-      remaining: [progressPoint, routeEnd],
+      completed: [routeStart, currentDronePoint],
+      remaining: [currentDronePoint, routeEnd],
     };
   }
 
   if (activeSegmentType === "pickup_to_dropoff") {
     const routeStart = activeSegmentFrom ?? pickupPoint;
     const routeEnd = activeSegmentTo ?? dropoffPoint;
-    const progressPoint = interpolateGeoPoint(
-      routeStart,
-      routeEnd,
-      segmentProgress,
-    );
 
     return {
-      completed: [routeStart, progressPoint],
-      remaining: [progressPoint, routeEnd],
+      completed: [routeStart, currentDronePoint],
+      remaining: [currentDronePoint, routeEnd],
     };
   }
 
@@ -179,7 +168,7 @@ function buildRouteLinePoints({
     const routeEnd = activeSegmentTo ?? hubPoint;
     const fromPoint =
       currentStatus === "returning_to_hub"
-        ? interpolateGeoPoint(routeStart, routeEnd, segmentProgress)
+        ? currentDronePoint
         : routeStart;
 
     return {
@@ -338,7 +327,7 @@ export function LiveMissionMap({
       activeSegmentType: activeSegment?.type,
       activeSegmentFrom: activeSegment?.from.location,
       activeSegmentTo: activeSegment?.to.location,
-      segmentProgress,
+      currentDronePoint: liveDronePoint,
     });
 
     return [
@@ -365,8 +354,8 @@ export function LiveMissionMap({
     currentStatus,
     dropoffPoint,
     hubPoint,
+    liveDronePoint,
     pickupPoint,
-    segmentProgress,
   ]);
 
   const defaultOverlayContent = (

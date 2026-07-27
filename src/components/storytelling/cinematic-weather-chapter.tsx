@@ -272,7 +272,7 @@ export function CinematicWeatherChapter({ copy }: { copy: ResilienceCopy }) {
       <StoryChapter
         id="story-weather-resilience"
         label={copy.chapterLabel}
-        screens={TOTAL_SCREENS}
+        screens={TOTAL_SCREENS - SCENE_DURATIONS.length}
         className={styles.cinematicWeatherChapter}
         stickyClassName={styles.cinematicWeatherSticky}
       >

@@ -96,7 +96,7 @@ export function FinalCtaChapter({
       <StoryChapter
         id={id}
         label={copy.chapterLabel}
-        screens={4}
+        screens={3}
         className={styles.finalCtaLandingChapter}
         stickyClassName={styles.finalCtaLandingSticky}
       >

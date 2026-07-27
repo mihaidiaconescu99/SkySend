@@ -159,7 +159,13 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent, origin: stri
     .eq("stripe_payment_intent_id", intent.id)
     .eq("type", "payment");
   const order = rowToOrder(updated);
-  await ensureInvoiceDocument(createAdminSupabaseClient(), order, method);
+  try {
+    await ensureInvoiceDocument(createAdminSupabaseClient(), order, method);
+  } catch (error) {
+    // Mission creation must not be blocked by a recoverable invoice failure.
+    // The maintenance reconciliation recreates missing documents for paid orders.
+    console.error("[stripe-webhook] invoice creation deferred", order.localOrderId, error);
+  }
   const operational = await getOperationalStatusSnapshot();
   const mission = await ensureOrderMission(createAdminSupabaseClient(), order);
   if (

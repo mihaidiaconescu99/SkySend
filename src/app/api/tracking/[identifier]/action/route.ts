@@ -24,6 +24,10 @@ import type { Order } from "@/types/order";
 import { calculateDistanceKm } from "@/lib/mission-route";
 import { expireMissionIfDue } from "@/lib/mission-expiration-server";
 import { ensureOrderMission } from "@/lib/mission-bootstrap-server";
+import {
+  getAlreadyAppliedTrackingActionPhase,
+  type TrackingMissionAction,
+} from "@/lib/tracking-action-state";
 
 type Context = { params: Promise<{ identifier: string }> };
 
@@ -103,6 +107,24 @@ async function resolveOrder(identifier: string) {
 
 function hasCapability(scope: TrackingAccessScope, phase: "pickup" | "dropoff") {
   return scope === "owner" || scope === "full" || scope === phase;
+}
+
+function isTrackingActionAlreadyApplied(
+  action: TrackingMissionAction,
+  mission: {
+    currentStatus: Parameters<typeof getAlreadyAppliedTrackingActionPhase>[1];
+    runtimeState: Json | null;
+  },
+  scope: TrackingAccessScope,
+) {
+  const runtime = (mission.runtimeState ?? {}) as RuntimeState;
+  const phase = getAlreadyAppliedTrackingActionPhase(
+    action,
+    mission.currentStatus,
+    runtime.parcelLoaded === true,
+  );
+
+  return Boolean(phase && hasCapability(scope, phase));
 }
 
 async function getTimeoutMinutes(db: ReturnType<typeof createAdminSupabaseClient>, column: "loading_timer_minutes" | "unloading_timer_minutes") {
@@ -212,11 +234,20 @@ export async function POST(request: Request, { params }: Context) {
     }
     mission = refreshedMission.data;
   }
+  const runtime = (mission.runtimeState ?? {}) as RuntimeState;
+  if (
+    isTrackingActionAlreadyApplied(
+      parsed.data.action,
+      mission,
+      resolved.scope,
+    )
+  ) {
+    return NextResponse.json({ ok: true, mission, idempotent: true });
+  }
   if (parsed.data.expectedVersion !== undefined && parsed.data.expectedVersion !== mission.stateVersion) {
     return NextResponse.json({ error: "Mission state changed.", mission }, { status: 409 });
   }
 
-  const runtime = (mission.runtimeState ?? {}) as RuntimeState;
   const now = new Date();
   let nextStatus = mission.currentStatus;
   let failureCode: string | null = null;
@@ -324,6 +355,22 @@ export async function POST(request: Request, { params }: Context) {
     runtimeState: runtime as Json,
   });
   if (!updated.ok) {
+    const refreshed = await missions.getByOrderId(resolved.order.id);
+    if (
+      refreshed.ok &&
+      refreshed.data &&
+      isTrackingActionAlreadyApplied(
+        parsed.data.action,
+        refreshed.data,
+        resolved.scope,
+      )
+    ) {
+      return NextResponse.json({
+        ok: true,
+        mission: refreshed.data,
+        idempotent: true,
+      });
+    }
     console.error("[tracking/action] mission update failed", updated.error);
     return NextResponse.json({ error: "Mission update failed." }, { status: 409 });
   }

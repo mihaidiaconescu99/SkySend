@@ -57,7 +57,7 @@ export function EditorialChapter({ copy }: { copy: EditorialCopy }) {
     <StoryChapter
       id="story-editorial"
       label={copy.label}
-      screens={TOTAL_SCREENS}
+      screens={TOTAL_SCREENS - 1}
       className={styles.editorialChapter}
       stickyClassName={styles.editorialStage}
     >

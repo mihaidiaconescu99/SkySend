@@ -51,6 +51,38 @@ export function getMissionJourneyProgress(
   return 0;
 }
 
+function clampFlightProgress(progress: number) {
+  return Math.max(0, Math.min(1, progress));
+}
+
+const flightEasingIntensity = 0.4;
+
+export function easeMissionFlightProgress(progress: number) {
+  const normalizedProgress = clampFlightProgress(progress);
+  const smoothProgress =
+    normalizedProgress *
+    normalizedProgress *
+    (3 - 2 * normalizedProgress);
+
+  return (
+    normalizedProgress +
+    (smoothProgress - normalizedProgress) * flightEasingIntensity
+  );
+}
+
+export function getMissionFlightSpeedMultiplier(progress: number) {
+  const normalizedProgress = clampFlightProgress(progress);
+
+  return (
+    1 -
+    flightEasingIntensity +
+    6 *
+      flightEasingIntensity *
+      normalizedProgress *
+      (1 - normalizedProgress)
+  );
+}
+
 export type PremiumFailureCode =
   | "pickup_confirmation_timeout"
   | "pickup_load_timeout"

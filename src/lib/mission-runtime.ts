@@ -35,7 +35,11 @@ import {
   readCreatedDeliveryOrder,
   updateCreatedDeliveryOrderFulfillment,
 } from "@/lib/create-delivery-submit";
-import { getFailureCodeForTimerKind } from "@/lib/mission-progress";
+import {
+  easeMissionFlightProgress,
+  getFailureCodeForTimerKind,
+  getMissionFlightSpeedMultiplier,
+} from "@/lib/mission-progress";
 import {
   missionDispatchDelayMs,
   missionDispatchDelaySeconds,
@@ -807,7 +811,7 @@ function getDronePosition(
   return interpolateGeoPoint(
     activeSegment.from.location,
     activeSegment.to.location,
-    progress,
+    easeMissionFlightProgress(progress),
   );
 }
 
@@ -835,6 +839,7 @@ function createTelemetry({
   const distanceMeters = (activeSegment?.distanceKm ?? 0) * 1000;
   const durationSeconds = activeSegment?.plannedDurationSeconds ?? 1;
   const isFlying = Boolean(activeSegment && progress > 0 && progress < 1);
+  const flightSpeedMultiplier = getMissionFlightSpeedMultiplier(progress);
   const payloadStatuses: MissionStatus[] = [
     "locker_ascending_pickup",
     "payload_verification",
@@ -863,7 +868,9 @@ function createTelemetry({
     location: position,
     altitudeMeters: isFlying ? 82 : 18,
     groundSpeedMps: isFlying
-      ? Math.round((distanceMeters / durationSeconds) * 10) / 10
+      ? Math.round(
+          (distanceMeters / durationSeconds) * flightSpeedMultiplier * 10,
+        ) / 10
       : 0,
     headingDegrees,
     batteryPercent: Math.max(35, Math.round(100 - batteryUsed)),
@@ -1507,7 +1514,7 @@ function updateMissionForPickupMeetingPoint(
         distanceKm: warehouseToPickupDistanceKm,
         plannedDurationSeconds: Math.max(
           6,
-          Math.round(warehouseToPickupDistanceKm * 18 + 6),
+          Math.round(warehouseToPickupDistanceKm * 12 + 6),
         ),
       };
     }
@@ -1520,7 +1527,7 @@ function updateMissionForPickupMeetingPoint(
         distanceKm: pickupToDropoffDistanceKm,
         plannedDurationSeconds: Math.max(
           10,
-          Math.round(pickupToDropoffDistanceKm * 18 + 10),
+          Math.round(pickupToDropoffDistanceKm * 12 + 10),
         ),
       };
     }
@@ -1584,7 +1591,7 @@ function updateMissionForDropoffMeetingPoint(
         distanceKm: pickupToDropoffDistanceKm,
         plannedDurationSeconds: Math.max(
           6,
-          Math.round(pickupToDropoffDistanceKm * 18 + 6),
+          Math.round(pickupToDropoffDistanceKm * 12 + 6),
         ),
       };
     }
@@ -1637,7 +1644,7 @@ function buildReturnToHubSegment(mission: Mission): MissionSegment {
     },
     to: hubPoint,
     distanceKm,
-    plannedDurationSeconds: Math.max(8, Math.round(distanceKm * 18 + 8)),
+    plannedDurationSeconds: Math.max(8, Math.round(distanceKm * 12 + 8)),
   };
 }
 

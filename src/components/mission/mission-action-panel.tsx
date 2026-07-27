@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Clock3, LocateFixed, PackageCheck, RotateCw } from "lucide-react";
 import { AppButton } from "@/components/shared/app-button";
 import { missionStatusLabels } from "@/constants/mission";
@@ -41,6 +41,7 @@ export function MissionActionPanel({
   const [now, setNow] = useState(() => Date.now());
   const [isSyncing, setIsSyncing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const actionInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!userActionTimer) return;
@@ -80,7 +81,12 @@ export function MissionActionPanel({
   );
 
   async function syncAction(action: "confirm_position" | "next_point" | "parcel_loaded" | "parcel_delivered") {
+    if (actionInFlightRef.current) {
+      return false;
+    }
+
     const identifier = trackingIdentifier ?? orderId;
+    actionInFlightRef.current = true;
     setIsSyncing(true);
     setActionError(null);
     try {
@@ -91,6 +97,13 @@ export function MissionActionPanel({
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (
+          response.status === 409 &&
+          (body?.error === "Action is not allowed in this state." ||
+            body?.error === "Mission state changed.")
+        ) {
+          return false;
+        }
         throw new Error(body?.error ?? "Acțiunea nu a putut fi sincronizată.");
       }
       return true;
@@ -100,6 +113,7 @@ export function MissionActionPanel({
       );
       return false;
     } finally {
+      actionInFlightRef.current = false;
       setIsSyncing(false);
     }
   }

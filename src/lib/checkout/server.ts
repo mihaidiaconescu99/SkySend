@@ -30,8 +30,9 @@ function buildSurcharges(pricing: SkySendPricingResult): PricingSurcharge[] {
     ["thermal_handling", pricing.thermalHandlingSurcharge?.amountMinor ?? 0, "Control termic"],
     ["secure_handling", pricing.secureHandlingSurcharge?.amountMinor ?? 0, "Securitate plus"],
     ["route_complexity", pricing.routeComplexityAdjustment.amountMinor, "Complexitate traseu"],
-    ["drone_model", pricing.droneModelAdjustment.amountMinor, "Model dronă"],
-    ["delivery_config", pricing.deliveryConfigurationAdjustment?.amountMinor ?? 0, "Configurație cargo"],
+    pricing.input.deliveryConfiguration
+      ? ["delivery_config", pricing.deliveryConfigurationAdjustment?.amountMinor ?? 0, "Configurație cargo"]
+      : ["drone_model", pricing.droneModelAdjustment.amountMinor, "Model dronă"],
   ];
   return values.filter(([, amount]) => amount !== 0)
     .map(([type, amount, label]) => ({ type, amount, label }));

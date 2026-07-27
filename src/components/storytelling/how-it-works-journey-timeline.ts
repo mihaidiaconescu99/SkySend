@@ -20,6 +20,7 @@ export const HOW_JOURNEY_TIMELINE = {
 
 export const HOW_JOURNEY_TOTAL_SCREENS = HOW_JOURNEY_TIMELINE.finalFade.end;
 export const HOW_JOURNEY_CHAPTER_SCREENS = HOW_JOURNEY_TOTAL_SCREENS + 1;
+export const HOW_JOURNEY_SCROLL_SCREENS = HOW_JOURNEY_CHAPTER_SCREENS - 4;
 
 export function getJourneyPhaseProgress(viewport: number, phaseRange: HowJourneyPhase) {
   return Math.min(1, Math.max(0, (viewport - phaseRange.start) / phaseRange.duration));

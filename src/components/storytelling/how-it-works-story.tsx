@@ -14,7 +14,7 @@ import { FinalCtaChapter } from "./final-cta-chapter";
 import {
   getJourneyPhaseProgress,
   getJourneyViewport,
-  HOW_JOURNEY_CHAPTER_SCREENS,
+  HOW_JOURNEY_SCROLL_SCREENS,
   HOW_JOURNEY_TIMELINE,
 } from "./how-it-works-journey-timeline";
 import { ScrollCue } from "./scroll-cue";
@@ -36,6 +36,8 @@ const TUTORIAL_CONTENT_SCREENS = TUTORIAL_SCENE_SCREENS.reduce((total, screens) 
 const FINAL_DISSOLVE_SCREENS = 2;
 const FINAL_TITLE_SCREENS = 3;
 const TUTORIAL_TOTAL_SCREENS = TUTORIAL_CONTENT_SCREENS + FINAL_DISSOLVE_SCREENS + FINAL_TITLE_SCREENS;
+const TUTORIAL_SCROLL_SCREENS =
+  TUTORIAL_TOTAL_SCREENS - TUTORIAL_SCENE_SCREENS.length;
 
 function useTutorialMobileLayout() {
   const [isMobile, setIsMobile] = useState(false);
@@ -467,7 +469,7 @@ export function HowItWorksStory({
 }) {
   return (
     <div id="how-story" className={styles.howStoryRoot}>
-      <StoryChapter id="how-hero" label={copy.title} screens={5}>
+      <StoryChapter id="how-hero" label={copy.title} screens={4}>
         {(progress) => <HowItWorksHero progress={progress} copy={copy} />}
       </StoryChapter>
       <StoryChapter
@@ -475,14 +477,14 @@ export function HowItWorksStory({
         label={copy.tutorial.label}
         className={styles.howTutorialChapter}
         stickyClassName={styles.howTutorialStage}
-        screens={TUTORIAL_TOTAL_SCREENS}
+        screens={TUTORIAL_SCROLL_SCREENS}
       >
         {(progress) => <HowItWorksTutorial progress={progress} copy={copy} />}
       </StoryChapter>
       <StoryChapter
         id="how-journey"
         label={`${copy.journey.pickup.title}, ${copy.journey.flight.title}, ${copy.journey.dropoff.title}`}
-        screens={HOW_JOURNEY_CHAPTER_SCREENS}
+        screens={HOW_JOURNEY_SCROLL_SCREENS}
         className={styles.howJourneyChapter}
         stickyClassName={styles.howJourneyStage}
       >

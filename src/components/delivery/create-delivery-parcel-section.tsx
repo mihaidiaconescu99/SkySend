@@ -652,6 +652,10 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
   const [parcelAiImageError, setParcelAiImageError] = useState<string | null>(null);
   const [isUploadingParcelImage, setIsUploadingParcelImage] = useState(false);
   const parcelImagePickerRef = useRef<HTMLInputElement>(null);
+  const estimateRequestRef = useRef<{
+    id: number;
+    controller: AbortController | null;
+  }>({ id: 0, controller: null });
   const [evaluationViewId] = useState(() => crypto.randomUUID());
   const [operatorRequestError, setOperatorRequestError] = useState<string | null>(
     null,
@@ -748,6 +752,17 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     operatorEvaluation && operatorEvaluation.status !== "closed",
   );
 
+  function invalidateEstimateRequest() {
+    estimateRequestRef.current.id += 1;
+    estimateRequestRef.current.controller?.abort();
+    estimateRequestRef.current.controller = null;
+    setIsEstimating(false);
+  }
+
+  useEffect(() => () => {
+    estimateRequestRef.current.controller?.abort();
+  }, []);
+
   useEffect(() => {
     if (!sessionId) return;
     let active = true;
@@ -799,6 +814,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
 
     onAssistantUpdate(operatorInput, operatorResult);
     setAppliedOperatorEvaluationId(operatorEvaluation.id);
+    invalidateEstimateRequest();
     setPendingEstimate(null);
     setPendingInput(null);
     setConfirmationDraft(null);
@@ -817,6 +833,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     value: AdvancedDetailsDraft[K],
   ) {
     if (operatorEvaluationLocksParcel) return;
+    invalidateEstimateRequest();
     setAdvancedDetails((currentValue) => ({
       ...currentValue,
       [field]: value,
@@ -918,6 +935,10 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
           previousClarificationAnswers,
         )
       : baseClarificationAnswers;
+    invalidateEstimateRequest();
+    const requestId = estimateRequestRef.current.id;
+    const controller = new AbortController();
+    estimateRequestRef.current.controller = controller;
     const nextInput = buildRequestInput(answersForRequest);
     setIsEstimating(true);
     setEstimateError(null);
@@ -925,7 +946,6 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
     setPendingInput(nextInput);
     setConfirmationDraft(null);
     setIsEditingConfirmation(false);
-    const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 35_000);
 
     try {
@@ -954,6 +974,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       }
 
       const payload = (await response.json()) as ParcelEstimatorResponse;
+      if (estimateRequestRef.current.id !== requestId) {
+        return;
+      }
       setPendingEstimate(payload);
       setConfirmationDraft(buildConfirmationDraft(payload, parcel, advancedDetails));
       setSubmittedClarificationAnswers(
@@ -961,6 +984,9 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       );
       setClarificationAnswers({});
     } catch (error) {
+      if (estimateRequestRef.current.id !== requestId) {
+        return;
+      }
       setPendingEstimate(null);
       setEstimateError(
         error instanceof DOMException && error.name === "AbortError"
@@ -971,7 +997,10 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
       );
     } finally {
       window.clearTimeout(timeout);
-      setIsEstimating(false);
+      if (estimateRequestRef.current.id === requestId) {
+        estimateRequestRef.current.controller = null;
+        setIsEstimating(false);
+      }
     }
   }
 
@@ -1227,6 +1256,7 @@ export const CreateDeliveryParcelSection = memo(function CreateDeliveryParcelSec
               rows={6}
               placeholder="Ex: o cutie mică cu medicamente, două sticle de 500 ml și un borcan fragil"
               onChange={(event) => {
+                invalidateEstimateRequest();
                 setNaturalDescription(event.target.value);
                 setPendingEstimate(null);
                 setPendingInput(null);

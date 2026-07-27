@@ -2620,7 +2620,7 @@ export function CreateDeliveryShell() {
           </div>
 
           <aside className="order-1 min-h-0 xl:order-2 xl:sticky xl:top-8 xl:h-[calc(100dvh_-_4rem)]">
-            <Card className="h-full min-h-[34rem] overflow-hidden rounded-[calc(var(--radius)+0.75rem)]">
+            <Card className="h-auto min-h-0 overflow-visible rounded-[calc(var(--radius)+0.75rem)] xl:h-full xl:min-h-[34rem] xl:overflow-hidden">
               <CreateDeliveryCheckoutPanel
                 payload={checkoutPayload}
                 pricing={pricingSnapshot}

@@ -36,6 +36,14 @@ function getClerkErrorMessage(error: unknown) {
     return "Parola nu respectă cerințele de securitate.";
   }
 
+  const providerMessage = `${firstError.message ?? ""} ${firstError.longMessage ?? ""}`;
+  if (
+    firstError.code?.includes("strategy") ||
+    providerMessage.includes("allowed values for parameter strategy")
+  ) {
+    return "Acest furnizor social nu este încă activat pentru autentificare în Clerk.";
+  }
+
   return (
     firstError.longMessage ??
     firstError.message ??

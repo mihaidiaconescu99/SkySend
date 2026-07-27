@@ -36,6 +36,14 @@ function getClerkErrorMessage(error: unknown) {
     return "Nu există un cont pentru această adresă de email.";
   }
 
+  const providerMessage = `${firstError.message ?? ""} ${firstError.longMessage ?? ""}`;
+  if (
+    firstError.code?.includes("strategy") ||
+    providerMessage.includes("allowed values for parameter strategy")
+  ) {
+    return "Acest furnizor social nu este încă activat pentru autentificare în Clerk.";
+  }
+
   return (
     firstError.longMessage ??
     firstError.message ??

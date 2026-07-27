@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  easeMissionFlightProgress,
   getFailureCodeForTimerKind,
+  getMissionFlightSpeedMultiplier,
   getMissionJourneyProgress,
   premiumFailureContent,
 } from "@/lib/mission-progress";
@@ -20,6 +22,24 @@ describe("premium mission progress", () => {
   it("clamps flight progress", () => {
     expect(getMissionJourneyProgress("en_route_to_pickup", -2)).toBe(0);
     expect(getMissionJourneyProgress("en_route_to_dropoff", 4)).toBe(90);
+  });
+});
+
+describe("mission flight motion profile", () => {
+  it("starts and finishes slowly while keeping the midpoint aligned", () => {
+    expect(easeMissionFlightProgress(0)).toBe(0);
+    expect(easeMissionFlightProgress(0.1)).toBeLessThan(0.1);
+    expect(easeMissionFlightProgress(0.5)).toBe(0.5);
+    expect(easeMissionFlightProgress(0.9)).toBeGreaterThan(0.9);
+    expect(easeMissionFlightProgress(1)).toBe(1);
+  });
+
+  it("accelerates through the middle and decelerates near both locations", () => {
+    expect(getMissionFlightSpeedMultiplier(0)).toBeCloseTo(0.6);
+    expect(getMissionFlightSpeedMultiplier(0.1)).toBeLessThan(1);
+    expect(getMissionFlightSpeedMultiplier(0.5)).toBeCloseTo(1.2);
+    expect(getMissionFlightSpeedMultiplier(0.9)).toBeLessThan(1);
+    expect(getMissionFlightSpeedMultiplier(1)).toBeCloseTo(0.6);
   });
 });
 

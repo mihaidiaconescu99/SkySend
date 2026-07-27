@@ -14,6 +14,7 @@ import type { Database } from "@/types/database";
 import type { Order, PricingSnapshot } from "@/types/order";
 import { getOrderIdentifierColumn } from "@/lib/orders/order-identifier";
 import { sendBillingDocumentEmail } from "@/lib/email/resend";
+import { rowToOrder } from "@/lib/repositories/mappers/order-mapper";
 
 const db = (supabase: SupabaseClient<Database>) => supabase as any;
 
@@ -73,6 +74,13 @@ export async function getBillingSnapshotForOrder(
 }
 
 export function buildInvoiceLineItems(pricing: PricingSnapshot) {
+  const hasDeliveryConfigurationAdjustment = pricing.surcharges.some(
+    (item) => item.type === "delivery_config",
+  );
+  const normalizedSurcharges = pricing.surcharges.filter(
+    (item) =>
+      item.type !== "drone_model" || !hasDeliveryConfigurationAdjustment,
+  );
   const items = [
     { code: "base_fee", nameRo: "Serviciu de livrare", nameEn: "Delivery service", amountMinor: pricing.baseFee },
     { code: "distance_fee", nameRo: "Cost distanță", nameEn: "Distance charge", amountMinor: pricing.distanceFee },
@@ -80,7 +88,7 @@ export function buildInvoiceLineItems(pricing: PricingSnapshot) {
     ...(pricing.scheduledAdjustment
       ? [{ code: "scheduled_adjustment", nameRo: "Livrare programată", nameEn: "Scheduled delivery", amountMinor: pricing.scheduledAdjustment }]
       : []),
-    ...pricing.surcharges.map((item) => ({
+    ...normalizedSurcharges.map((item) => ({
       code: item.type,
       nameRo: item.label,
       nameEn: item.label,
@@ -206,6 +214,69 @@ async function generateDocumentPdf(document: any, snapshot: any, order: any) {
 
 const retryMinutes = [0, 5, 30] as const;
 
+async function reconcileMissingPaidOrderInvoices(
+  supabase: SupabaseClient<Database>,
+) {
+  const database = db(supabase);
+  const { data: paidOrders, error: ordersError } = await database
+    .from("orders")
+    .select("*")
+    .in("payment_status", ["paid", "partially_refunded", "refunded", "refund_pending"])
+    .order("created_at", { ascending: true })
+    .limit(200);
+  if (ordersError) throw new Error(ordersError.message);
+  if (!paidOrders?.length) return { scanned: 0, created: 0, failed: 0 };
+
+  const orderIds = paidOrders.map((order: any) => order.id);
+  const [{ data: documents, error: documentsError }, { data: snapshots, error: snapshotsError }] =
+    await Promise.all([
+      database
+        .from("billing_documents")
+        .select("order_id")
+        .eq("document_type", "invoice")
+        .in("order_id", orderIds),
+      database
+        .from("order_billing_snapshots")
+        .select("order_id")
+        .in("order_id", orderIds),
+    ]);
+  if (documentsError) throw new Error(documentsError.message);
+  if (snapshotsError) throw new Error(snapshotsError.message);
+
+  const documentedOrderIds = new Set(
+    (documents ?? []).map((document: any) => document.order_id),
+  );
+  const snapshotOrderIds = new Set(
+    (snapshots ?? []).map((snapshot: any) => snapshot.order_id),
+  );
+  const missing = paidOrders.filter(
+    (order: any) =>
+      snapshotOrderIds.has(order.id) && !documentedOrderIds.has(order.id),
+  );
+  let created = 0;
+  let failed = 0;
+
+  for (const row of missing) {
+    try {
+      await ensureInvoiceDocument(
+        supabase,
+        rowToOrder(row),
+        { provider: "Stripe" },
+      );
+      created += 1;
+    } catch (error) {
+      failed += 1;
+      console.error(
+        "[billing] paid order invoice reconciliation failed",
+        row.local_order_id,
+        error,
+      );
+    }
+  }
+
+  return { scanned: paidOrders.length, created, failed };
+}
+
 async function deliverGeneratedDocument(database: any, document: any, bytes: Uint8Array) {
   const confirmation = document.document_type === "invoice"
     ? await database.from("order_communication_events")
@@ -263,6 +334,7 @@ export async function processDueBillingDocuments(
   now = new Date(),
 ) {
   const database = db(supabase);
+  const reconciled = await reconcileMissingPaidOrderInvoices(supabase);
   const { data: documents, error } = await database.from("billing_documents")
     .select("*,order:orders(*),snapshot:order_billing_snapshots(*),original:billing_documents!original_document_id(document_number)")
     .in("generation_status", ["pending", "retry_scheduled"])
@@ -335,7 +407,13 @@ export async function processDueBillingDocuments(
       }).eq("id", document.id);
     }
   }
-  return { scanned: documents?.length ?? 0, ready, failed, deliveryRetried: deliveryRetries.length };
+  return {
+    scanned: documents?.length ?? 0,
+    ready,
+    failed,
+    deliveryRetried: deliveryRetries.length,
+    reconciled,
+  };
 }
 
 export async function listBillingDocumentsForOwnedOrder(

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { getOwnedCheckoutSession } from "@/lib/checkout/server";
+import {
+  getOwnedCheckoutSession,
+  toOrderPricingSnapshot,
+} from "@/lib/checkout/server";
+import { calculateSkySendPricing } from "@/lib/pricing";
+import { deliveryConfigurations } from "@/constants/delivery-configurations";
 
 function checkoutQuery() {
   const selectedStatuses: string[][] = [];
@@ -42,5 +47,31 @@ describe("getOwnedCheckoutSession", () => {
     await getOwnedCheckoutSession(client as never, "profile_test");
 
     expect(selectedStatuses[0]).toContain("finalization_failed");
+  });
+});
+
+describe("toOrderPricingSnapshot", () => {
+  it("includes a configured route adjustment exactly once in invoice line items", () => {
+    const configuration = deliveryConfigurations[0];
+    const pricing = calculateSkySendPricing({
+      distanceKm: 4,
+      selectedDroneId: configuration.mappedDroneClass,
+      deliveryConfiguration: configuration,
+      dispatchTiming: "standard",
+      fragilityLevel: "low",
+    });
+
+    const snapshot = toOrderPricingSnapshot(pricing);
+    const lineTotal =
+      snapshot.baseFee +
+      snapshot.distanceFee +
+      snapshot.dispatchAdjustment +
+      (snapshot.scheduledAdjustment ?? 0) +
+      snapshot.surcharges.reduce((sum, surcharge) => sum + surcharge.amount, 0);
+
+    expect(snapshot.surcharges.filter((item) =>
+      item.type === "delivery_config" || item.type === "drone_model"
+    )).toHaveLength(1);
+    expect(lineTotal).toBe(snapshot.total);
   });
 });
